@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { BookOpen, Award, PlayCircle, Lock, Download, AlertTriangle, EyeOff, FileText } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 // Mock student profile & content
 const student = {
@@ -41,10 +43,23 @@ const student = {
   ]
 };
 
+import { useNavigate } from "react-router-dom";
+
 const DashboardEleve = () => {
+  const navigate = useNavigate();
   const [selectedVideo, setSelectedVideo] = useState<string>("v1");
   const [activeCourse] = useState(student.courses[0]);
   const [isSecure, setIsSecure] = useState<boolean>(true);
+
+  // Auth Protection
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        toast.error("Veuillez vous connecter pour accéder à l'espace élève.");
+        navigate("/auth");
+      }
+    });
+  }, [navigate]);
 
   // Anti-capture mechanism: Detect tab switching or window losing focus
   useEffect(() => {

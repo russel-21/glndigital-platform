@@ -21,6 +21,9 @@ import NotFound from "./pages/NotFound";
 import Portfolio from "./pages/Portfolio";
 import Admin from "./pages/Admin";
 
+import Auth from "./pages/Auth";
+import AuthCallback from "./pages/AuthCallback";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -32,6 +35,8 @@ const App = () => (
         <Navbar />
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/auth-callback" element={<AuthCallback />} />
           <Route path="/a-propos" element={<About />} />
           <Route path="/services" element={<Services />} />
           <Route path="/formations" element={<Formations />} />
