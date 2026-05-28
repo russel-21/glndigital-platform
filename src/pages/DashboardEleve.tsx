@@ -89,17 +89,6 @@ const DashboardEleve = () => {
 
   return (
     <div className="min-h-screen pt-24 pb-16 bg-background relative select-none">
-      {/* Anti-Capture Overlay when window loses focus */}
-      {!isSecure && (
-        <div className="fixed inset-0 z-[999] bg-black/95 backdrop-blur-md flex flex-col items-center justify-center text-center p-6">
-          <EyeOff className="w-16 h-16 text-primary mb-4 animate-pulse" />
-          <h2 className="font-heading text-2xl font-bold text-foreground">Écran protégé par GLN DIGITAL</h2>
-          <p className="text-muted-foreground mt-2 max-w-sm">
-            L'enregistrement ou la capture d'écran est bloqué. Veuillez revenir sur la page de cours active pour continuer.
-          </p>
-        </div>
-      )}
-
       <div className="container mx-auto px-4 md:px-8">
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
@@ -120,6 +109,17 @@ const DashboardEleve = () => {
           {/* Main Content Area (Video Player & Info) */}
           <div className="lg:col-span-2 space-y-6">
             <div className="relative aspect-video rounded-3xl overflow-hidden bg-black border border-border/60">
+              {/* Anti-Capture Overlay inside the video player */}
+              {!isSecure && (
+                <div className="absolute inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col items-center justify-center text-center p-6">
+                  <EyeOff className="w-12 h-12 text-primary mb-3 animate-pulse" />
+                  <h3 className="font-heading text-lg font-bold text-foreground">Lecteur Sécurisé GLN DIGITAL</h3>
+                  <p className="text-[10px] text-muted-foreground mt-1 max-w-xs">
+                    Veuillez revenir sur l'onglet actif pour reprendre la lecture de votre vidéo.
+                  </p>
+                </div>
+              )}
+
               {/* Dynamic Watermark to deter recording */}
               <div className="absolute inset-0 pointer-events-none z-10 flex flex-col justify-between p-6 select-none opacity-[0.03] text-foreground font-semibold text-sm">
                 <div className="flex justify-between">
