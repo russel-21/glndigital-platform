@@ -43,7 +43,7 @@ const Navbar = () => {
             </Link>
           ))}
           <Link
-            to="/eleve-dashboard"
+            to="/auth"
             className="text-xs font-semibold px-3 py-1.5 rounded-md border border-primary/30 text-primary hover:bg-primary/10 transition-colors"
           >
             Espace Élève
@@ -85,7 +85,7 @@ const Navbar = () => {
                 </Link>
               ))}
               <Link
-                to="/eleve-dashboard"
+                to="/auth"
                 onClick={() => setOpen(false)}
                 className="text-sm font-semibold py-2 text-primary border-t border-border/20 mt-1"
               >

@@ -24,8 +24,24 @@ const partner = {
   ]
 };
 
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
 const DashboardPartenaire = () => {
+  const navigate = useNavigate();
   const [copied, setCopied] = useState<boolean>(false);
+
+  // Auth Protection
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        toast.error("Veuillez vous connecter pour accéder à l'espace partenaire.");
+        navigate("/auth");
+      }
+    });
+  }, [navigate]);
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(partner.link);
