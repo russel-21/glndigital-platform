@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { BookOpen, Award, PlayCircle, Lock, Download, AlertTriangle, EyeOff } from "lucide-react";
+import { BookOpen, Award, PlayCircle, Lock, Download, AlertTriangle, EyeOff, FileText } from "lucide-react";
 
 // Mock student profile & content
 const student = {
