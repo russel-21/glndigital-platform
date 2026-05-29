@@ -13,6 +13,7 @@ const Auth = () => {
   const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [showGoogleModal, setShowGoogleModal] = useState(false);
+  const [simulatedEmail, setSimulatedEmail] = useState("russel@glndigital.com");
 
   // Form Fields
   const [email, setEmail] = useState("");
@@ -106,15 +107,6 @@ const Auth = () => {
   };
 
   const triggerOfficialGoogle = async () => {
-    const isGoogleConfigured = window.confirm(
-      "ATTENTION : La connexion Google officielle nécessite que vous ayez préalablement configuré les identifiants OAuth Google (Client ID & Client Secret) dans la console Supabase sous Authentication -> Providers -> Google.\n\nSans cette configuration, vous obtiendrez l'erreur Supabase 'Unsupported provider'.\n\nVoulez-vous continuer vers la connexion officielle Google ? (Sélectionnez Annuler pour utiliser la simulation immédiate)."
-    );
-    
-    if (!isGoogleConfigured) {
-      triggerSimulatedGoogle();
-      return;
-    }
-
     setShowGoogleModal(false);
     try {
       setLoading(true);
@@ -127,40 +119,38 @@ const Auth = () => {
       if (error) throw error;
     } catch (e: any) {
       toast.error("Connexion Google officielle échouée. Utilisation automatique du mode simulation.");
-      triggerSimulatedGoogle();
+      triggerSimulatedGoogle(simulatedEmail);
     } finally {
       setLoading(false);
     }
   };
 
-  const triggerSimulatedGoogle = async () => {
-    setShowGoogleModal(false);
-    const simulatedEmail = prompt(
-      "Simulation Google Sign-In :\nSaisissez votre e-mail Google pour vous connecter :",
-      "russel@glndigital.com"
-    );
-    if (simulatedEmail) {
-      setLoading(true);
-      if (simulatedEmail === "russel@glndigital.com") {
-        localStorage.setItem("gln_mock_admin_session", "true");
-        if (rememberMe) {
-          localStorage.setItem("gln_trust_device", "true");
-        }
-        localStorage.setItem("gln_mock_admin_current_role", "admin");
-        toast.success("Connecté via Google (Simulation Super-Admin) !");
-        await redirectUser("admin-mock-id-0000-000000000000");
-      } else {
-        localStorage.setItem("gln_mock_user_session", "true");
-        localStorage.setItem("gln_mock_user_email", simulatedEmail);
-        localStorage.setItem("gln_mock_user_name", simulatedEmail.split('@')[0]);
-        if (rememberMe) {
-          localStorage.setItem("gln_trust_device", "true");
-        }
-        toast.success(`Connecté via Google (${simulatedEmail}) !`);
-        navigate("/auth-callback");
-      }
-      setLoading(false);
+  const triggerSimulatedGoogle = async (emailToUse: string) => {
+    if (!emailToUse || !emailToUse.includes("@")) {
+      toast.error("Veuillez saisir un e-mail valide.");
+      return;
     }
+    setShowGoogleModal(false);
+    setLoading(true);
+    if (emailToUse === "russel@glndigital.com") {
+      localStorage.setItem("gln_mock_admin_session", "true");
+      if (rememberMe) {
+        localStorage.setItem("gln_trust_device", "true");
+      }
+      localStorage.setItem("gln_mock_admin_current_role", "admin");
+      toast.success("Connecté via Google (Simulation Super-Admin) !");
+      await redirectUser("admin-mock-id-0000-000000000000");
+    } else {
+      localStorage.setItem("gln_mock_user_session", "true");
+      localStorage.setItem("gln_mock_user_email", emailToUse);
+      localStorage.setItem("gln_mock_user_name", emailToUse.split('@')[0]);
+      if (rememberMe) {
+        localStorage.setItem("gln_trust_device", "true");
+      }
+      toast.success(`Connecté via Google (${emailToUse}) !`);
+      navigate("/auth-callback");
+    }
+    setLoading(false);
   };
 
   // Email Sign-In & Sign-Up
@@ -551,25 +541,36 @@ const Auth = () => {
               <div className="text-center">
                 <h3 className="font-heading text-lg font-extrabold">Connexion / Inscription Google</h3>
                 <p className="text-xs text-muted-foreground mt-2">
-                  Choisissez le mode de connexion pour tester ou accéder à la plateforme.
+                  Choisissez ou simulez le compte de connexion Google pour accéder à la plateforme.
                 </p>
               </div>
 
               <div className="space-y-4">
+                <div className="space-y-1.5 text-left">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase block">Adresse E-mail Google (Simulation)</label>
+                  <input
+                    type="email"
+                    value={simulatedEmail}
+                    onChange={(e) => setSimulatedEmail(e.target.value)}
+                    className="w-full bg-secondary border border-border rounded-xl px-3 py-2 text-xs text-foreground focus:outline-none focus:border-primary"
+                    placeholder="russel@glndigital.com"
+                  />
+                </div>
+
                 <button
-                  onClick={triggerSimulatedGoogle}
+                  onClick={() => triggerSimulatedGoogle(simulatedEmail)}
                   className="w-full bg-primary text-primary-foreground py-3 px-4 rounded-xl font-bold text-xs transition-all hover:opacity-90 shadow-glow flex items-center justify-center gap-2"
                 >
                   <Chrome className="w-4 h-4" />
-                  Simulation de test (Immédiat et Recommandé)
+                  Simulation de test (Immédiat)
                 </button>
-                <p className="text-[10px] text-muted-foreground text-center -mt-2 px-1">
-                  Recommandé pour tester toutes les fonctionnalités sans configuration.
+                <p className="text-[9px] text-muted-foreground text-center -mt-2 px-1">
+                  Recommandé pour tester instantanément tous les espaces (Élève, Partenaire, Admin).
                 </p>
 
                 <div className="relative flex items-center justify-center py-1">
                   <div className="absolute inset-x-0 h-[1px] bg-border/40" />
-                  <span className="relative bg-card px-2 text-[9px] text-muted-foreground uppercase font-bold">Ou</span>
+                  <span className="relative bg-card px-2 text-[9px] text-muted-foreground uppercase font-bold">Ou utiliser la vraie connexion</span>
                 </div>
 
                 <button
@@ -580,7 +581,7 @@ const Auth = () => {
                   Connexion Officielle Google
                 </button>
                 <p className="text-[9px] text-red-400 text-center -mt-2 px-1">
-                  Attention : Nécessite que le fournisseur Google soit activé et configuré avec Client ID/Secret sur votre console Supabase.
+                  Nécessite d'avoir activé le fournisseur Google sur votre console Supabase.
                 </p>
               </div>
 
