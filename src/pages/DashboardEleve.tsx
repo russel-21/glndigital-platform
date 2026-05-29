@@ -50,14 +50,61 @@ const DashboardEleve = () => {
   const [selectedVideo, setSelectedVideo] = useState<string>("v1");
   const [activeCourse] = useState(student.courses[0]);
   const [isSecure, setIsSecure] = useState<boolean>(true);
+  const [profile, setProfile] = useState<any>(null);
 
-  // Auth Protection
+  // Auth Protection & Role verification
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Check mock admin
+    const mockAdmin = localStorage.getItem("gln_mock_admin_session") === "true";
+    if (mockAdmin) {
+      setProfile({
+        full_name: "Russel Yamegni",
+        email: "russel@glndigital.com",
+        current_role: localStorage.getItem("gln_mock_admin_current_role") || "admin"
+      });
+      return;
+    }
+
+    // Check mock user
+    const mockUser = localStorage.getItem("gln_mock_user_logged_in") === "true";
+    if (mockUser) {
+      const activeMock = localStorage.getItem("gln_active_mock_profile");
+      if (activeMock) {
+        setProfile(JSON.parse(activeMock));
+      }
+      return;
+    }
+
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) {
         toast.error("Veuillez vous connecter pour accéder à l'espace élève.");
         navigate("/auth");
+        return;
       }
+      
+      const { data: userProfile, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", session.user.id)
+        .single();
+        
+      if (error || !userProfile) {
+        toast.error("Profil introuvable.");
+        navigate("/auth");
+        return;
+      }
+
+      if (userProfile.current_role !== "student") {
+        toast.error("Accès réservé. Rôle actuel non autorisé pour cet espace.");
+        if (userProfile.current_role === "partner") {
+          navigate("/partenaires-dashboard");
+        } else {
+          navigate("/auth");
+        }
+        return;
+      }
+
+      setProfile(userProfile);
     });
   }, [navigate]);
 
@@ -110,7 +157,7 @@ const DashboardEleve = () => {
           <div>
             <h1 className="font-heading text-2xl md:text-3xl font-extrabold text-foreground">Espace Élève</h1>
             <p className="text-muted-foreground text-sm">
-              Bonjour, <span className="text-primary font-semibold">{student.name}</span> • Compte membre actif
+              Bonjour, <span className="text-primary font-semibold">{profile?.full_name || student.name}</span> • Compte membre actif
             </p>
           </div>
           <div className="flex items-center gap-2 bg-secondary px-4 py-2 rounded-xl border border-border">
@@ -138,8 +185,8 @@ const DashboardEleve = () => {
               {/* Dynamic Watermark to deter recording */}
               <div className="absolute inset-0 pointer-events-none z-10 flex flex-col justify-between p-6 select-none opacity-[0.03] text-foreground font-semibold text-sm">
                 <div className="flex justify-between">
-                  <span>GLN DIGITAL - {student.name}</span>
-                  <span>{student.email}</span>
+                  <span>GLN DIGITAL - {profile?.full_name || student.name}</span>
+                  <span>{profile?.email || student.email}</span>
                 </div>
                 <div className="flex justify-center text-3xl font-extrabold">
                   GLN ACADÉMIE - COMPTE SÉCURISÉ

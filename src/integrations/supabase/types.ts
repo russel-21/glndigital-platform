@@ -110,6 +110,50 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          id: string
+          email: string
+          full_name: string
+          phone: string
+          company_name: string | null
+          roles: string[]
+          current_role: string
+          active_sessions: string[]
+          created_at: string
+        }
+        Insert: {
+          id: string
+          email: string
+          full_name: string
+          phone: string
+          company_name?: string | null
+          roles?: string[]
+          current_role?: string
+          active_sessions?: string[]
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          email?: string
+          full_name?: string
+          phone?: string
+          company_name?: string | null
+          roles?: string[]
+          current_role?: string
+          active_sessions?: string[]
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never

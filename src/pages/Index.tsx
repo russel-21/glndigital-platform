@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { ArrowRight, BarChart3, Target, Users, Zap, TrendingUp, CheckCircle2, MessageCircle, Play, GraduationCap } from "lucide-react";
+import { useLanguage } from "@/hooks/useLanguage";
 import heroBg from "@/assets/hero-bg.jpg";
 import TestimonialsSection from "@/components/TestimonialsSection";
 import PortfolioSection from "@/components/PortfolioSection";
@@ -88,60 +89,62 @@ const steps = [
   { step: "04", name: "Optimisation continue", desc: "Analyse des chiffres, reporting et amélioration constante des performances." }
 ];
 
-const Index = () => (
-  <div className="min-h-screen pt-16 md:pt-20">
-    {/* Hero Section */}
-    <section className="relative min-h-[90vh] flex items-center overflow-hidden">
-      <div className="absolute inset-0">
-        <img src={heroBg} alt="" className="w-full h-full object-cover opacity-30" />
-        <div className="absolute inset-0 bg-gradient-to-b from-background/95 via-background/80 to-background" />
-      </div>
+const Index = () => {
+  const { t } = useLanguage();
+  return (
+    <div className="min-h-screen pt-16 md:pt-20">
+      {/* Hero Section */}
+      <section className="relative min-h-[90vh] flex items-center overflow-hidden">
+        <div className="absolute inset-0">
+          <img src={heroBg} alt="" className="w-full h-full object-cover opacity-30" />
+          <div className="absolute inset-0 bg-gradient-to-b from-background/95 via-background/80 to-background" />
+        </div>
 
-      <div className="container relative mx-auto px-4 md:px-8 py-16">
-        <motion.div
-          className="max-w-4xl"
-          initial="hidden"
-          animate="visible"
-          variants={{ visible: { transition: { staggerChildren: 0.1 } } }}
-        >
-          <motion.div variants={fadeUp} className="inline-block mb-6">
-            <span className="bg-primary/10 text-primary text-xs font-semibold px-4 py-1.5 rounded-full border border-primary/20 tracking-wider uppercase">
-              Écosystème de croissance digitale • Cameroun & International
-            </span>
-          </motion.div>
+        <div className="container relative mx-auto px-4 md:px-8 py-16">
+          <motion.div
+            className="max-w-4xl"
+            initial="hidden"
+            animate="visible"
+            variants={{ visible: { transition: { staggerChildren: 0.1 } } }}
+          >
+            <motion.div variants={fadeUp} className="inline-block mb-6">
+              <span className="bg-primary/10 text-primary text-xs font-semibold px-4 py-1.5 rounded-full border border-primary/20 tracking-wider uppercase">
+                {t("hero.badge")}
+              </span>
+            </motion.div>
 
-          <motion.h1 variants={fadeUp} className="font-heading text-4xl md:text-6xl font-bold leading-tight mb-6">
-            Nous transformons votre présence digitale en{" "}
-            <span className="text-gradient-primary">clients réels</span>.
-          </motion.h1>
+            <motion.h1 variants={fadeUp} className="font-heading text-4xl md:text-6xl font-bold leading-tight mb-6">
+              {t("hero.title_part1")}{" "}
+              <span className="text-gradient-primary">{t("hero.title_part2")}</span>.
+            </motion.h1>
 
-          <motion.p variants={fadeUp} className="text-lg md:text-xl text-muted-foreground mb-8 max-w-3xl leading-relaxed">
-            Marketing digital, gestion des réseaux sociaux, publicité Meta Ads et création de sites web performants pour entreprises ambitieuses au Cameroun et à l'international.
-          </motion.p>
+            <motion.p variants={fadeUp} className="text-lg md:text-xl text-muted-foreground mb-8 max-w-3xl leading-relaxed">
+              {t("hero.description")}
+            </motion.p>
 
-          <motion.div variants={fadeUp} className="flex flex-wrap gap-4 mb-10">
-            <a
-              href="https://wa.me/237692062677"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="bg-primary text-primary-foreground px-8 py-4 rounded-lg font-semibold flex items-center gap-2 hover:opacity-90 transition-opacity shadow-glow"
-            >
-              <MessageCircle className="w-5 h-5 fill-current" />
-              Parler sur WhatsApp
-            </a>
-            <Link
-              to="/contact"
-              className="border border-border bg-secondary/50 text-foreground px-8 py-4 rounded-lg font-semibold hover:bg-secondary transition-colors"
-            >
-              Demander mon audit gratuit
-            </Link>
-            <Link
-              to="/formations"
-              className="border border-primary/30 text-primary px-8 py-4 rounded-lg font-semibold hover:bg-primary/10 transition-colors flex items-center gap-2"
-            >
-              <GraduationCap className="w-5 h-5" />
-              Découvrir les formations
-            </Link>
+            <motion.div variants={fadeUp} className="flex flex-wrap gap-4 mb-10">
+              <a
+                href="https://wa.me/237692062677"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-primary text-primary-foreground px-8 py-4 rounded-lg font-semibold flex items-center gap-2 hover:opacity-90 transition-opacity shadow-glow"
+              >
+                <MessageCircle className="w-5 h-5 fill-current" />
+                {t("services.cta")}
+              </a>
+              <Link
+                to="/contact"
+                className="border border-border bg-secondary/50 text-foreground px-8 py-4 rounded-lg font-semibold hover:bg-secondary transition-colors"
+              >
+                {t("hero.cta_audit")}
+              </Link>
+              <Link
+                to="/formations"
+                className="border border-primary/30 text-primary px-8 py-4 rounded-lg font-semibold hover:bg-primary/10 transition-colors flex items-center gap-2"
+              >
+                <GraduationCap className="w-5 h-5" />
+                {t("hero.cta_courses")}
+              </Link>
           </motion.div>
         </motion.div>
       </div>
@@ -359,7 +362,8 @@ const Index = () => (
         </div>
       </div>
     </section>
-  </div>
-);
+    </div>
+  );
+};
 
 export default Index;
