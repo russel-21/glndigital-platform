@@ -73,7 +73,7 @@ const Navbar = () => {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [location.pathname]);
 
   const fetchProfile = async (userId: string) => {
     if (userId === "admin-mock-id-0000-000000000000") {

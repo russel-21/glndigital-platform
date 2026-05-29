@@ -16,6 +16,13 @@ const Admin = () => {
   const [authenticated, setAuthenticated] = useState(false);
   const queryClient = useQueryClient();
 
+  useEffect(() => {
+    const isMockAdmin = localStorage.getItem("gln_mock_admin_session") === "true";
+    if (isMockAdmin) {
+      setAuthenticated(true);
+    }
+  }, []);
+
   const handleLogin = async () => {
     try {
       const { data } = await supabase
