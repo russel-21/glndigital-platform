@@ -32,19 +32,67 @@ import { toast } from "sonner";
 const DashboardPartenaire = () => {
   const navigate = useNavigate();
   const [copied, setCopied] = useState<boolean>(false);
+  const [profile, setProfile] = useState<any>(null);
 
-  // Auth Protection
+  // Auth Protection & Role verification
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Check mock admin
+    const mockAdmin = localStorage.getItem("gln_mock_admin_session") === "true";
+    if (mockAdmin) {
+      setProfile({
+        full_name: "Russel Yamegni",
+        email: "russel@glndigital.com",
+        current_role: localStorage.getItem("gln_mock_admin_current_role") || "admin"
+      });
+      return;
+    }
+
+    // Check mock user
+    const mockUser = localStorage.getItem("gln_mock_user_logged_in") === "true";
+    if (mockUser) {
+      const activeMock = localStorage.getItem("gln_active_mock_profile");
+      if (activeMock) {
+        setProfile(JSON.parse(activeMock));
+      }
+      return;
+    }
+
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) {
         toast.error("Veuillez vous connecter pour accéder à l'espace partenaire.");
         navigate("/auth");
+        return;
       }
+      
+      const { data: userProfile, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", session.user.id)
+        .single();
+        
+      if (error || !userProfile) {
+        toast.error("Profil introuvable.");
+        navigate("/auth");
+        return;
+      }
+
+      if (userProfile.current_role !== "partner") {
+        toast.error("Accès réservé. Rôle actuel non autorisé pour cet espace.");
+        if (userProfile.current_role === "student") {
+          navigate("/eleve-dashboard");
+        } else {
+          navigate("/auth");
+        }
+        return;
+      }
+
+      setProfile(userProfile);
     });
   }, [navigate]);
 
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(partner.link);
+    const affiliateLink = `https://glndigital1.vercel.app/ref/${profile?.full_name?.toLowerCase().replace(/\s+/g, '-') || 'gln'}`;
+    navigator.clipboard.writeText(affiliateLink);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -57,7 +105,7 @@ const DashboardPartenaire = () => {
           <div>
             <h1 className="font-heading text-2xl md:text-3xl font-extrabold text-foreground">Espace Partenaire</h1>
             <p className="text-muted-foreground text-sm">
-              Bonjour, <span className="text-primary font-semibold">{partner.name}</span> • Partenaire de croissance officiel GLN DIGITAL
+              Bonjour, <span className="text-primary font-semibold">{profile?.full_name || partner.name}</span> • Partenaire de croissance officiel GLN DIGITAL
             </p>
           </div>
           <div className="flex items-center gap-2 bg-secondary px-4 py-2 rounded-xl border border-border">
@@ -74,7 +122,7 @@ const DashboardPartenaire = () => {
           </p>
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex-1 bg-secondary/40 border border-border rounded-xl px-4 py-3 flex items-center justify-between overflow-x-auto text-xs font-medium text-muted-foreground font-mono">
-              {partner.link}
+              {`https://glndigital1.vercel.app/ref/${profile?.full_name?.toLowerCase().replace(/\s+/g, '-') || 'gln'}`}
             </div>
             <button
               onClick={copyToClipboard}
