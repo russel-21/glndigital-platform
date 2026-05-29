@@ -58,7 +58,7 @@ const Auth = () => {
           .single();
 
         if (error || !data) {
-          navigate("/eleve-dashboard");
+          navigate("/auth-callback");
           return;
         }
         profile = data;
@@ -292,7 +292,8 @@ const Auth = () => {
           throw e;
         }
       }
-      toast.error((e as Error).message);
+    } catch (err: any) {
+      toast.error(err.message || "Une erreur est survenue.");
     } finally {
       setLoading(false);
     }
