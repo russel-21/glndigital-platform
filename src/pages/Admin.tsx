@@ -166,7 +166,7 @@ function TestimonialsAdmin({ queryClient }: { queryClient: any }) {
       </Card>
 
       <div className="space-y-3">
-        {testimonials.map((t: any) => (
+        {(testimonials || []).map((t: any) => (
           <div key={t.id} className="flex items-start gap-4 p-4 rounded-xl bg-card border border-border">
             <div className="flex-1">
               <p className="font-semibold text-foreground">{t.client_name}</p>
@@ -337,7 +337,7 @@ function MediaAdmin({ queryClient }: { queryClient: any }) {
       </Card>
 
       <div className="space-y-3">
-        {media.map((m: any) => (
+        {(media || []).map((m: any) => (
           <div key={m.id} className="flex items-center gap-4 p-4 rounded-xl bg-card border border-border">
             <div className="flex-1">
               <p className="font-semibold text-foreground text-sm">{m.title}</p>
