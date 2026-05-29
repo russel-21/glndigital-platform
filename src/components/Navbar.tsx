@@ -80,8 +80,8 @@ const Navbar = () => {
       setProfile({
         id: "admin-mock-id-0000-000000000000",
         email: "russel@glndigital.com",
-        full_name: "Russel Yamegni",
-        phone: "+237692062677",
+        full_name: "Super Admin",
+        phone: "+237 000 000 000",
         roles: ["admin", "super_admin", "student", "partner"],
         current_role: localStorage.getItem("gln_mock_admin_current_role") || "admin",
         active_sessions: []

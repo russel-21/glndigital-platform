@@ -22,7 +22,8 @@ const AuthCallback = () => {
 
   // Form profile completion fields
   const [fullName, setFullName] = useState("");
-  const [phone, setPhone] = useState("");
+  const [countryCode, setCountryCode] = useState("+237");
+  const [phoneLocal, setPhoneLocal] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [role, setRole] = useState<"student" | "partner">("student");
   const [needsCompletion, setNeedsCompletion] = useState(false);
@@ -40,7 +41,7 @@ const AuthCallback = () => {
         }
       });
       setFullName(localStorage.getItem("gln_mock_user_name") || email.split('@')[0]);
-      setPhone("");
+      setPhoneLocal("");
       setCompanyName("");
       setNeedsCompletion(true);
       setLoading(false);
@@ -61,7 +62,20 @@ const AuthCallback = () => {
 
         if (error || !profile || !profile.full_name || !profile.phone) {
           setFullName(session.user.user_metadata?.full_name || "");
-          setPhone(session.user.user_metadata?.phone || "");
+          
+          const rawPhone = session.user.user_metadata?.phone || "";
+          if (rawPhone.startsWith("+")) {
+            const match = rawPhone.match(/^(\+[0-9]{1,4})\s*(.*)$/);
+            if (match) {
+              setCountryCode(match[1]);
+              setPhoneLocal(match[2]);
+            } else {
+              setPhoneLocal(rawPhone);
+            }
+          } else {
+            setPhoneLocal(rawPhone);
+          }
+          
           setCompanyName(session.user.user_metadata?.company_name || "");
           setNeedsCompletion(true);
           setLoading(false);
@@ -108,9 +122,9 @@ const AuthCallback = () => {
   const handleCompleteProfile = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Verify phone with country code
-    if (!/^\+[0-9\s-]{10,18}$/.test(phone)) {
-      toast.error("Numéro invalide. Vous devez inclure le code exact du pays (Ex: +237 pour le Cameroun).");
+    const fullPhone = `${countryCode} ${phoneLocal.trim()}`;
+    if (!/^[0-9\s-]{6,15}$/.test(phoneLocal.trim())) {
+      toast.error("Veuillez saisir un numéro de téléphone local valide.");
       return;
     }
 
@@ -125,7 +139,7 @@ const AuthCallback = () => {
           id: "user-mock-id-0000-000000000000",
           email: sessionUser.email,
           full_name: fullName,
-          phone: phone,
+          phone: fullPhone,
           company_name: companyName,
           roles: [role],
           current_role: role,
@@ -138,7 +152,7 @@ const AuthCallback = () => {
           id: sessionUser.id,
           email: sessionUser.email,
           full_name: fullName,
-          phone: phone,
+          phone: fullPhone,
           company_name: companyName,
           roles: [role],
           current_role: role,
@@ -197,49 +211,61 @@ const AuthCallback = () => {
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   className="w-full bg-secondary border border-border rounded-xl pl-10 pr-4 py-2.5 text-xs text-foreground focus:outline-none focus:border-primary"
-                  placeholder="Ex: Russel Yamegni"
+                  placeholder="Ex: Jean Dupont"
                 />
               </div>
             </div>
 
             <div>
-              <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1.5 block">Téléphone avec code pays (Ex: +237 692062677)</label>
-              <div className="relative">
-                <Phone className="absolute left-3.5 top-3 w-4 h-4 text-muted-foreground" />
-                <input
-                  type="tel"
-                  required
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="w-full bg-secondary border border-border rounded-xl pl-10 pr-4 py-2.5 text-xs text-foreground focus:outline-none focus:border-primary"
-                  placeholder="+237 692 062 677"
-                />
+              <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1.5 block">Téléphone</label>
+              <div className="flex gap-2">
+                <select
+                  value={countryCode}
+                  onChange={(e) => setCountryCode(e.target.value)}
+                  className="bg-secondary border border-border rounded-xl px-2 py-2.5 text-xs text-foreground focus:outline-none focus:border-primary"
+                >
+                  <option value="+237">+237 (CM)</option>
+                  <option value="+33">+33 (FR)</option>
+                  <option value="+225">+225 (CI)</option>
+                  <option value="+221">+221 (SN)</option>
+                  <option value="+242">+242 (CG)</option>
+                  <option value="+243">+243 (CD)</option>
+                  <option value="+229">+229 (BJ)</option>
+                  <option value="+228">+228 (TG)</option>
+                  <option value="+241">+241 (GA)</option>
+                  <option value="+235">+235 (TD)</option>
+                  <option value="+226">+226 (BF)</option>
+                  <option value="+212">+212 (MA)</option>
+                  <option value="+213">+213 (DZ)</option>
+                  <option value="+216">+216 (TN)</option>
+                  <option value="+1">+1 (US/CA)</option>
+                  <option value="+44">+44 (UK)</option>
+                  <option value="+32">+32 (BE)</option>
+                  <option value="+41">+41 (CH)</option>
+                </select>
+                <div className="relative flex-1">
+                  <Phone className="absolute left-3.5 top-3 w-4 h-4 text-muted-foreground" />
+                  <input
+                    type="tel"
+                    required
+                    value={phoneLocal}
+                    onChange={(e) => setPhoneLocal(e.target.value)}
+                    className="w-full bg-secondary border border-border rounded-xl pl-10 pr-4 py-2.5 text-xs text-foreground focus:outline-none focus:border-primary"
+                    placeholder="6xx xxx xxx"
+                  />
+                </div>
               </div>
             </div>
 
             <div>
-              <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1.5 block">Nom de l'entreprise (Prestations & Facturation)</label>
-              <div className="relative">
-                <Building className="absolute left-3.5 top-3 w-4 h-4 text-muted-foreground" />
-                <input
-                  type="text"
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
-                  className="w-full bg-secondary border border-border rounded-xl pl-10 pr-4 py-2.5 text-xs text-foreground focus:outline-none focus:border-primary"
-                  placeholder="GLN Digital"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1.5 block">Rôle principal</label>
+              <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1.5 block">Votre Rôle</label>
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value as "student" | "partner")}
                 className="w-full bg-secondary border border-border rounded-xl px-4 py-2.5 text-xs text-foreground focus:outline-none focus:border-primary"
               >
-                <option value="student">Élève / Étudiant (Accès cours)</option>
-                <option value="partner">Partenaire / Closer (Réseau commercial)</option>
+                <option value="student">Apprendre</option>
+                <option value="partner">Partenaire</option>
               </select>
             </div>
 

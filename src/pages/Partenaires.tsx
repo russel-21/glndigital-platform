@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Award, ShieldCheck, Star, Users, ArrowRight, BookOpen, UserCheck, MessageCircle } from "lucide-react";
+import { toast } from "sonner";
 
 const partnerTypes = [
   {
@@ -37,6 +38,8 @@ const partnerTypes = [
 ];
 
 const Partenaires = () => {
+  const [countryCode, setCountryCode] = useState("+237");
+  const [phoneLocal, setPhoneLocal] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
@@ -48,6 +51,11 @@ const Partenaires = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!/^[0-9\s-]{6,15}$/.test(phoneLocal.trim())) {
+      toast.error("Veuillez saisir un numéro de téléphone local valide.");
+      return;
+    }
+    formData.phone = `${countryCode} ${phoneLocal.trim()}`;
     setSubmitted(true);
   };
 
@@ -161,14 +169,40 @@ const Partenaires = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs font-semibold text-muted-foreground block mb-1">Téléphone (WhatsApp)</label>
-                    <input
-                      type="tel"
-                      required
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="w-full bg-secondary border border-border rounded-lg px-4 py-2.5 text-xs text-foreground focus:outline-none focus:border-primary"
-                      placeholder="+237 6xx xxx xxx"
-                    />
+                    <div className="flex gap-2">
+                      <select
+                        value={countryCode}
+                        onChange={(e) => setCountryCode(e.target.value)}
+                        className="bg-secondary border border-border rounded-lg px-2 py-2.5 text-xs text-foreground focus:outline-none focus:border-primary"
+                      >
+                        <option value="+237">+237 (CM)</option>
+                        <option value="+33">+33 (FR)</option>
+                        <option value="+225">+225 (CI)</option>
+                        <option value="+221">+221 (SN)</option>
+                        <option value="+242">+242 (CG)</option>
+                        <option value="+243">+243 (CD)</option>
+                        <option value="+229">+229 (BJ)</option>
+                        <option value="+228">+228 (TG)</option>
+                        <option value="+241">+241 (GA)</option>
+                        <option value="+235">+235 (TD)</option>
+                        <option value="+226">+226 (BF)</option>
+                        <option value="+212">+212 (MA)</option>
+                        <option value="+213">+213 (DZ)</option>
+                        <option value="+216">+216 (TN)</option>
+                        <option value="+1">+1 (US/CA)</option>
+                        <option value="+44">+44 (UK)</option>
+                        <option value="+32">+32 (BE)</option>
+                        <option value="+41">+41 (CH)</option>
+                      </select>
+                      <input
+                        type="tel"
+                        required
+                        value={phoneLocal}
+                        onChange={(e) => setPhoneLocal(e.target.value)}
+                        className="flex-1 bg-secondary border border-border rounded-lg px-4 py-2.5 text-xs text-foreground focus:outline-none focus:border-primary"
+                        placeholder="6xx xxx xxx"
+                      />
+                    </div>
                   </div>
                   <div>
                     <label className="text-xs font-semibold text-muted-foreground block mb-1">Ville de résidence</label>
