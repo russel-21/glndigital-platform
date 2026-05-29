@@ -106,6 +106,15 @@ const Auth = () => {
   };
 
   const triggerOfficialGoogle = async () => {
+    const isGoogleConfigured = window.confirm(
+      "ATTENTION : La connexion Google officielle nécessite que vous ayez préalablement configuré les identifiants OAuth Google (Client ID & Client Secret) dans la console Supabase sous Authentication -> Providers -> Google.\n\nSans cette configuration, vous obtiendrez l'erreur Supabase 'Unsupported provider'.\n\nVoulez-vous continuer vers la connexion officielle Google ? (Sélectionnez Annuler pour utiliser la simulation immédiate)."
+    );
+    
+    if (!isGoogleConfigured) {
+      triggerSimulatedGoogle();
+      return;
+    }
+
     setShowGoogleModal(false);
     try {
       setLoading(true);
@@ -546,22 +555,33 @@ const Auth = () => {
                 </p>
               </div>
 
-              <div className="space-y-3">
-                <button
-                  onClick={triggerOfficialGoogle}
-                  className="w-full bg-secondary hover:bg-secondary/80 border border-border text-foreground py-3 px-4 rounded-xl font-semibold text-xs transition-all flex items-center justify-center gap-2"
-                >
-                  <Chrome className="w-4 h-4 text-primary" />
-                  Connexion Officielle Google
-                </button>
-
+              <div className="space-y-4">
                 <button
                   onClick={triggerSimulatedGoogle}
                   className="w-full bg-primary text-primary-foreground py-3 px-4 rounded-xl font-bold text-xs transition-all hover:opacity-90 shadow-glow flex items-center justify-center gap-2"
                 >
                   <Chrome className="w-4 h-4" />
-                  Simulation de test (Recommandé)
+                  Simulation de test (Immédiat et Recommandé)
                 </button>
+                <p className="text-[10px] text-muted-foreground text-center -mt-2 px-1">
+                  Recommandé pour tester toutes les fonctionnalités sans configuration.
+                </p>
+
+                <div className="relative flex items-center justify-center py-1">
+                  <div className="absolute inset-x-0 h-[1px] bg-border/40" />
+                  <span className="relative bg-card px-2 text-[9px] text-muted-foreground uppercase font-bold">Ou</span>
+                </div>
+
+                <button
+                  onClick={triggerOfficialGoogle}
+                  className="w-full bg-secondary hover:bg-secondary/80 border border-border text-foreground py-2.5 px-4 rounded-xl font-semibold text-xs transition-all flex items-center justify-center gap-2"
+                >
+                  <Chrome className="w-4 h-4 text-primary" />
+                  Connexion Officielle Google
+                </button>
+                <p className="text-[9px] text-red-400 text-center -mt-2 px-1">
+                  Attention : Nécessite que le fournisseur Google soit activé et configuré avec Client ID/Secret sur votre console Supabase.
+                </p>
               </div>
 
               <button
