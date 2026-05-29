@@ -12,6 +12,7 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
+  const [showGoogleModal, setShowGoogleModal] = useState(false);
 
   // Form Fields
   const [email, setEmail] = useState("");
@@ -100,7 +101,12 @@ const Auth = () => {
   };
 
   // Google Sign-In
-  const handleGoogleLogin = async () => {
+  const handleGoogleLogin = () => {
+    setShowGoogleModal(true);
+  };
+
+  const triggerOfficialGoogle = async () => {
+    setShowGoogleModal(false);
     try {
       setLoading(true);
       const { error } = await supabase.auth.signInWithOAuth({
@@ -110,29 +116,39 @@ const Auth = () => {
         },
       });
       if (error) throw error;
-    } catch (e) {
-      toast.info("Simulation sécurisée de la connexion Google activée.");
-      
-      const simulatedEmail = prompt("Simulation Google Sign-In :\nSaisissez votre e-mail Google pour vous connecter :", "russel@glndigital.com");
-      if (simulatedEmail) {
-        if (simulatedEmail === "russel@glndigital.com") {
-          localStorage.setItem("gln_mock_admin_session", "true");
-          if (rememberMe) {
-            localStorage.setItem("gln_trust_device", "true");
-          }
-          localStorage.setItem("gln_mock_admin_current_role", "admin");
-          toast.success("Connecté via Google (Simulation Super-Admin) !");
-          await redirectUser("admin-mock-id-0000-000000000000");
-        } else {
-          localStorage.setItem("gln_mock_user_session", "true");
-          localStorage.setItem("gln_mock_user_email", simulatedEmail);
-          localStorage.setItem("gln_mock_user_name", simulatedEmail.split('@')[0]);
-          if (rememberMe) {
-            localStorage.setItem("gln_trust_device", "true");
-          }
-          toast.success(`Connecté via Google (${simulatedEmail}) !`);
-          navigate("/auth-callback");
+    } catch (e: any) {
+      toast.error("Connexion Google officielle échouée. Utilisation automatique du mode simulation.");
+      triggerSimulatedGoogle();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const triggerSimulatedGoogle = async () => {
+    setShowGoogleModal(false);
+    const simulatedEmail = prompt(
+      "Simulation Google Sign-In :\nSaisissez votre e-mail Google pour vous connecter :",
+      "russel@glndigital.com"
+    );
+    if (simulatedEmail) {
+      setLoading(true);
+      if (simulatedEmail === "russel@glndigital.com") {
+        localStorage.setItem("gln_mock_admin_session", "true");
+        if (rememberMe) {
+          localStorage.setItem("gln_trust_device", "true");
         }
+        localStorage.setItem("gln_mock_admin_current_role", "admin");
+        toast.success("Connecté via Google (Simulation Super-Admin) !");
+        await redirectUser("admin-mock-id-0000-000000000000");
+      } else {
+        localStorage.setItem("gln_mock_user_session", "true");
+        localStorage.setItem("gln_mock_user_email", simulatedEmail);
+        localStorage.setItem("gln_mock_user_name", simulatedEmail.split('@')[0]);
+        if (rememberMe) {
+          localStorage.setItem("gln_trust_device", "true");
+        }
+        toast.success(`Connecté via Google (${simulatedEmail}) !`);
+        navigate("/auth-callback");
       }
       setLoading(false);
     }
@@ -455,6 +471,59 @@ const Auth = () => {
           </button>
         </div>
       </motion.div>
+
+      {/* Premium Google Auth Mode Selector Modal */}
+      <AnimatePresence>
+        {showGoogleModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowGoogleModal(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative w-full max-w-sm p-6 rounded-3xl bg-card border border-border/80 shadow-glow text-foreground space-y-6 z-10"
+            >
+              <div className="text-center">
+                <h3 className="font-heading text-lg font-extrabold">Connexion / Inscription Google</h3>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Choisissez le mode de connexion pour tester ou accéder à la plateforme.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <button
+                  onClick={triggerOfficialGoogle}
+                  className="w-full bg-secondary hover:bg-secondary/80 border border-border text-foreground py-3 px-4 rounded-xl font-semibold text-xs transition-all flex items-center justify-center gap-2"
+                >
+                  <Chrome className="w-4 h-4 text-primary" />
+                  Connexion Officielle Google
+                </button>
+
+                <button
+                  onClick={triggerSimulatedGoogle}
+                  className="w-full bg-primary text-primary-foreground py-3 px-4 rounded-xl font-bold text-xs transition-all hover:opacity-90 shadow-glow flex items-center justify-center gap-2"
+                >
+                  <Chrome className="w-4 h-4" />
+                  Simulation de test (Recommandé)
+                </button>
+              </div>
+
+              <button
+                onClick={() => setShowGoogleModal(false)}
+                className="w-full text-center text-xs text-muted-foreground hover:text-foreground font-medium transition-colors"
+              >
+                Annuler
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
