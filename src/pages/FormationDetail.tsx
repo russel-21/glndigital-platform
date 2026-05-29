@@ -1,6 +1,7 @@
 import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, CheckCircle2, MessageCircle, Clock, BookOpen, Award, GraduationCap } from "lucide-react";
+import { getCourses } from "@/lib/coursesStore";
 
 const coursesData: Record<string, {
   title: string;
@@ -145,7 +146,8 @@ const coursesData: Record<string, {
 
 const FormationDetail = () => {
   const { id } = useParams();
-  const course = id ? coursesData[id] : null;
+  const courses = getCourses();
+  const course = courses.find((c) => c.id === id);
 
   if (!course) {
     return (
