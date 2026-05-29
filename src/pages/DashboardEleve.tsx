@@ -44,13 +44,28 @@ const student = {
 };
 
 import { useNavigate } from "react-router-dom";
+import { getCourses } from "@/lib/coursesStore";
 
 const DashboardEleve = () => {
   const navigate = useNavigate();
-  const [selectedVideo, setSelectedVideo] = useState<string>("v1");
-  const [activeCourse] = useState(student.courses[0]);
+  const courses = getCourses();
+  const [activeCourse, setActiveCourse] = useState<any>(courses[0] || student.courses[0]);
+  const [selectedVideo, setSelectedVideo] = useState<string>(activeCourse?.modules[0]?.videos[0]?.id || "v1");
   const [isSecure, setIsSecure] = useState<boolean>(true);
   const [profile, setProfile] = useState<any>(null);
+
+  // Find current lesson/video object
+  let currentLesson: any = null;
+  for (const mod of activeCourse.modules) {
+    const found = mod.videos.find((v: any) => v.id === selectedVideo);
+    if (found) {
+      currentLesson = found;
+      break;
+    }
+  }
+  if (!currentLesson && activeCourse.modules[0]?.videos[0]) {
+    currentLesson = activeCourse.modules[0].videos[0];
+  }
 
   // Auth Protection & Role verification
   useEffect(() => {
@@ -218,17 +233,32 @@ const DashboardEleve = () => {
                 </div>
               </div>
 
-              {/* Secure Video Player */}
-              <div className="w-full h-full flex items-center justify-center bg-zinc-900 relative">
-                <div className="text-center p-6 space-y-4">
-                  <PlayCircle className="w-16 h-16 text-primary mx-auto cursor-pointer hover:scale-105 transition-transform" />
-                  <p className="text-xs text-muted-foreground uppercase tracking-widest">Lecture sécurisée active</p>
-                  <span className="text-xs bg-black/60 px-3 py-1 rounded text-red-400 font-bold flex items-center gap-1.5 justify-center border border-red-500/20">
-                    <AlertTriangle className="w-3.5 h-3.5" />
-                    Enregistrement d'écran interdit
-                  </span>
+              {/* Secure Video Player / Written Lesson Content */}
+              {activeCourse.type === "written" || currentLesson?.content ? (
+                <div className="w-full h-full bg-zinc-900/60 p-6 md:p-8 overflow-y-auto select-none">
+                  <div className="max-w-2xl mx-auto space-y-4 text-left">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] bg-primary/20 text-primary font-extrabold px-2 py-0.5 rounded uppercase">Leçon Écrite</span>
+                      <span className="text-[10px] text-muted-foreground">{currentLesson?.duration || "Lecture"}</span>
+                    </div>
+                    <h2 className="font-heading text-base md:text-lg font-bold text-foreground">{currentLesson?.title}</h2>
+                    <div className="text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                      {currentLesson?.content || "Aucun contenu écrit rédigé pour cette leçon."}
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-zinc-900 relative">
+                  <div className="text-center p-6 space-y-4">
+                    <PlayCircle className="w-16 h-16 text-primary mx-auto cursor-pointer hover:scale-105 transition-transform" />
+                    <p className="text-xs text-muted-foreground uppercase tracking-widest">Lecture sécurisée active</p>
+                    <span className="text-xs bg-black/60 px-3 py-1 rounded text-red-400 font-bold flex items-center gap-1.5 justify-center border border-red-500/20">
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      Enregistrement d'écran interdit
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Resources Downloads & Security Note */}

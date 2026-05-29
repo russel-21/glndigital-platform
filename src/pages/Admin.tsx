@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Trash2, Plus, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
+import { getCourses, saveCourses, Course, CourseModule, Lesson } from "@/lib/coursesStore";
 
 const Admin = () => {
   const [password, setPassword] = useState("");
@@ -75,6 +76,7 @@ const Admin = () => {
           <TabsList className="mb-6 flex flex-wrap gap-2">
             <TabsTrigger value="testimonials">Témoignages</TabsTrigger>
             <TabsTrigger value="media">Médias / Portfolio</TabsTrigger>
+            <TabsTrigger value="courses">Gestion des Cours</TabsTrigger>
             <TabsTrigger value="roles">Rôles & Utilisateurs</TabsTrigger>
             <TabsTrigger value="site-settings">Configuration Site (Header/Footer)</TabsTrigger>
           </TabsList>
@@ -84,6 +86,9 @@ const Admin = () => {
           </TabsContent>
           <TabsContent value="media">
             <MediaAdmin queryClient={queryClient} />
+          </TabsContent>
+          <TabsContent value="courses">
+            <CoursesAdmin />
           </TabsContent>
           <TabsContent value="roles">
             <RolesAdmin />
@@ -652,6 +657,322 @@ function SiteSettingsAdmin() {
         <Button onClick={handleSave} className="bg-gradient-primary w-full md:w-auto">
           Enregistrer les modifications
         </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Courses / Formations Admin ──────────────────────────────────
+function CoursesAdmin() {
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [editingCourse, setEditingCourse] = useState<Course | null>(null);
+  const [isAdding, setIsAdding] = useState(false);
+
+  // Form states
+  const [title, setTitle] = useState("");
+  const [duration, setDuration] = useState("");
+  const [difficulty, setDifficulty] = useState("Tous niveaux");
+  const [price, setPrice] = useState("Sur devis");
+  const [desc, setDesc] = useState("");
+  const [type, setType] = useState<"video" | "written">("video");
+  const [featuresText, setFeaturesText] = useState("");
+  const [audienceText, setAudienceText] = useState("");
+  const [skillsText, setSkillsText] = useState("");
+  const [modules, setModules] = useState<CourseModule[]>([]);
+
+  // Helpers
+  const [newModuleName, setNewModuleName] = useState("");
+
+  useEffect(() => {
+    setCourses(getCourses());
+  }, []);
+
+  const startAdd = () => {
+    setTitle("");
+    setDuration("");
+    setDifficulty("Tous niveaux");
+    setPrice("Sur devis");
+    setDesc("");
+    setType("video");
+    setFeaturesText("");
+    setAudienceText("");
+    setSkillsText("");
+    setModules([]);
+    setEditingCourse(null);
+    setIsAdding(true);
+  };
+
+  const startEdit = (course: Course) => {
+    setEditingCourse(course);
+    setTitle(course.title);
+    setDuration(course.duration);
+    setDifficulty(course.difficulty);
+    setPrice(course.price);
+    setDesc(course.desc);
+    setType(course.type);
+    setFeaturesText(course.features.join("\n"));
+    setAudienceText(course.audience.join("\n"));
+    setSkillsText(course.skills.join("\n"));
+    setModules(course.modules || []);
+    setIsAdding(false);
+  };
+
+  const handleSave = () => {
+    if (!title.trim() || !desc.trim()) {
+      toast.error("Le titre et la description sont requis.");
+      return;
+    }
+
+    const slug = editingCourse ? editingCourse.id : title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+
+    const newCourse: Course = {
+      id: slug,
+      title,
+      duration,
+      difficulty,
+      price,
+      desc,
+      type,
+      features: featuresText.split("\n").map(s => s.trim()).filter(Boolean),
+      audience: audienceText.split("\n").map(s => s.trim()).filter(Boolean),
+      skills: skillsText.split("\n").map(s => s.trim()).filter(Boolean),
+      modules
+    };
+
+    let updatedCourses = [...courses];
+    if (editingCourse) {
+      updatedCourses = courses.map(c => c.id === editingCourse.id ? newCourse : c);
+    } else {
+      updatedCourses.push(newCourse);
+    }
+
+    saveCourses(updatedCourses);
+    setCourses(updatedCourses);
+    setIsAdding(false);
+    setEditingCourse(null);
+    toast.success("Formation enregistrée avec succès !");
+  };
+
+  const handleDelete = (id: string) => {
+    if (confirm("Voulez-vous vraiment supprimer cette formation ?")) {
+      const updated = courses.filter(c => c.id !== id);
+      saveCourses(updated);
+      setCourses(updated);
+      toast.success("Formation supprimée.");
+    }
+  };
+
+  const addModule = () => {
+    if (!newModuleName.trim()) return;
+    setModules([...modules, { title: newModuleName, unlocked: true, videos: [] }]);
+    setNewModuleName("");
+  };
+
+  const removeModule = (index: number) => {
+    setModules(modules.filter((_, i) => i !== index));
+  };
+
+  const addLesson = (modIndex: number) => {
+    const lessonTitle = prompt("Titre de la leçon :");
+    if (!lessonTitle) return;
+    const lessonDuration = prompt("Durée ou temps de lecture (ex: 12:30 ou Lecture: 10 min) :", "10:00");
+    if (!lessonDuration) return;
+
+    let videoUrl = "";
+    let content = "";
+    if (type === "video") {
+      videoUrl = prompt("Lien de la vidéo (MP4 ou URL de streaming) :", "https://www.w3schools.com/html/mov_bbb.mp4") || "";
+    } else {
+      content = prompt("Contenu textuel du cours :") || "";
+    }
+
+    const newLesson: Lesson = {
+      id: "les-" + Math.random().toString(36).substring(2, 7),
+      title: lessonTitle,
+      duration: lessonDuration,
+      watched: false,
+      videoUrl: type === "video" ? videoUrl : undefined,
+      content: type === "written" ? content : undefined
+    };
+
+    const updated = [...modules];
+    updated[modIndex].videos.push(newLesson);
+    setModules(updated);
+  };
+
+  const removeLesson = (modIndex: number, lesIndex: number) => {
+    const updated = [...modules];
+    updated[modIndex].videos = updated[modIndex].videos.filter((_, i) => i !== lesIndex);
+    setModules(updated);
+  };
+
+  return (
+    <Card className="glass border-border/40">
+      <CardHeader className="flex flex-row justify-between items-center border-b border-border/40">
+        <div>
+          <CardTitle>Gestion des Formations & Leçons</CardTitle>
+          <p className="text-xs text-muted-foreground mt-1">Créez des cours vidéo ou écrits pour l'académie.</p>
+        </div>
+        {!isAdding && !editingCourse && (
+          <Button onClick={startAdd} className="bg-primary text-primary-foreground text-xs flex items-center gap-1">
+            <Plus className="w-3.5 h-3.5" />
+            Ajouter une formation
+          </Button>
+        )}
+      </CardHeader>
+
+      <CardContent className="pt-6">
+        {isAdding || editingCourse ? (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h3 className="font-heading font-bold text-sm text-primary">
+                {editingCourse ? `Modifier la formation : ${editingCourse.title}` : "Nouvelle Formation"}
+              </h3>
+              <Button variant="ghost" size="sm" onClick={() => { setIsAdding(false); setEditingCourse(null); }} className="text-xs">
+                Annuler
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs">Titre du cours</Label>
+                <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex: Copywriting Élite" className="bg-secondary" />
+              </div>
+              <div>
+                <Label className="text-xs">Durée totale (ex: 6 semaines, 3 semaines)</Label>
+                <Input value={duration} onChange={(e) => setDuration(e.target.value)} placeholder="Ex: 6 semaines" className="bg-secondary" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label className="text-xs">Difficulté (ex: Débutant, Tous niveaux)</Label>
+                <Input value={difficulty} onChange={(e) => setDifficulty(e.target.value)} placeholder="Ex: Tous niveaux" className="bg-secondary" />
+              </div>
+              <div>
+                <Label className="text-xs">Tarif (ex: Sur devis, 150 000 FCFA)</Label>
+                <Input value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Ex: Sur devis" className="bg-secondary" />
+              </div>
+              <div>
+                <Label className="text-xs">Type de support</Label>
+                <select
+                  value={type}
+                  onChange={(e) => setType(e.target.value as "video" | "written")}
+                  className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-xs text-foreground focus:outline-none focus:border-primary mt-1 h-9"
+                >
+                  <option value="video">Cours Vidéo</option>
+                  <option value="written">Cours Écrit / Texte</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs">Description de présentation</Label>
+              <Textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={3} placeholder="Présentation marketing de la formation..." className="bg-secondary text-xs" />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label className="text-xs">Points clés (Un par ligne)</Label>
+                <Textarea value={featuresText} onChange={(e) => setFeaturesText(e.target.value)} rows={4} placeholder="Ex: Création de tunnels" className="bg-secondary text-xs" />
+              </div>
+              <div>
+                <Label className="text-xs">Public cible (Un par ligne)</Label>
+                <Textarea value={audienceText} onChange={(e) => setAudienceText(e.target.value)} rows={4} placeholder="Ex: Entrepreneurs" className="bg-secondary text-xs" />
+              </div>
+              <div>
+                <Label className="text-xs">Compétences visées (Un par ligne)</Label>
+                <Textarea value={skillsText} onChange={(e) => setSkillsText(e.target.value)} rows={4} placeholder="Ex: Copywriting" className="bg-secondary text-xs" />
+              </div>
+            </div>
+
+            {/* Modules and lessons editor */}
+            <div className="border-t border-border/40 pt-4 space-y-4">
+              <div className="flex justify-between items-center">
+                <Label className="font-bold text-sm text-foreground">Modules & Leçons du cours</Label>
+                <div className="flex gap-2">
+                  <Input value={newModuleName} onChange={(e) => setNewModuleName(e.target.value)} placeholder="Nom du module..." className="bg-secondary h-8 text-xs max-w-xs" />
+                  <Button onClick={addModule} size="sm" className="text-xs">Ajouter module</Button>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {modules.map((mod, modIdx) => (
+                  <div key={modIdx} className="p-4 rounded-xl bg-secondary/30 border border-border/40 space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-bold text-foreground">{mod.title}</span>
+                      <Button variant="ghost" size="sm" onClick={() => removeModule(modIdx)} className="text-[10px] text-red-400 h-6">
+                        Supprimer module
+                      </Button>
+                    </div>
+
+                    <div className="pl-3 border-l border-border/60 space-y-2">
+                      {mod.videos.map((les, lesIdx) => (
+                        <div key={les.id} className="flex justify-between items-center p-2 rounded bg-secondary/80 border border-border/30 text-xs">
+                          <div className="flex items-center gap-2">
+                            {type === "video" ? <Video className="w-3.5 h-3.5 text-primary" /> : <FileText className="w-3.5 h-3.5 text-accent" />}
+                            <span>{les.title}</span>
+                            <span className="text-[10px] text-muted-foreground">({les.duration})</span>
+                          </div>
+                          <Button variant="ghost" size="sm" onClick={() => removeLesson(modIdx, lesIdx)} className="text-[10px] text-red-400 h-6">
+                            Supprimer
+                          </Button>
+                        </div>
+                      ))}
+                      <Button onClick={() => addLesson(modIdx)} variant="outline" size="sm" className="text-[10px] h-7 border-dashed border-primary/40 text-primary">
+                        + Ajouter une leçon ({type === "video" ? "vidéo" : "écrite"})
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <Button onClick={handleSave} className="bg-gradient-primary w-full md:w-auto">
+              Sauvegarder la formation
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-border/60 text-muted-foreground font-bold">
+                    <th className="py-2">Titre</th>
+                    <th className="py-2">Type</th>
+                    <th className="py-2">Durée</th>
+                    <th className="py-2">Difficulté</th>
+                    <th className="py-2 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {courses.map((course) => (
+                    <tr key={course.id} className="border-b border-border/30 text-foreground">
+                      <td className="py-3 font-semibold">{course.title}</td>
+                      <td className="py-3">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${course.type === 'video' ? 'bg-primary/10 text-primary' : 'bg-accent/10 text-accent'}`}>
+                          {course.type === "video" ? "Vidéo" : "Écrit / Texte"}
+                        </span>
+                      </td>
+                      <td className="py-3 text-muted-foreground">{course.duration}</td>
+                      <td className="py-3 text-muted-foreground">{course.difficulty}</td>
+                      <td className="py-3 text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button onClick={() => startEdit(course)} variant="outline" size="sm" className="h-7 text-[10px] border-primary/20 text-primary">
+                            Modifier
+                          </Button>
+                          <Button onClick={() => handleDelete(course.id)} variant="outline" size="sm" className="h-7 text-[10px] border-red-500/20 text-red-400">
+                            Supprimer
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

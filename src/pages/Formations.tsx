@@ -1,67 +1,11 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { GraduationCap, ArrowRight, Video, FileText, CheckCircle2, MessageCircle } from "lucide-react";
+import { getCourses } from "@/lib/coursesStore";
 
-const courses = [
-  {
-    id: "marketing-digital-pro",
-    title: "Marketing Digital Professionnel",
-    duration: "6 semaines",
-    difficulty: "Tous niveaux",
-    desc: "Devenez autonome pour acquérir des clients. Apprenez le ciblage, les tunnels de vente simples, et la publicité Meta Ads.",
-    features: [
-      "Création de tunnels d'acquisition",
-      "Lancement de campagnes Facebook & Instagram Ads",
-      "Tracking des conversions & pixels",
-      "Reporting & Optimisation de budget",
-    ],
-    price: "Sur devis",
-  },
-  {
-    id: "community-management",
-    title: "Community Management & Croissance",
-    duration: "4 semaines",
-    difficulty: "Débutant à Intermédiaire",
-    desc: "Apprenez à gérer, animer et faire grandir des communautés sur Facebook, Instagram et TikTok pour des entreprises locales.",
-    features: [
-      "Création de calendriers éditoriaux",
-      "Maîtrise de Canva pour les designs professionnels",
-      "Copywriting et rédactions accrocheuses",
-      "Gestion de la modération client",
-    ],
-    price: "Sur devis",
-  },
-  {
-    id: "creation-contenu-ia",
-    title: "Création de contenu & IA générative",
-    duration: "3 semaines",
-    difficulty: "Tous niveaux",
-    desc: "Boostez votre productivité avec l'intelligence artificielle. Utilisez ChatGPT, Midjourney et CapCut pour vos visuels et vidéos.",
-    features: [
-      "Prompts avancés pour la création de contenu",
-      "Montage vidéo dynamique sur smartphone (CapCut)",
-      "Automatisation de votre branding avec l'IA",
-      "Création de scripts de vidéos courtes virales",
-    ],
-    price: "Sur devis",
-  },
-  {
-    id: "freelancing-digital",
-    title: "Formation Freelance & Business Digital",
-    duration: "4 semaines",
-    difficulty: "Avancé",
-    desc: "Comment monétiser vos compétences digitales et trouver des clients réguliers au Cameroun et à l'international.",
-    features: [
-      "Positionnement et création d'offres de services",
-      "Techniques de closing et pitch commercial",
-      "Facturation et contrats pour freelances",
-      "Recherche active de clients à distance",
-    ],
-    price: "Sur devis",
-  },
-];
-
-const Formations = () => (
+const Formations = () => {
+  const courses = getCourses();
+  return (
   <div className="min-h-screen pt-24 pb-16">
     <div className="container mx-auto px-4 md:px-8">
       {/* Title */}
@@ -139,6 +83,7 @@ const Formations = () => (
       </div>
     </div>
   </div>
-);
+  );
+};
 
 export default Formations;
