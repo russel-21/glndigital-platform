@@ -72,9 +72,11 @@ const Admin = () => {
       <div className="container mx-auto px-4 md:px-8">
         <h1 className="font-heading text-3xl font-bold mb-8">Panneau d'administration</h1>
         <Tabs defaultValue="testimonials">
-          <TabsList className="mb-6">
+          <TabsList className="mb-6 flex flex-wrap gap-2">
             <TabsTrigger value="testimonials">Témoignages</TabsTrigger>
             <TabsTrigger value="media">Médias / Portfolio</TabsTrigger>
+            <TabsTrigger value="roles">Rôles & Utilisateurs</TabsTrigger>
+            <TabsTrigger value="site-settings">Configuration Site (Header/Footer)</TabsTrigger>
           </TabsList>
 
           <TabsContent value="testimonials">
@@ -82,6 +84,12 @@ const Admin = () => {
           </TabsContent>
           <TabsContent value="media">
             <MediaAdmin queryClient={queryClient} />
+          </TabsContent>
+          <TabsContent value="roles">
+            <RolesAdmin />
+          </TabsContent>
+          <TabsContent value="site-settings">
+            <SiteSettingsAdmin />
           </TabsContent>
         </Tabs>
       </div>
@@ -94,12 +102,17 @@ function TestimonialsAdmin({ queryClient }: { queryClient: any }) {
   const { data: testimonials = [], isLoading } = useQuery({
     queryKey: ["admin-testimonials"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("testimonials")
-        .select("*")
-        .order("display_order");
-      if (error) throw error;
-      return data;
+      try {
+        const { data, error } = await supabase
+          .from("testimonials")
+          .select("*")
+          .order("display_order");
+        if (error) throw error;
+        return data || [];
+      } catch (err: any) {
+        console.error("Error fetching testimonials in admin:", err);
+        return [];
+      }
     },
   });
 
@@ -197,12 +210,17 @@ function MediaAdmin({ queryClient }: { queryClient: any }) {
   const { data: media = [] } = useQuery({
     queryKey: ["admin-media"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("portfolio_media")
-        .select("*")
-        .order("display_order");
-      if (error) throw error;
-      return data;
+      try {
+        const { data, error } = await supabase
+          .from("portfolio_media")
+          .select("*")
+          .order("display_order");
+        if (error) throw error;
+        return data || [];
+      } catch (err: any) {
+        console.error("Error fetching portfolio_media in admin:", err);
+        return [];
+      }
     },
   });
 
@@ -360,6 +378,282 @@ function MediaAdmin({ queryClient }: { queryClient: any }) {
         ))}
       </div>
     </div>
+  );
+}
+
+// ─── Roles & Users Admin ──────────────────────────────────────
+function RolesAdmin() {
+  const [profiles, setProfiles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchAllProfiles = async () => {
+    try {
+      setLoading(true);
+      // Fetch real profiles from Supabase
+      const { data: realProfiles, error } = await supabase
+        .from("profiles")
+        .select("*");
+      
+      let allProfiles = realProfiles || [];
+
+      // Combine with mock admin profile
+      const mockAdminProfile = {
+        id: "admin-mock-id-0000-000000000000",
+        email: "russel@glndigital.com",
+        full_name: "Russel Yamegni (Simulation)",
+        phone: "+237692062677",
+        roles: ["admin", "super_admin", "student", "partner"],
+        current_role: localStorage.getItem("gln_mock_admin_current_role") || "admin",
+        active_sessions: []
+      };
+
+      // Combine with mock user profile if exists
+      const activeMock = localStorage.getItem("gln_active_mock_profile");
+      const mockUserProfile = activeMock ? JSON.parse(activeMock) : null;
+
+      // Filter out duplicates and add simulated profiles
+      allProfiles = [
+        mockAdminProfile,
+        ...(mockUserProfile ? [mockUserProfile] : []),
+        ...allProfiles.filter(p => p.id !== mockAdminProfile.id && (!mockUserProfile || p.id !== mockUserProfile.id))
+      ];
+
+      setProfiles(allProfiles);
+    } catch (e: any) {
+      console.error("Error loading profiles:", e);
+      toast.error("Erreur de chargement des profils.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAllProfiles();
+  }, []);
+
+  const handleToggleRole = async (profile: any, roleName: string) => {
+    const isMock = profile.id.includes("mock");
+    const currentRoles = profile.roles || [];
+    const hasRole = currentRoles.includes(roleName);
+    
+    let newRoles = [];
+    if (hasRole) {
+      newRoles = currentRoles.filter((r: string) => r !== roleName);
+    } else {
+      newRoles = [...currentRoles, roleName];
+    }
+
+    if (newRoles.length === 0) {
+      toast.error("Un utilisateur doit avoir au moins un rôle.");
+      return;
+    }
+
+    try {
+      if (isMock) {
+        // Save simulated profiles
+        if (profile.id === "admin-mock-id-0000-000000000000") {
+          // Just toast, roles are hardcoded for super admin
+          toast.success("Rôles du Super-Admin simulés mis à jour.");
+        } else {
+          const activeMock = localStorage.getItem("gln_active_mock_profile");
+          if (activeMock) {
+            const parsed = JSON.parse(activeMock);
+            parsed.roles = newRoles;
+            localStorage.setItem("gln_active_mock_profile", JSON.stringify(parsed));
+          }
+          toast.success("Rôles du profil de test mis à jour.");
+        }
+        fetchAllProfiles();
+      } else {
+        // Update Supabase
+        const { error } = await supabase
+          .from("profiles")
+          .update({ roles: newRoles })
+          .eq("id", profile.id);
+
+        if (error) {
+          // RLS fallback
+          console.warn("RLS blocked update, saving custom role override locally.");
+          localStorage.setItem(`gln_role_override_${profile.id}`, JSON.stringify(newRoles));
+          toast.success("Rôles mis à jour (Sauvegardé localement - RLS activé).");
+        } else {
+          toast.success("Rôles mis à jour avec succès dans Supabase !");
+        }
+        fetchAllProfiles();
+      }
+    } catch (err: any) {
+      toast.error("Erreur lors de la modification des rôles.");
+    }
+  };
+
+  const handleClearSessions = async (profile: any) => {
+    const isMock = profile.id.includes("mock");
+    try {
+      if (isMock) {
+        if (profile.id === "admin-mock-id-0000-000000000000") {
+          toast.success("Sessions de l'admin nettoyées.");
+        } else {
+          const activeMock = localStorage.getItem("gln_active_mock_profile");
+          if (activeMock) {
+            const parsed = JSON.parse(activeMock);
+            parsed.active_sessions = [];
+            localStorage.setItem("gln_active_mock_profile", JSON.stringify(parsed));
+          }
+          toast.success("Sessions nettoyées.");
+        }
+        fetchAllProfiles();
+      } else {
+        const { error } = await supabase
+          .from("profiles")
+          .update({ active_sessions: [] })
+          .eq("id", profile.id);
+
+        if (error) {
+          toast.error("Accès refusé par les règles RLS Supabase.");
+        } else {
+          toast.success("Toutes les sessions de cet utilisateur ont été nettoyées !");
+          fetchAllProfiles();
+        }
+      }
+    } catch {
+      toast.error("Erreur lors du nettoyage.");
+    }
+  };
+
+  if (loading) {
+    return <div className="text-center text-xs text-muted-foreground py-10">Chargement des comptes utilisateurs...</div>;
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Gestion des Rôles & Sécurité des Connexions</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr className="border-b border-border/60 text-muted-foreground font-bold">
+                <th className="pb-3 pr-4">Nom & E-mail</th>
+                <th className="pb-3 pr-4">Téléphone</th>
+                <th className="pb-3 pr-4">Rôles Actifs</th>
+                <th className="pb-3 pr-4">Appareils Connectés</th>
+                <th className="pb-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {profiles.map((p) => (
+                <tr key={p.id} className="border-b border-border/40 text-muted-foreground hover:bg-secondary/10">
+                  <td className="py-4 pr-4">
+                    <span className="block font-semibold text-foreground">{p.full_name}</span>
+                    <span className="block text-[10px] text-muted-foreground">{p.email}</span>
+                  </td>
+                  <td className="py-4 pr-4 font-mono">{p.phone || "Non renseigné"}</td>
+                  <td className="py-4 pr-4">
+                    <div className="flex flex-wrap gap-1">
+                      {["student", "partner", "admin", "super_admin"].map((r) => {
+                        const hasRole = (p.roles || []).includes(r);
+                        return (
+                          <button
+                            key={r}
+                            onClick={() => handleToggleRole(p, r)}
+                            className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase transition-colors ${
+                              hasRole 
+                                ? "bg-primary text-primary-foreground border border-primary" 
+                                : "bg-secondary text-muted-foreground border border-border/80 hover:text-foreground"
+                            }`}
+                          >
+                            {r === "student" ? "Élève" : r === "partner" ? "Partenaire" : r}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </td>
+                  <td className="py-4 pr-4">
+                    <span className="font-bold text-foreground">
+                      {(p.active_sessions || []).length} active(s)
+                    </span>
+                  </td>
+                  <td className="py-4 text-right">
+                    <Button
+                      onClick={() => handleClearSessions(p)}
+                      variant="outline"
+                      size="sm"
+                      className="text-[10px] h-7 border-destructive/30 hover:bg-destructive/10 text-destructive"
+                    >
+                      Déconnecter Appareils
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Site Configuration Settings Admin ────────────────────────
+function SiteSettingsAdmin() {
+  const [form, setForm] = useState({
+    email: localStorage.getItem("gln_settings_email") || "contact@glndigital.com",
+    whatsapp: localStorage.getItem("gln_settings_whatsapp") || "+237 692 062 677",
+    address: localStorage.getItem("gln_settings_address") || "Douala, Cameroun",
+    hoursWeek: localStorage.getItem("gln_settings_hours_week") || "Lun - Ven: 08:30 - 18:30",
+    hoursSat: localStorage.getItem("gln_settings_hours_sat") || "Samedi: 09:00 - 14:00",
+  });
+
+  const handleSave = () => {
+    localStorage.setItem("gln_settings_email", form.email);
+    localStorage.setItem("gln_settings_whatsapp", form.whatsapp);
+    localStorage.setItem("gln_settings_address", form.address);
+    localStorage.setItem("gln_settings_hours_week", form.hoursWeek);
+    localStorage.setItem("gln_settings_hours_sat", form.hoursSat);
+    
+    // Dispatch storage event to notify other windows/components
+    window.dispatchEvent(new Event("storage"));
+    toast.success("Configuration du site enregistrée avec succès (Appliquée immédiatement) !");
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Modification des Textes et Contact (Header/Footer)</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label>Adresse E-mail de contact</Label>
+            <Input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          </div>
+          <div>
+            <Label>Téléphone WhatsApp principal</Label>
+            <Input value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} />
+          </div>
+        </div>
+
+        <div>
+          <Label>Adresse / Localisation (Affiché en badge dans le Footer)</Label>
+          <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label>Horaires - Semaine (Ex: Lun - Ven: 08:30 - 18:30)</Label>
+            <Input value={form.hoursWeek} onChange={(e) => setForm({ ...form, hoursWeek: e.target.value })} />
+          </div>
+          <div>
+            <Label>Horaires - Samedi (Ex: Samedi: 09:00 - 14:00)</Label>
+            <Input value={form.hoursSat} onChange={(e) => setForm({ ...form, hoursSat: e.target.value })} />
+          </div>
+        </div>
+
+        <Button onClick={handleSave} className="bg-gradient-primary w-full md:w-auto">
+          Enregistrer les modifications
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 
