@@ -92,7 +92,7 @@ const steps = [
 const Index = () => {
   const { t } = useLanguage();
   return (
-    <div className="min-h-screen pt-16 md:pt-20">
+    <div className="min-h-screen pt-20 md:pt-24">
       {/* Hero Section */}
       <section className="relative min-h-[90vh] flex items-center overflow-hidden">
         <div className="absolute inset-0">
