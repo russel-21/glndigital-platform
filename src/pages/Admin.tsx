@@ -8,9 +8,10 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2, Plus, Eye, EyeOff } from "lucide-react";
+import { Trash2, Plus, Eye, EyeOff, Video, FileText, Edit2 } from "lucide-react";
 import { toast } from "sonner";
-import { getCourses, saveCourses, Course, CourseModule, Lesson } from "@/lib/coursesStore";
+import { getCourses, saveCourses, Course, CourseModule, Lesson, generateDefaultQuiz } from "@/lib/coursesStore";
+
 
 const Admin = () => {
   const [password, setPassword] = useState("");
@@ -682,6 +683,12 @@ function CoursesAdmin() {
 
   // Helpers
   const [newModuleName, setNewModuleName] = useState("");
+  const [editingLesson, setEditingLesson] = useState<{
+    modIndex: number;
+    lesIndex: number | null; // null if adding a new lesson
+    lesson: Partial<Lesson>;
+  } | null>(null);
+
 
   useEffect(() => {
     setCourses(getCourses());
@@ -772,32 +779,73 @@ function CoursesAdmin() {
     setModules(modules.filter((_, i) => i !== index));
   };
 
-  const addLesson = (modIndex: number) => {
-    const lessonTitle = prompt("Titre de la leçon :");
-    if (!lessonTitle) return;
-    const lessonDuration = prompt("Durée ou temps de lecture (ex: 12:30 ou Lecture: 10 min) :", "10:00");
-    if (!lessonDuration) return;
+  const startAddLesson = (modIndex: number) => {
+    setEditingLesson({
+      modIndex,
+      lesIndex: null,
+      lesson: {
+        id: "les-" + Math.random().toString(36).substring(2, 7),
+        title: "",
+        duration: type === "video" ? "10:00" : "Lecture : 10 min",
+        watched: false,
+        videoUrl: type === "video" ? "https://www.youtube.com/watch?v=dQw4w9WgXcQ" : "",
+        content: "",
+        transcription: "",
+        transcriptionEn: "",
+        quiz: []
+      }
+    });
+  };
 
-    let videoUrl = "";
-    let content = "";
-    if (type === "video") {
-      videoUrl = prompt("Lien de la vidéo (MP4 ou URL de streaming) :", "https://www.w3schools.com/html/mov_bbb.mp4") || "";
-    } else {
-      content = prompt("Contenu textuel du cours :") || "";
+  const startEditLesson = (modIndex: number, lesIndex: number) => {
+    const lesson = modules[modIndex].videos[lesIndex];
+    setEditingLesson({
+      modIndex,
+      lesIndex,
+      lesson: { ...lesson }
+    });
+  };
+
+  const handleSaveLesson = () => {
+    if (!editingLesson) return;
+    const { modIndex, lesIndex, lesson } = editingLesson;
+    if (!lesson.title?.trim()) {
+      toast.error("Le titre de la leçon est obligatoire.");
+      return;
     }
 
-    const newLesson: Lesson = {
-      id: "les-" + Math.random().toString(36).substring(2, 7),
-      title: lessonTitle,
-      duration: lessonDuration,
-      watched: false,
-      videoUrl: type === "video" ? videoUrl : undefined,
-      content: type === "written" ? content : undefined
+    // Ensure it has 10 questions. If not, auto-generate default ones based on lesson title
+    let quizQuestions = lesson.quiz || [];
+    if (quizQuestions.length < 10) {
+      const generated = generateDefaultQuiz(lesson.title || "ce cours");
+      // Merge: replace or fill up to 10 questions
+      quizQuestions = [...quizQuestions, ...generated.slice(quizQuestions.length)];
+    }
+    // Truncate to exactly 10 questions
+    quizQuestions = quizQuestions.slice(0, 10);
+
+    const finalLesson: Lesson = {
+      id: lesson.id || "les-" + Math.random().toString(36).substring(2, 7),
+      title: lesson.title,
+      duration: lesson.duration || "10:00",
+      watched: !!lesson.watched,
+      videoUrl: type === "video" ? lesson.videoUrl : undefined,
+      content: type === "written" ? lesson.content : undefined,
+      transcription: lesson.transcription || "",
+      transcriptionEn: lesson.transcriptionEn || "",
+      quiz: quizQuestions
     };
 
     const updated = [...modules];
-    updated[modIndex].videos.push(newLesson);
+    if (lesIndex === null) {
+      updated[modIndex].videos.push(finalLesson);
+    } else {
+      updated[modIndex].videos[lesIndex] = finalLesson;
+    }
+
     setModules(updated);
+    setEditingLesson(null);
+    toast.success("Leçon enregistrée avec succès dans le module !");
   };
 
   const removeLesson = (modIndex: number, lesIndex: number) => {
@@ -805,6 +853,7 @@ function CoursesAdmin() {
     updated[modIndex].videos = updated[modIndex].videos.filter((_, i) => i !== lesIndex);
     setModules(updated);
   };
+
 
   return (
     <Card className="glass border-border/40">
@@ -914,12 +963,17 @@ function CoursesAdmin() {
                             <span>{les.title}</span>
                             <span className="text-[10px] text-muted-foreground">({les.duration})</span>
                           </div>
-                          <Button variant="ghost" size="sm" onClick={() => removeLesson(modIdx, lesIdx)} className="text-[10px] text-red-400 h-6">
-                            Supprimer
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button variant="ghost" size="sm" onClick={() => startEditLesson(modIdx, lesIdx)} className="text-[10px] text-primary h-6 hover:bg-primary/10">
+                              Modifier
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => removeLesson(modIdx, lesIdx)} className="text-[10px] text-red-400 h-6">
+                              Supprimer
+                            </Button>
+                          </div>
                         </div>
                       ))}
-                      <Button onClick={() => addLesson(modIdx)} variant="outline" size="sm" className="text-[10px] h-7 border-dashed border-primary/40 text-primary">
+                      <Button onClick={() => startAddLesson(modIdx)} variant="outline" size="sm" className="text-[10px] h-7 border-dashed border-primary/40 text-primary">
                         + Ajouter une leçon ({type === "video" ? "vidéo" : "écrite"})
                       </Button>
                     </div>
@@ -974,6 +1028,228 @@ function CoursesAdmin() {
           </div>
         )}
       </CardContent>
+
+      {editingLesson && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-card border border-border rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-6 my-8">
+            <div className="flex justify-between items-center pb-4 border-b border-border/40">
+              <h3 className="font-heading font-bold text-lg text-primary flex items-center gap-2">
+                <Edit2 className="w-5 h-5" />
+                {editingLesson.lesIndex === null ? "Ajouter une leçon" : `Modifier la leçon : ${editingLesson.lesson.title}`}
+              </h3>
+              <Button variant="ghost" onClick={() => setEditingLesson(null)}>Fermer</Button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs font-semibold text-foreground">Titre de la leçon *</Label>
+                <Input
+                  value={editingLesson.lesson.title || ""}
+                  onChange={(e) => setEditingLesson({
+                    ...editingLesson,
+                    lesson: { ...editingLesson.lesson, title: e.target.value }
+                  })}
+                  placeholder="Ex: 1.3 Analyse SWOT marketing"
+                  className="bg-secondary text-xs mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-semibold text-foreground">Durée (ex: 12:30 ou Lecture : 10 min) *</Label>
+                <Input
+                  value={editingLesson.lesson.duration || ""}
+                  onChange={(e) => setEditingLesson({
+                    ...editingLesson,
+                    lesson: { ...editingLesson.lesson, duration: e.target.value }
+                  })}
+                  placeholder="Ex: 15:40"
+                  className="bg-secondary text-xs mt-1"
+                />
+              </div>
+            </div>
+
+            {type === "video" ? (
+              <div>
+                <Label className="text-xs font-semibold text-foreground">Lien de la vidéo YouTube *</Label>
+                <Input
+                  value={editingLesson.lesson.videoUrl || ""}
+                  onChange={(e) => setEditingLesson({
+                    ...editingLesson,
+                    lesson: { ...editingLesson.lesson, videoUrl: e.target.value }
+                  })}
+                  placeholder="Ex: https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                  className="bg-secondary text-xs mt-1"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">Saisissez un lien YouTube valide pour le lecteur.</p>
+              </div>
+            ) : (
+              <div>
+                <Label className="text-xs font-semibold text-foreground">Contenu textuel du cours *</Label>
+                <Textarea
+                  value={editingLesson.lesson.content || ""}
+                  onChange={(e) => setEditingLesson({
+                    ...editingLesson,
+                    lesson: { ...editingLesson.lesson, content: e.target.value }
+                  })}
+                  rows={8}
+                  placeholder="Rédigez le support de cours textuel ici..."
+                  className="bg-secondary text-xs mt-1 font-mono"
+                />
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-border/40 pt-4">
+              <div>
+                <Label className="text-xs font-semibold text-foreground flex items-center gap-1">
+                  Transcription (Français)
+                </Label>
+                <Textarea
+                  value={editingLesson.lesson.transcription || ""}
+                  onChange={(e) => setEditingLesson({
+                    ...editingLesson,
+                    lesson: { ...editingLesson.lesson, transcription: e.target.value }
+                  })}
+                  rows={5}
+                  placeholder="Transcription textuelle française de la leçon..."
+                  className="bg-secondary text-xs mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-semibold text-foreground flex items-center gap-1">
+                  Transcription (Anglais)
+                </Label>
+                <Textarea
+                  value={editingLesson.lesson.transcriptionEn || ""}
+                  onChange={(e) => setEditingLesson({
+                    ...editingLesson,
+                    lesson: { ...editingLesson.lesson, transcriptionEn: e.target.value }
+                  })}
+                  rows={5}
+                  placeholder="English translation of the lesson transcription..."
+                  className="bg-secondary text-xs mt-1"
+                />
+              </div>
+            </div>
+
+            <div className="border-t border-border/40 pt-4 space-y-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <Label className="font-bold text-sm text-foreground">Exercices de validation (10 questions)</Label>
+                  <p className="text-[10px] text-muted-foreground">Un quota de 7/10 est requis pour débloquer l'étape suivante.</p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    const defaultQuiz = generateDefaultQuiz(editingLesson.lesson.title || "ce cours");
+                    setEditingLesson({
+                      ...editingLesson,
+                      lesson: { ...editingLesson.lesson, quiz: defaultQuiz }
+                    });
+                    toast.success("Quiz par défaut de 10 questions généré !");
+                  }}
+                  className="text-xs font-normal"
+                >
+                  Générer 10 questions par défaut
+                </Button>
+              </div>
+
+              <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
+                {Array.from({ length: 10 }).map((_, qIdx) => {
+                  const currentQuiz = editingLesson.lesson.quiz || [];
+                  const question = currentQuiz[qIdx] || {
+                    question: "",
+                    options: ["", "", "", ""],
+                    correctAnswerIndex: 0
+                  };
+
+                  const updateQuestionField = (field: string, value: any) => {
+                    const updatedQuiz = [...currentQuiz];
+                    while (updatedQuiz.length <= qIdx) {
+                      updatedQuiz.push({ question: "", options: ["", "", "", ""], correctAnswerIndex: 0 });
+                    }
+                    if (field === "question") {
+                      updatedQuiz[qIdx] = { ...updatedQuiz[qIdx], question: value };
+                    } else if (field === "correctAnswerIndex") {
+                      updatedQuiz[qIdx] = { ...updatedQuiz[qIdx], correctAnswerIndex: Number(value) };
+                    }
+                    setEditingLesson({
+                      ...editingLesson,
+                      lesson: { ...editingLesson.lesson, quiz: updatedQuiz }
+                    });
+                  };
+
+                  const updateOptionField = (optIdx: number, val: string) => {
+                    const updatedQuiz = [...currentQuiz];
+                    while (updatedQuiz.length <= qIdx) {
+                      updatedQuiz.push({ question: "", options: ["", "", "", ""], correctAnswerIndex: 0 });
+                    }
+                    const updatedOptions = [...updatedQuiz[qIdx].options];
+                    updatedOptions[optIdx] = val;
+                    updatedQuiz[qIdx] = { ...updatedQuiz[qIdx], options: updatedOptions };
+                    setEditingLesson({
+                      ...editingLesson,
+                      lesson: { ...editingLesson.lesson, quiz: updatedQuiz }
+                    });
+                  };
+
+                  return (
+                    <div key={qIdx} className="p-4 rounded-lg bg-secondary/20 border border-border/30 space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-bold text-primary">Question {qIdx + 1}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-muted-foreground">Index réponse correcte :</span>
+                          <select
+                            value={question.correctAnswerIndex}
+                            onChange={(e) => updateQuestionField("correctAnswerIndex", e.target.value)}
+                            className="bg-secondary border border-border rounded text-[10px] p-1 text-foreground focus:outline-none"
+                          >
+                            <option value={0}>Option A</option>
+                            <option value={1}>Option B</option>
+                            <option value={2}>Option C</option>
+                            <option value={3}>Option D</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div>
+                        <Input
+                          value={question.question}
+                          onChange={(e) => updateQuestionField("question", e.target.value)}
+                          placeholder={`Question ${qIdx + 1} (Ex: Quelle est la règle d'or ?) ...`}
+                          className="bg-secondary text-xs h-8"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {["A", "B", "C", "D"].map((letter, oIdx) => (
+                          <div key={oIdx} className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-bold text-muted-foreground w-4">{letter}.</span>
+                            <Input
+                              value={question.options[oIdx] || ""}
+                              onChange={(e) => updateOptionField(oIdx, e.target.value)}
+                              placeholder={`Option ${letter}`}
+                              className="bg-secondary text-[11px] h-7 flex-1"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 border-t border-border/40 pt-4">
+              <Button variant="ghost" onClick={() => setEditingLesson(null)}>
+                Annuler
+              </Button>
+              <Button onClick={handleSaveLesson} className="bg-primary text-primary-foreground">
+                Enregistrer la leçon
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </Card>
   );
 }
