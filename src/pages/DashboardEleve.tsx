@@ -44,7 +44,7 @@ const student = {
 };
 
 import { useNavigate } from "react-router-dom";
-import { getCourses } from "@/lib/coursesStore";
+import { getCourses, saveCourses, getYoutubeId } from "@/lib/coursesStore";
 
 const DashboardEleve = () => {
   const navigate = useNavigate();
@@ -53,6 +53,14 @@ const DashboardEleve = () => {
   const [selectedVideo, setSelectedVideo] = useState<string>(activeCourse?.modules[0]?.videos[0]?.id || "v1");
   const [isSecure, setIsSecure] = useState<boolean>(true);
   const [profile, setProfile] = useState<any>(null);
+
+  // Quiz and Transcription states
+  const [showQuizModal, setShowQuizModal] = useState<boolean>(false);
+  const [currentQuestionIdx, setCurrentQuestionIdx] = useState<number>(0);
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
+  const [quizScore, setQuizScore] = useState<number | null>(null);
+  const [quizSubmitted, setQuizSubmitted] = useState<boolean>(false);
+  const [transLang, setTransLang] = useState<"fr" | "en">("fr");
 
   // Find current lesson/video object
   let currentLesson: any = null;
@@ -185,6 +193,81 @@ const DashboardEleve = () => {
     };
   }, []);
 
+  const startQuiz = () => {
+    setCurrentQuestionIdx(0);
+    setSelectedAnswers({});
+    setQuizScore(null);
+    setQuizSubmitted(false);
+    setShowQuizModal(true);
+  };
+
+  const handleQuizSubmit = () => {
+    const questions = currentLesson?.quiz || [];
+    if (questions.length === 0) return;
+
+    let score = 0;
+    questions.forEach((q: any, idx: number) => {
+      if (selectedAnswers[idx] === q.correctAnswerIndex) {
+        score++;
+      }
+    });
+
+    setQuizScore(score);
+    setQuizSubmitted(true);
+
+    if (score >= 7) {
+      // Mark current lesson as watched
+      currentLesson.watched = true;
+
+      // Find and unlock the next lesson/module
+      let foundActive = false;
+      let unlockedNext = false;
+
+      const updatedCourses = courses.map((c: any) => {
+        if (c.id === activeCourse.id) {
+          const modUpdated = c.modules.map((mod: any, modIdx: number) => {
+            const vidUpdated = mod.videos.map((vid: any, vidIdx: number) => {
+              if (vid.id === currentLesson.id) {
+                foundActive = true;
+                return { ...vid, watched: true };
+              }
+              if (foundActive && !unlockedNext) {
+                unlockedNext = true;
+                return { ...vid, unlocked: true };
+              }
+              return vid;
+            });
+            return { ...mod, videos: vidUpdated };
+          });
+
+          // Check if we need to unlock the next module
+          let checkFound = false;
+          const finalModules = modUpdated.map((m: any, mIdx: number) => {
+            if (m.videos.some((v: any) => v.id === currentLesson.id)) {
+              checkFound = true;
+            } else if (checkFound && !unlockedNext) {
+              unlockedNext = true;
+              return { ...m, unlocked: true };
+            }
+            return m;
+          });
+
+          return { ...c, modules: finalModules };
+        }
+        return c;
+      });
+
+      saveCourses(updatedCourses);
+      const updatedActive = updatedCourses.find((c: any) => c.id === activeCourse.id);
+      if (updatedActive) {
+        setActiveCourse(updatedActive);
+      }
+      toast.success(`Bravo ! Vous avez réussi le quiz (${score}/10) et débloqué l'étape suivante.`);
+    } else {
+      toast.error(`Score insuffisant (${score}/10). Vous devez obtenir au moins 7/10 pour continuer.`);
+    }
+  };
+
   return (
     <div className="min-h-screen pt-24 pb-16 bg-background relative select-none">
       <div className="container mx-auto px-4 md:px-8">
@@ -247,6 +330,19 @@ const DashboardEleve = () => {
                     </div>
                   </div>
                 </div>
+              ) : currentLesson?.videoUrl && getYoutubeId(currentLesson.videoUrl) ? (
+                <div className="w-full h-full bg-black relative">
+                  <iframe
+                    width="100%"
+                    height="100%"
+                    src={`https://www.youtube.com/embed/${getYoutubeId(currentLesson.videoUrl)}?autoplay=1&rel=0&modestbranding=1`}
+                    title={currentLesson.title}
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    className="w-full h-full"
+                  ></iframe>
+                </div>
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-zinc-900 relative">
                   <div className="text-center p-6 space-y-4">
@@ -259,6 +355,49 @@ const DashboardEleve = () => {
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Quiz & Transcription Panel */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Quiz / Exercises Card */}
+              {currentLesson?.quiz && (
+                <div className="p-6 rounded-2xl bg-card border border-border/40 flex flex-col justify-between space-y-4">
+                  <div>
+                    <span className="text-[10px] bg-primary/10 text-primary font-bold px-2 py-0.5 rounded uppercase">Exercice & Validation</span>
+                    <h3 className="font-heading font-bold text-base mt-2 text-foreground">Évaluez vos connaissances</h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Validez cette leçon en répondant à 10 questions. Un quota de 7/10 (70%) est exigé pour débloquer la suite.
+                    </p>
+                  </div>
+                  <button
+                    onClick={startQuiz}
+                    className="bg-primary text-primary-foreground font-bold text-xs py-3 rounded-xl w-full flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+                  >
+                    Débuter le Quiz (10 Questions)
+                  </button>
+                </div>
+              )}
+
+              {/* Transcription & Translation Card */}
+              <div className="p-6 rounded-2xl bg-card border border-border/40 flex flex-col justify-between space-y-4">
+                <div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] bg-accent/10 text-accent font-bold px-2 py-0.5 rounded uppercase">Transcription IA</span>
+                    <button
+                      onClick={() => setTransLang(transLang === "fr" ? "en" : "fr")}
+                      className="text-[10px] border border-border bg-secondary hover:bg-secondary/80 font-bold px-2.5 py-1 rounded-lg text-foreground flex items-center gap-1 transition-all"
+                    >
+                      Traduire en {transLang === "fr" ? "English" : "Français"}
+                    </button>
+                  </div>
+                  <h3 className="font-heading font-bold text-base mt-2 text-foreground">Transcription & Traduction</h3>
+                  <div className="text-[11px] text-muted-foreground mt-2 max-h-[90px] overflow-y-auto bg-secondary/30 p-3 rounded-lg border border-border/20 italic leading-relaxed">
+                    {transLang === "fr" 
+                      ? (currentLesson?.transcription || "Aucune transcription disponible pour cette leçon.") 
+                      : (currentLesson?.transcriptionEn || "No translation available for this lesson.")}
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Resources Downloads & Security Note */}
@@ -344,6 +483,138 @@ const DashboardEleve = () => {
           </div>
         </div>
       </div>
+
+      {/* Quiz Modal */}
+      {showQuizModal && currentLesson?.quiz && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg bg-card border border-border/60 rounded-3xl p-6 md:p-8 space-y-6 shadow-glow relative select-none">
+            {/* Header */}
+            <div className="flex justify-between items-center pb-4 border-b border-border/40">
+              <div>
+                <span className="text-[10px] bg-primary/10 text-primary font-bold px-2 py-0.5 rounded uppercase">Quiz validation</span>
+                <h3 className="font-heading font-bold text-base text-foreground mt-1">{currentLesson.title}</h3>
+              </div>
+              <button 
+                onClick={() => setShowQuizModal(false)}
+                className="text-muted-foreground hover:text-foreground transition-colors p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Quiz Body */}
+            {!quizSubmitted ? (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center text-xs text-muted-foreground">
+                  <span>Question {currentQuestionIdx + 1} sur {currentLesson.quiz.length}</span>
+                  <span className="text-primary font-bold">{Math.round(((currentQuestionIdx) / currentLesson.quiz.length) * 100)}% complété</span>
+                </div>
+
+                <div className="w-full h-1 bg-secondary rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-primary transition-all duration-300"
+                    style={{ width: `${((currentQuestionIdx + 1) / currentLesson.quiz.length) * 100}%` }}
+                  />
+                </div>
+
+                <h4 className="font-heading font-semibold text-xs md:text-sm text-foreground leading-relaxed">
+                  {currentLesson.quiz[currentQuestionIdx].question}
+                </h4>
+
+                <div className="space-y-2 pt-2">
+                  {currentLesson.quiz[currentQuestionIdx].options.map((opt: string, optIdx: number) => {
+                    const isSelected = selectedAnswers[currentQuestionIdx] === optIdx;
+                    return (
+                      <button
+                        key={optIdx}
+                        onClick={() => setSelectedAnswers({ ...selectedAnswers, [currentQuestionIdx]: optIdx })}
+                        className={`w-full text-left p-3.5 rounded-xl text-xs transition-all border ${
+                          isSelected
+                            ? "bg-primary/10 border-primary text-primary font-bold"
+                            : "bg-secondary/40 border-border/60 hover:bg-secondary text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {opt}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Navigation Buttons */}
+                <div className="flex justify-between items-center pt-4">
+                  <button
+                    disabled={currentQuestionIdx === 0}
+                    onClick={() => setCurrentQuestionIdx(currentQuestionIdx - 1)}
+                    className="text-xs font-semibold px-4 py-2 rounded-lg bg-secondary border border-border text-foreground disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Précédent
+                  </button>
+
+                  {currentQuestionIdx + 1 === currentLesson.quiz.length ? (
+                    <button
+                      disabled={selectedAnswers[currentQuestionIdx] === undefined}
+                      onClick={handleQuizSubmit}
+                      className="text-xs font-bold px-6 py-2.5 rounded-lg bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      Terminer & Soumettre
+                    </button>
+                  ) : (
+                    <button
+                      disabled={selectedAnswers[currentQuestionIdx] === undefined}
+                      onClick={() => setCurrentQuestionIdx(currentQuestionIdx + 1)}
+                      className="text-xs font-semibold px-6 py-2.5 rounded-lg bg-secondary border border-border text-foreground hover:bg-secondary/80 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      Suivant
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              // Quiz Results View
+              <div className="text-center space-y-6 py-4">
+                <div className="space-y-2">
+                  <span className="text-5xl font-heading font-extrabold text-foreground">
+                    {quizScore} / 10
+                  </span>
+                  <p className="text-sm font-semibold mt-2">
+                    {quizScore >= 7 ? (
+                      <span className="text-green-400 font-bold">Félicitations ! Exercice réussi.</span>
+                    ) : (
+                      <span className="text-red-400 font-bold">Score insuffisant ({quizScore}/10).</span>
+                    )}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {quizScore >= 7 
+                      ? "La leçon suivante a été débloquée dans votre programme d'études."
+                      : "Vous devez obtenir au moins 7/10 de bonnes réponses pour continuer."}
+                  </p>
+                </div>
+
+                <div className="flex gap-3 justify-center">
+                  <button
+                    onClick={() => {
+                      setQuizSubmitted(false);
+                      setCurrentQuestionIdx(0);
+                      setSelectedAnswers({});
+                    }}
+                    className="text-xs font-bold px-6 py-3 rounded-lg border border-border bg-secondary text-foreground hover:bg-secondary/80"
+                  >
+                    Recommencer
+                  </button>
+                  {quizScore >= 7 && (
+                    <button
+                      onClick={() => setShowQuizModal(false)}
+                      className="text-xs font-bold px-6 py-3 rounded-lg bg-primary text-primary-foreground hover:opacity-90"
+                    >
+                      Continuer le cours
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

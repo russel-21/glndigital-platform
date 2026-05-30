@@ -1,10 +1,19 @@
+export interface QuizQuestion {
+  question: string;
+  options: string[];
+  correctAnswerIndex: number;
+}
+
 export interface Lesson {
   id: string;
   title: string;
   duration: string;
   watched: boolean;
   content?: string; // For written/text lessons
-  videoUrl?: string; // For video lessons
+  videoUrl?: string; // For video lessons (e.g. YouTube URL)
+  transcription?: string; // French transcript
+  transcriptionEn?: string; // English transcript
+  quiz?: QuizQuestion[]; // 10 questions quiz
 }
 
 export interface CourseModule {
@@ -26,6 +35,70 @@ export interface Course {
   skills: string[];
   modules: CourseModule[];
 }
+
+// Helper to extract YouTube Video ID
+export const getYoutubeId = (url: string): string | null => {
+  if (!url) return null;
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? match[2] : null;
+};
+
+// Generate 10 standard mock quiz questions for a course
+export const generateDefaultQuiz = (topic: string): QuizQuestion[] => {
+  return [
+    {
+      question: `Quelle est la règle d'or en ${topic} ?`,
+      options: ["Parler uniquement de son produit", "Comprendre et cibler le besoin du client", "Faire les publicités les plus chères", "Attendre que les clients viennent d'eux-mêmes"],
+      correctAnswerIndex: 1,
+    },
+    {
+      question: `Quel indicateur mesure directement la rentabilité en ${topic} ?`,
+      options: ["Le nombre de J'aime", "Le ROAS (Retour sur dépenses publicitaires)", "Le taux de clics (CTR)", "Le nombre de partages"],
+      correctAnswerIndex: 1,
+    },
+    {
+      question: "Que signifie le pixel de suivi ou API de conversion ?",
+      options: ["Un outil de design d'images", "Un script pour suivre les actions des visiteurs sur le site", "Un moyen de bloquer les publicités des concurrents", "Un logiciel de facturation"],
+      correctAnswerIndex: 1,
+    },
+    {
+      question: "Pour rédiger une offre irrésistible, que doit-on mettre en avant ?",
+      options: ["La liste technique des fonctionnalités", "La transformation et les bénéfices pour le client", "Le logo de l'entreprise en grand", "Le fait que vous soyez le meilleur"],
+      correctAnswerIndex: 1,
+    },
+    {
+      question: "Qu'est-ce que le 'Retargeting' (reciblage) ?",
+      options: ["Changer de pays cible pour ses ventes", "Diffuser des publicités aux personnes ayant déjà interagi avec la marque", "Supprimer les anciennes publicités", "Trouver de nouveaux mots-clés"],
+      correctAnswerIndex: 1,
+    },
+    {
+      question: "Quel format publicitaire mobile génère actuellement le plus d'engagement ?",
+      options: ["Les bannières statiques", "Les vidéos courtes de type Reels/TikTok", "Les longs articles textuels", "Les e-mails sans mise en forme"],
+      correctAnswerIndex: 1,
+    },
+    {
+      question: "Quel outil IA permet de générer des scripts de vente persuasifs ?",
+      options: ["Midjourney", "ChatGPT", "CapCut", "Excel"],
+      correctAnswerIndex: 1,
+    },
+    {
+      question: "Quelle action principale définit la conversion ?",
+      options: ["La visite de la page d'accueil", "L'accomplissement de l'action business souhaitée (achat, formulaire rempli)", "Le clic sur le logo", "La fermeture de l'onglet"],
+      correctAnswerIndex: 1,
+    },
+    {
+      question: "Comment teste-t-on l'efficacité de deux visuels publicitaires ?",
+      options: ["Par des tests A/B en distribuant le budget équitablement", "En demandant l'avis de sa famille", "En lançant les deux sur un compte personnel", "En choisissant celui qui plaît le plus au graphiste"],
+      correctAnswerIndex: 0,
+    },
+    {
+      question: "Quelle est la principale source de trafic organique gratuite ?",
+      options: ["La publicité Google Ads", "Le référencement naturel (SEO) et les réseaux sociaux", "L'achat de listes d'e-mails", "Les flyers imprimés"],
+      correctAnswerIndex: 1,
+    },
+  ];
+};
 
 export const defaultCourses: Course[] = [
   {
@@ -59,17 +132,26 @@ export const defaultCourses: Course[] = [
         title: "Module 1 : Les Fondations du Marketing Digital",
         unlocked: true,
         videos: [
-          { id: "mdp-v1", title: "1.1 Comprendre le comportement du consommateur moderne", duration: "12:35", watched: true, videoUrl: "https://www.w3schools.com/html/mov_bbb.mp4" },
-          { id: "mdp-v2", title: "1.2 Définir sa proposition de valeur unique", duration: "18:40", watched: false, videoUrl: "https://www.w3schools.com/html/mov_bbb.mp4" },
-          { id: "mdp-v3", title: "1.3 Cartographier le tunnel de vente", duration: "15:20", watched: false, videoUrl: "https://www.w3schools.com/html/mov_bbb.mp4" },
-        ],
-      },
-      {
-        title: "Module 2 : La Publicité Meta Ads de A à Z",
-        unlocked: true,
-        videos: [
-          { id: "mdp-v4", title: "2.1 Paramétrage optimal du Business Manager", duration: "14:15", watched: false, videoUrl: "https://www.w3schools.com/html/mov_bbb.mp4" },
-          { id: "mdp-v5", title: "2.2 Comprendre l'algorithme et la structure de campagne", duration: "22:10", watched: false, videoUrl: "https://www.w3schools.com/html/mov_bbb.mp4" },
+          {
+            id: "mdp-v1",
+            title: "1.1 Comprendre le comportement du consommateur moderne",
+            duration: "10:30",
+            watched: true,
+            videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", // Default YouTube url
+            transcription: "Bienvenue dans cette leçon. Aujourd'hui nous allons étudier la psychologie du client moderne. Le consommateur digital ne veut plus qu'on lui vende quelque chose, il veut acheter de lui-même grâce à la confiance et à l'éducation...",
+            transcriptionEn: "Welcome to this lesson. Today we will study the psychology of the modern customer. The digital consumer no longer wants to be sold to; they want to buy on their own through trust and education...",
+            quiz: generateDefaultQuiz("Marketing Digital"),
+          },
+          {
+            id: "mdp-v2",
+            title: "1.2 Définir sa proposition de valeur unique",
+            duration: "15:10",
+            watched: false,
+            videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            transcription: "La proposition de valeur est le coeur de votre business. Sans offre claire et bénéfice immédiat, vos campagnes publicitaires ne feront que brûler du budget publicitaire sans conversion.",
+            transcriptionEn: "The value proposition is the heart of your business. Without a clear offer and immediate benefit, your ad campaigns will only burn budget without conversions.",
+            quiz: generateDefaultQuiz("Proposition de Valeur"),
+          },
         ],
       },
     ],
@@ -104,43 +186,14 @@ export const defaultCourses: Course[] = [
         title: "Module 1 : Rôle du Community Manager au Cameroun",
         unlocked: true,
         videos: [
-          { id: "cm-w1", title: "1.1 Écosystème local des réseaux sociaux", duration: "Lecture : 10 min", watched: true, content: "L'écosystème numérique en Afrique centrale, et particulièrement au Cameroun, connaît une dynamique unique caractérisée par la prédominance de Facebook pour les affaires..." },
-          { id: "cm-w2", title: "1.2 Audit et analyse d'une page existante", duration: "Lecture : 15 min", watched: false, content: "Pour auditer une page de marque, commencez par évaluer le taux d'engagement, la régularité des posts, le style visuel et le temps de réponse aux commentaires..." },
-        ],
-      },
-    ],
-  },
-  {
-    id: "creation-contenu-ia",
-    title: "Création de contenu & IA générative",
-    duration: "3 semaines",
-    difficulty: "Tous niveaux",
-    price: "Sur devis",
-    desc: "Boostez votre productivité avec l'intelligence artificielle. Utilisez ChatGPT, Midjourney et CapCut pour vos visuels et vidéos.",
-    type: "video",
-    features: [
-      "Prompts avancés pour la création de contenu",
-      "Montage vidéo dynamique sur smartphone (CapCut)",
-      "Automatisation de votre branding avec l'IA",
-      "Création de scripts de vidéos courtes virales",
-    ],
-    audience: [
-      "Créateurs de contenu et blogueurs",
-      "Social Media Managers voulant automatiser leur flux de travail",
-      "Entrepreneurs pressés souhaitant produire des visuels rapidement",
-    ],
-    skills: [
-      "Rédaction de prompts avancés pour ChatGPT",
-      "Génération d'images et d'assets avec les IA visuelles",
-      "Montage rapide et dynamique de Reels & TikTok sur CapCut",
-      "Automatisation de la création de visuels en lot",
-    ],
-    modules: [
-      {
-        title: "Module 1 : ChatGPT & Ingénierie de Prompts",
-        unlocked: true,
-        videos: [
-          { id: "ia-v1", title: "1.1 Formuler des prompts efficaces pour le marketing", duration: "10:15", watched: false, videoUrl: "https://www.w3schools.com/html/mov_bbb.mp4" },
+          {
+            id: "cm-w1",
+            title: "1.1 Écosystème local des réseaux sociaux",
+            duration: "Lecture : 10 min",
+            watched: true,
+            content: "L'écosystème numérique en Afrique centrale, et particulièrement au Cameroun, connaît une dynamique unique caractérisée par la prédominance de Facebook pour les affaires...",
+            quiz: generateDefaultQuiz("Community Management"),
+          },
         ],
       },
     ],
