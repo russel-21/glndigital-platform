@@ -172,12 +172,9 @@ const Auth = () => {
       return;
     }
 
-    // Verify phone local number format
-    const fullPhone = `${countryCode} ${phoneLocal.trim()}`;
-    if (isSignUp && !/^[0-9\s-]{6,15}$/.test(phoneLocal.trim())) {
-      toast.error("Veuillez saisir un numéro de téléphone local valide.");
-      return;
-    }
+    // Default fields for simplified signup
+    const fullPhone = "";
+    const userRole = "student";
 
     if (password.length < 8) {
       toast.error("Le mot de passe doit contenir au moins 8 caractères.");
@@ -194,7 +191,7 @@ const Auth = () => {
             data: {
               full_name: fullName,
               phone: fullPhone,
-              company_name: companyName,
+              company_name: "",
               role: userRole,
             }
           }
@@ -209,7 +206,7 @@ const Auth = () => {
             id: data.user.id,
             full_name: fullName,
             phone: fullPhone,
-            company_name: companyName,
+            company_name: "",
             roles: [userRole],
             current_role: userRole,
             email: email,
@@ -383,75 +380,20 @@ const Auth = () => {
         {/* Email Password Auth Form */}
         <form onSubmit={handleAuth} className="space-y-4">
           {isSignUp && (
-            <>
-              <div>
-                <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1.5 block">Nom complet (pour vos certificats)</label>
-                <div className="relative">
-                  <User className="absolute left-3.5 top-3 w-4 h-4 text-muted-foreground" />
-                  <input
-                    type="text"
-                    required
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    className="w-full bg-secondary border border-border rounded-xl pl-10 pr-4 py-2.5 text-xs text-foreground focus:outline-none focus:border-primary"
-                    placeholder="Jean Dupont"
-                  />
-                </div>
+            <div>
+              <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1.5 block">Nom complet</label>
+              <div className="relative">
+                <User className="absolute left-3.5 top-3 w-4 h-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  required
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className="w-full bg-secondary border border-border rounded-xl pl-10 pr-4 py-2.5 text-xs text-foreground focus:outline-none focus:border-primary"
+                  placeholder="Jean Dupont"
+                />
               </div>
-
-              <div>
-                <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1.5 block">Téléphone</label>
-                <div className="flex gap-2">
-                  <select
-                    value={countryCode}
-                    onChange={(e) => setCountryCode(e.target.value)}
-                    className="bg-secondary border border-border rounded-xl px-2 py-2.5 text-xs text-foreground focus:outline-none focus:border-primary"
-                  >
-                    <option value="+237">+237 (CM)</option>
-                    <option value="+33">+33 (FR)</option>
-                    <option value="+225">+225 (CI)</option>
-                    <option value="+221">+221 (SN)</option>
-                    <option value="+242">+242 (CG)</option>
-                    <option value="+243">+243 (CD)</option>
-                    <option value="+229">+229 (BJ)</option>
-                    <option value="+228">+228 (TG)</option>
-                    <option value="+241">+241 (GA)</option>
-                    <option value="+235">+235 (TD)</option>
-                    <option value="+226">+226 (BF)</option>
-                    <option value="+212">+212 (MA)</option>
-                    <option value="+213">+213 (DZ)</option>
-                    <option value="+216">+216 (TN)</option>
-                    <option value="+1">+1 (US/CA)</option>
-                    <option value="+44">+44 (UK)</option>
-                    <option value="+32">+32 (BE)</option>
-                    <option value="+41">+41 (CH)</option>
-                  </select>
-                  <div className="relative flex-1">
-                    <Phone className="absolute left-3.5 top-3 w-4 h-4 text-muted-foreground" />
-                    <input
-                      type="tel"
-                      required
-                      value={phoneLocal}
-                      onChange={(e) => setPhoneLocal(e.target.value)}
-                      className="w-full bg-secondary border border-border rounded-xl pl-10 pr-4 py-2.5 text-xs text-foreground focus:outline-none focus:border-primary"
-                      placeholder="6xx xxx xxx"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1.5 block">Votre Rôle</label>
-                <select
-                  value={userRole}
-                  onChange={(e) => setUserRole(e.target.value as "student" | "partner")}
-                  className="w-full bg-secondary border border-border rounded-xl px-4 py-2.5 text-xs text-foreground focus:outline-none focus:border-primary"
-                >
-                  <option value="student">Apprendre</option>
-                  <option value="partner">Partenaire</option>
-                </select>
-              </div>
-            </>
+            </div>
           )}
 
           <div>
