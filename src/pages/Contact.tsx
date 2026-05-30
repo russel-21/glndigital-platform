@@ -1,12 +1,69 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Send, Phone, Mail, MapPin } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import SocialLinks from "@/components/SocialLinks";
+import { supabase } from "@/integrations/supabase/client";
 
 const Contact = () => {
   const { toast } = useToast();
   const [form, setForm] = useState({ name: "", company: "", phone: "", goal: "", message: "" });
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      const mockAdmin = localStorage.getItem("gln_mock_admin_session") === "true";
+      const mockUser = localStorage.getItem("gln_mock_user_logged_in") === "true";
+
+      if (mockAdmin) {
+        setForm((prev) => ({
+          ...prev,
+          name: "Super Admin",
+          phone: "+237 000 000 000"
+        }));
+        return;
+      }
+
+      if (mockUser) {
+        const activeMock = localStorage.getItem("gln_active_mock_profile");
+        if (activeMock) {
+          try {
+            const parsed = JSON.parse(activeMock);
+            setForm((prev) => ({
+              ...prev,
+              name: parsed.full_name || "",
+              phone: parsed.phone || "",
+              company: parsed.company_name && !parsed.company_name.startsWith("{") ? parsed.company_name : ""
+            }));
+          } catch {}
+        }
+        return;
+      }
+
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", session.user.id)
+            .single();
+          if (profile) {
+            setForm((prev) => ({
+              ...prev,
+              name: profile.full_name || "",
+              phone: profile.phone || "",
+              company: profile.company_name && !profile.company_name.startsWith("{") ? profile.company_name : ""
+            }));
+          }
+        }
+      } catch (err) {
+        console.warn("Could not load user profile for pre-filling contact form:", err);
+      }
+    };
+
+    loadProfile();
+  }, []);
+
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,7 +148,7 @@ const Contact = () => {
                 />
               </div>
               <div>
-                <label className="text-sm text-muted-foreground mb-1.5 block">Entreprise</label>
+                <label className="text-sm text-muted-foreground mb-1.5 block">Nom de l'entreprise (facultatif)</label>
                 <input
                   maxLength={100}
                   value={form.company}
