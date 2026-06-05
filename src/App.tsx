@@ -25,6 +25,8 @@ import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
 import AuthCallback from "./pages/AuthCallback";
 import ReferralHandler from "./pages/ReferralHandler";
+import AuditPage from "./pages/AuditPage";
+import AuditReportDetail from "./pages/AuditReportDetail";
 
 const queryClient = new QueryClient();
 
@@ -53,6 +55,8 @@ const App = () => (
             <Route path="/portfolio" element={<Portfolio />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/audit" element={<AuditPage />} />
+            <Route path="/audit/rapport/:id" element={<AuditReportDetail />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <Footer />
