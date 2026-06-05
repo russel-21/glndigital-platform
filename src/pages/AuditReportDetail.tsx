@@ -1090,7 +1090,7 @@ const AuditReportDetail = () => {
                   <span className="font-semibold text-foreground block">Étapes à suivre :</span>
                   <ol className="list-decimal list-inside space-y-2 text-muted-foreground pl-1">
                     <li>Allez dans les <a href="https://business.facebook.com/settings" target="_blank" rel="noopener noreferrer" className="text-primary underline">Paramètres d'entreprise Meta (Business Manager)</a>.</li>
-                    <li>Dans le menu gauche, cliquez sur <strong>Utilisateurs</strong> > <strong>Partenaires</strong>.</li>
+                    <li>Dans le menu gauche, cliquez sur <strong>Utilisateurs</strong> &gt; <strong>Partenaires</strong>.</li>
                     <li>Sous <em>Partenaires à qui partager des éléments</em>, cliquez sur <strong>Ajouter</strong>.</li>
                     <li>Collez notre ID partenaire ci-dessus et attribuez les accès <strong>"Lecture Seule / Afficher les performances"</strong> pour votre Page et votre Compte publicitaire.</li>
                   </ol>
@@ -1100,7 +1100,7 @@ const AuditReportDetail = () => {
                   <span className="font-bold text-foreground block">Option B : Directement via votre Page Facebook</span>
                   <ol className="list-decimal list-inside space-y-1.5 text-muted-foreground pl-1">
                     <li>Ouvrez votre page Facebook en mode Administrateur.</li>
-                    <li>Allez sur le <strong>Tableau de bord professionnel</strong> > <strong>Accès à la page</strong>.</li>
+                    <li>Allez sur le <strong>Tableau de bord professionnel</strong> &gt; <strong>Accès à la page</strong>.</li>
                     <li>Sous <em>Personnes ayant un accès aux tâches</em>, cliquez sur <strong>Ajouter</strong>.</li>
                     <li>Saisissez l'adresse e-mail GLN : <strong className="text-foreground">audit@glndigital.com</strong> et sélectionnez le rôle <strong>Analyste</strong>.</li>
                   </ol>
@@ -1134,7 +1134,7 @@ const AuditReportDetail = () => {
                     <li>Connectez-vous sur <a href="https://analytics.google.com" target="_blank" rel="noopener noreferrer" className="text-primary underline">Google Analytics</a>.</li>
                     <li>Cliquez sur la roue crantée <strong>Administration</strong> (en bas à gauche).</li>
                     <li>Sélectionnez <strong>Gestion des accès au compte</strong> ou <strong>à la propriété</strong>.</li>
-                    <li>Cliquez sur le bouton bleu <strong>"+"</strong> en haut à droite > <strong>Ajouter des utilisateurs</strong>.</li>
+                    <li>Cliquez sur le bouton bleu <strong>"+"</strong> en haut à droite &gt; <strong>Ajouter des utilisateurs</strong>.</li>
                     <li>Saisissez notre e-mail ci-dessus, et cochez uniquement le rôle <strong>Lecteur / Viewer</strong> (sans accès de modification).</li>
                   </ol>
                 </div>
