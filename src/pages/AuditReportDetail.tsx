@@ -1087,22 +1087,25 @@ const AuditReportDetail = () => {
                 </div>
 
                 <div className="space-y-2.5">
-                  <span className="font-semibold text-foreground block">Étapes à suivre :</span>
+                  <span className="font-semibold text-foreground block">Étapes détaillées à suivre :</span>
                   <ol className="list-decimal list-inside space-y-2 text-muted-foreground pl-1">
-                    <li>Allez dans les <a href="https://business.facebook.com/settings" target="_blank" rel="noopener noreferrer" className="text-primary underline">Paramètres d'entreprise Meta (Business Manager)</a>.</li>
-                    <li>Dans le menu gauche, cliquez sur <strong>Utilisateurs</strong> &gt; <strong>Partenaires</strong>.</li>
-                    <li>Sous <em>Partenaires à qui partager des éléments</em>, cliquez sur <strong>Ajouter</strong>.</li>
-                    <li>Collez notre ID partenaire ci-dessus et attribuez les accès <strong>"Lecture Seule / Afficher les performances"</strong> pour votre Page et votre Compte publicitaire.</li>
+                    <li>Allez sur <a href="https://business.facebook.com/settings" target="_blank" rel="noopener noreferrer" className="text-primary underline">Meta Business Settings</a>.</li>
+                    <li><strong>Sélectionnez votre entreprise</strong> dans la liste (ex : <em>Cabinet De Recrutement de Barclès</em> ou <em>hotelsoft.cm</em>).</li>
+                    <li>Dans le menu ou les raccourcis à gauche, cliquez sur <strong>Paramètres de l'entreprise</strong> (l'icône d'engrenage ⚙️).</li>
+                    <li>Dans le menu latéral gauche, cliquez sur <strong>Utilisateurs</strong> puis sur <strong>Partenaires</strong>.</li>
+                    <li>Sous la section <em>Partenaires avec qui partager des éléments</em>, cliquez sur le bouton bleu <strong>Ajouter</strong>.</li>
+                    <li>Collez notre ID partenaire ci-dessus (`1780587266753`), sélectionnez votre Page et Compte publicitaire, puis activez l'autorisation <strong>"Afficher les performances" (Lecture seule)</strong> et enregistrez.</li>
                   </ol>
                 </div>
 
                 <div className="border-t border-border/25 pt-4 space-y-2">
-                  <span className="font-bold text-foreground block">Option B : Directement via votre Page Facebook</span>
+                  <span className="font-bold text-foreground block">Option B : Directement via votre Page Facebook (Simple)</span>
                   <ol className="list-decimal list-inside space-y-1.5 text-muted-foreground pl-1">
-                    <li>Ouvrez votre page Facebook en mode Administrateur.</li>
-                    <li>Allez sur le <strong>Tableau de bord professionnel</strong> &gt; <strong>Accès à la page</strong>.</li>
-                    <li>Sous <em>Personnes ayant un accès aux tâches</em>, cliquez sur <strong>Ajouter</strong>.</li>
-                    <li>Saisissez l'adresse e-mail GLN : <strong className="text-foreground">audit@glndigital.com</strong> et sélectionnez le rôle <strong>Analyste</strong>.</li>
+                    <li>Ouvrez votre page Facebook sur votre ordinateur et basculez sur le profil de votre Page.</li>
+                    <li>Cliquez sur votre photo de profil en haut à droite &gt; <strong>Paramètres et confidentialité</strong> &gt; <strong>Paramètres</strong>.</li>
+                    <li>Dans le menu latéral gauche, cliquez sur <strong>Nouvelle expérience des pages</strong> (ou <strong>Accès à la page</strong>).</li>
+                    <li>Sous la section <em>Personnes ayant un accès aux tâches</em> (ou <em>Accès Facebook</em>), cliquez sur <strong>Ajouter</strong>.</li>
+                    <li>Saisissez l'adresse e-mail GLN : <strong className="text-foreground">audit@glndigital.com</strong>, cochez uniquement l'accès aux **Statistiques / Performances** et validez l'invitation.</li>
                   </ol>
                 </div>
               </div>
