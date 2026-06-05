@@ -120,6 +120,7 @@ const scrapePage = async (url: string, platform: 'facebook' | 'instagram' | 'tik
         const subscribersMatch = description.match(new RegExp(`${countPattern}\\s*(abonnés|subscribers|followers)`, 'i'));
         if (subscribersMatch) result.followers = subscribersMatch[1].trim();
       }
+    }
     if (platform !== 'web' && !result.followers) {
       try {
         const queryTerm = `site:${cleanUrl.replace(/^https?:\/\/(www\.)?/i, '')}`;
