@@ -3,19 +3,42 @@ import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
 import { useState } from "react";
 import MediaCard from "@/components/MediaCard";
+import { useLanguage } from "@/hooks/useLanguage";
+
+const getPlatformLabel = (value: string, language: string) => {
+  switch (value) {
+    case "all":
+      return language === "fr" ? "Tous" : "All";
+    case "meta":
+      return "Meta Ads";
+    case "tiktok":
+      return "TikTok";
+    case "google_ads":
+      return "Google Ads";
+    case "youtube":
+      return "YouTube";
+    case "facebook":
+      return "Facebook";
+    case "other":
+      return language === "fr" ? "Autre" : "Other";
+    default:
+      return value;
+  }
+};
 
 const platforms = [
-  { value: "all", label: "Tous" },
-  { value: "meta", label: "Meta Ads" },
-  { value: "tiktok", label: "TikTok" },
-  { value: "google_ads", label: "Google Ads" },
-  { value: "youtube", label: "YouTube" },
-  { value: "facebook", label: "Facebook" },
-  { value: "other", label: "Autre" },
+  { value: "all" },
+  { value: "meta" },
+  { value: "tiktok" },
+  { value: "google_ads" },
+  { value: "youtube" },
+  { value: "facebook" },
+  { value: "other" },
 ];
 
 const Portfolio = () => {
   const [filter, setFilter] = useState("all");
+  const { language } = useLanguage();
 
   const { data: media = [] } = useQuery({
     queryKey: ["portfolio-media"],
@@ -39,10 +62,16 @@ const Portfolio = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          Notre <span className="text-gradient-primary">Portfolio</span>
+          {language === "fr" ? (
+            <>Notre <span className="text-gradient-primary">Portfolio</span></>
+          ) : (
+            <>Our <span className="text-gradient-primary">Portfolio</span></>
+          )}
         </motion.h1>
         <p className="text-muted-foreground text-center max-w-2xl mx-auto mb-10">
-          Nos campagnes publicitaires et réalisations sur toutes les plateformes.
+          {language === "fr"
+            ? "Nos campagnes publicitaires et réalisations sur toutes les plateformes."
+            : "Our advertising campaigns and achievements across all platforms."}
         </p>
 
         <div className="flex flex-wrap justify-center gap-2 mb-10">
@@ -56,13 +85,15 @@ const Portfolio = () => {
                   : "border-border text-muted-foreground hover:text-foreground hover:border-primary/30"
               }`}
             >
-              {p.label}
+              {getPlatformLabel(p.value, language)}
             </button>
           ))}
         </div>
 
         {filtered.length === 0 ? (
-          <p className="text-center text-muted-foreground py-20">Aucun contenu pour le moment.</p>
+          <p className="text-center text-muted-foreground py-20">
+            {language === "fr" ? "Aucun contenu pour le moment." : "No content available at the moment."}
+          </p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filtered.map((m, i) => (

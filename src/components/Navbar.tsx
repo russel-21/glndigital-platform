@@ -76,6 +76,25 @@ const Navbar = () => {
   }, [location.pathname]);
 
   const fetchProfile = async (userId: string) => {
+    const userStatus = localStorage.getItem(`gln_user_status_${userId}`) || "active";
+    if (userStatus === "inactive") {
+      // Deactivated user: force sign out
+      localStorage.removeItem("gln_mock_admin_session");
+      localStorage.removeItem("gln_trust_device");
+      localStorage.removeItem("gln_mock_admin_current_role");
+      localStorage.removeItem("gln_mock_user_session");
+      localStorage.removeItem("gln_mock_user_logged_in");
+      localStorage.removeItem("gln_mock_user_email");
+      localStorage.removeItem("gln_mock_user_name");
+      localStorage.removeItem("gln_active_mock_profile");
+      await supabase.auth.signOut();
+      setUser(null);
+      setProfile(null);
+      toast.error("Votre compte a été désactivé par un administrateur.");
+      navigate("/auth");
+      return;
+    }
+
     if (userId === "admin-mock-id-0000-000000000000") {
       setProfile({
         id: "admin-mock-id-0000-000000000000",
@@ -104,7 +123,31 @@ const Navbar = () => {
         .eq("id", userId)
         .single();
       if (!error && data) {
-        setProfile(data);
+        let roles = data.roles || ["student"];
+        const roleOverrideStr = localStorage.getItem(`gln_role_override_${userId}`);
+        if (roleOverrideStr) {
+          try {
+            roles = JSON.parse(roleOverrideStr);
+          } catch (e) {
+            console.error("Error parsing role override:", e);
+          }
+        }
+
+        let profileOverride = {};
+        const profileOverrideStr = localStorage.getItem(`gln_profile_override_${userId}`);
+        if (profileOverrideStr) {
+          try {
+            profileOverride = JSON.parse(profileOverrideStr);
+          } catch (e) {
+            console.error("Error parsing profile override:", e);
+          }
+        }
+        
+        setProfile({
+          ...data,
+          ...profileOverride,
+          roles
+        });
       }
     } catch (err) {
       console.error("Error fetching profile in Navbar:", err);
@@ -391,7 +434,7 @@ const Navbar = () => {
           )}
 
           <Link
-            to="/contact"
+            to="/audit"
             className="bg-gradient-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity shadow-glow"
           >
             {t("nav.cta")}
@@ -508,7 +551,7 @@ const Navbar = () => {
               )}
 
               <Link
-                to="/contact"
+                to="/audit"
                 onClick={() => setOpen(false)}
                 className="bg-gradient-primary text-primary-foreground px-5 py-2.5 rounded-lg text-sm font-semibold text-center mt-2 shadow-glow"
               >

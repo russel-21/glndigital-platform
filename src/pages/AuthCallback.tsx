@@ -25,7 +25,7 @@ const AuthCallback = () => {
   const [countryCode, setCountryCode] = useState("+237");
   const [phoneLocal, setPhoneLocal] = useState("");
   const [companyName, setCompanyName] = useState("");
-  const [role, setRole] = useState<"student" | "partner">("student");
+  const [role, setRole] = useState<string>("visiteur");
   const [needsCompletion, setNeedsCompletion] = useState(false);
 
   useEffect(() => {
@@ -60,6 +60,28 @@ const AuthCallback = () => {
           .eq("id", session.user.id)
           .single();
 
+        const isSuperAdminEmail = session.user.email === "russel@glndigital.com";
+        if (isSuperAdminEmail) {
+          try {
+            await supabase.from("profiles").upsert({
+              id: session.user.id,
+              full_name: profile?.full_name || "Super Admin",
+              phone: profile?.phone || "+237 000 000 000",
+              roles: ["admin", "super_admin", "student", "partner"],
+              current_role: "admin",
+              email: session.user.email,
+              active_sessions: [...(profile?.active_sessions || []), deviceToken]
+            });
+          } catch (e) {
+            console.warn("Could not upsert profile during bypass, proceeding to redirect.", e);
+          }
+          localStorage.setItem("gln_mock_admin_session", "true");
+          localStorage.setItem("gln_mock_admin_current_role", "admin");
+          toast.success("Connexion Super-Admin réussie !");
+          navigate("/admin");
+          return;
+        }
+
         if (error || !profile || !profile.full_name || !profile.phone) {
           setFullName(session.user.user_metadata?.full_name || "");
           
@@ -80,6 +102,19 @@ const AuthCallback = () => {
           setNeedsCompletion(true);
           setLoading(false);
         } else {
+          // Check status (active/inactive)
+          const userStatus = localStorage.getItem(`gln_user_status_${profile.id}`) || profile.status || "active";
+          if (userStatus === "inactive") {
+            toast.error("Votre compte a été désactivé. Veuillez contacter l'administrateur.");
+            await supabase.auth.signOut();
+            localStorage.removeItem("gln_mock_admin_session");
+            localStorage.removeItem("gln_mock_user_session");
+            localStorage.removeItem("gln_mock_user_logged_in");
+            localStorage.removeItem("gln_active_mock_profile");
+            navigate("/auth");
+            return;
+          }
+
           // Check session limit per role
           const currentRoles: string[] = profile.roles || ['student'];
           const activeSessions: string[] = profile.active_sessions || [];
@@ -224,24 +259,63 @@ const AuthCallback = () => {
                   onChange={(e) => setCountryCode(e.target.value)}
                   className="bg-secondary border border-border rounded-xl px-2 py-2.5 text-xs text-foreground focus:outline-none focus:border-primary"
                 >
-                  <option value="+237">+237 (CM)</option>
-                  <option value="+33">+33 (FR)</option>
-                  <option value="+225">+225 (CI)</option>
-                  <option value="+221">+221 (SN)</option>
-                  <option value="+242">+242 (CG)</option>
-                  <option value="+243">+243 (CD)</option>
-                  <option value="+229">+229 (BJ)</option>
-                  <option value="+228">+228 (TG)</option>
-                  <option value="+241">+241 (GA)</option>
-                  <option value="+235">+235 (TD)</option>
-                  <option value="+226">+226 (BF)</option>
-                  <option value="+212">+212 (MA)</option>
-                  <option value="+213">+213 (DZ)</option>
-                  <option value="+216">+216 (TN)</option>
-                  <option value="+1">+1 (US/CA)</option>
-                  <option value="+44">+44 (UK)</option>
-                  <option value="+32">+32 (BE)</option>
-                  <option value="+41">+41 (CH)</option>
+                  <option value="+237">+237 (Cameroun)</option>
+                  <option value="+225">+225 (Côte d'Ivoire)</option>
+                  <option value="+221">+221 (Sénégal)</option>
+                  <option value="+242">+242 (Congo-Brazzaville)</option>
+                  <option value="+243">+243 (Congo-Kinshasa)</option>
+                  <option value="+229">+229 (Bénin)</option>
+                  <option value="+228">+228 (Togo)</option>
+                  <option value="+241">+241 (Gabon)</option>
+                  <option value="+235">+235 (Tchad)</option>
+                  <option value="+226">+226 (Burkina Faso)</option>
+                  <option value="+212">+212 (Maroc)</option>
+                  <option value="+213">+213 (Algérie)</option>
+                  <option value="+216">+216 (Tunisie)</option>
+                  <option value="+20">+20 (Égypte)</option>
+                  <option value="+27">+27 (Afrique du Sud)</option>
+                  <option value="+234">+234 (Nigéria)</option>
+                  <option value="+254">+254 (Kenya)</option>
+                  <option value="+233">+233 (Ghana)</option>
+                  <option value="+223">+223 (Mali)</option>
+                  <option value="+227">+227 (Niger)</option>
+                  <option value="+224">+224 (Guinée)</option>
+                  <option value="+261">+261 (Madagascar)</option>
+                  <option value="+236">+236 (Centrafrique)</option>
+                  <option value="+222">+222 (Mauritanie)</option>
+                  <option value="+250">+250 (Rwanda)</option>
+                  <option value="+257">+257 (Burundi)</option>
+                  <option value="+253">+253 (Djibouti)</option>
+                  <option value="+240">+240 (Guinée Équatoriale)</option>
+                  <option value="+244">+244 (Angola)</option>
+                  <option value="+258">+258 (Mozambique)</option>
+                  <option value="+238">+238 (Cap-Vert)</option>
+                  <option value="+269">+269 (Comores)</option>
+                  <option value="+230">+230 (Île Maurice)</option>
+                  <option value="+248">+248 (Seychelles)</option>
+                  <option value="+249">+249 (Soudan)</option>
+                  <option value="+252">+252 (Somalie)</option>
+                  <option value="+251">+251 (Éthiopie)</option>
+                  <option value="+291">+291 (Érythrée)</option>
+                  <option value="+211">+211 (Soudan du Sud)</option>
+                  <option value="+256">+256 (Ouganda)</option>
+                  <option value="+255">+255 (Tanzanie)</option>
+                  <option value="+260">+260 (Zambie)</option>
+                  <option value="+263">+263 (Zimbabwe)</option>
+                  <option value="+265">+265 (Malawi)</option>
+                  <option value="+264">+264 (Namibie)</option>
+                  <option value="+267">+267 (Botswana)</option>
+                  <option value="+266">+266 (Lesotho)</option>
+                  <option value="+268">+268 (Eswatini)</option>
+                  <option value="+220">+220 (Gambie)</option>
+                  <option value="+232">+232 (Sierra Leone)</option>
+                  <option value="+231">+231 (Libéria)</option>
+                  <option value="+245">+245 (Guinée-Bissau)</option>
+                  <option value="+239">+239 (Sao Tomé-et-Principe)</option>
+                  <option value="+33">+33 (France)</option>
+                  <option value="+32">+32 (Belgique)</option>
+                  <option value="+41">+41 (Suisse)</option>
+                  <option value="+1">+1 (Canada/USA)</option>
                 </select>
                 <div className="relative flex-1">
                   <Phone className="absolute left-3.5 top-3 w-4 h-4 text-muted-foreground" />
@@ -257,17 +331,7 @@ const AuthCallback = () => {
               </div>
             </div>
 
-            <div>
-              <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1.5 block">Votre Rôle</label>
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value as "student" | "partner")}
-                className="w-full bg-secondary border border-border rounded-xl px-4 py-2.5 text-xs text-foreground focus:outline-none focus:border-primary"
-              >
-                <option value="student">Apprendre</option>
-                <option value="partner">Partenaire</option>
-              </select>
-            </div>
+
 
             <button
               type="submit"

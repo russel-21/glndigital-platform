@@ -2,8 +2,9 @@ import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, CheckCircle2, MessageCircle, Clock, BookOpen, Award, GraduationCap } from "lucide-react";
 import { getCourses } from "@/lib/coursesStore";
+import { useLanguage } from "@/hooks/useLanguage";
 
-const coursesData: Record<string, {
+interface CourseDetail {
   title: string;
   duration: string;
   difficulty: string;
@@ -12,152 +13,336 @@ const coursesData: Record<string, {
   audience: string[];
   program: { module: string; lessons: string[] }[];
   skills: string[];
-}> = {
+}
+
+const coursesData: Record<string, { fr: CourseDetail; en: CourseDetail }> = {
   "marketing-digital-pro": {
-    title: "Marketing Digital Professionnel",
-    duration: "6 semaines (30 heures de cours)",
-    difficulty: "Tous niveaux",
-    price: "Sur devis",
-    desc: "Acquérez les compétences indispensables pour piloter des stratégies d'acquisition clients rentables. Une formation pratique combinant cours en ligne, coaching individuel et cas pratiques réels sur le marché d'Afrique Centrale.",
-    audience: [
-      "Entrepreneurs et fondateurs de PME voulant automatiser leurs ventes",
-      "Responsables marketing cherchant à se moderniser",
-      "Étudiants en quête de compétences recherchées sur le marché de l'emploi",
-    ],
-    skills: [
-      "Définition de personas et parcours d'achat",
-      "Mise en place de pixels de tracking (Meta Pixel, Google Analytics)",
-      "Lancement de campagnes publicitaires Facebook & Instagram Ads",
-      "Écriture de textes persuasifs (Copywriting)",
-      "Optimisation du Return on Ad Spend (ROAS)",
-    ],
-    program: [
-      {
-        module: "Module 1 : Les Fondations du Marketing Digital",
-        lessons: ["Comprendre le comportement du consommateur moderne", "Définir sa proposition de valeur unique", "Cartographier le tunnel de vente"],
-      },
-      {
-        module: "Module 2 : La Publicité Meta Ads de A à Z",
-        lessons: ["Paramétrage optimal du Business Manager", "Comprendre l'algorithme et la structure de campagne", "Ciblage classique vs Ciblage avancé (Lookalike, Retargeting)"],
-      },
-      {
-        module: "Module 3 : Créatifs publicitaires & Copywriting",
-        lessons: ["Rédiger des accroches irrésistibles", "Créer des visuels qui convertissent", "L'art du storytelling publicitaire"],
-      },
-    ],
+    fr: {
+      title: "Marketing Digital Professionnel",
+      duration: "6 semaines (30 heures de cours)",
+      difficulty: "Tous niveaux",
+      price: "Sur devis",
+      desc: "Acquérez les compétences indispensables pour piloter des stratégies d'acquisition clients rentables. Une formation pratique combinant cours en ligne, coaching individuel et cas pratiques réels sur le marché d'Afrique Centrale.",
+      audience: [
+        "Entrepreneurs et fondateurs de PME voulant automatiser leurs ventes",
+        "Responsables marketing cherchant à se moderniser",
+        "Étudiants en quête de compétences recherchées sur le marché de l'emploi",
+      ],
+      skills: [
+        "Définition de personas et parcours d'achat",
+        "Mise en place de pixels de tracking (Meta Pixel, Google Analytics)",
+        "Lancement de campagnes publicitaires Facebook & Instagram Ads",
+        "Écriture de textes persuasifs (Copywriting)",
+        "Optimisation du Return on Ad Spend (ROAS)",
+      ],
+      program: [
+        {
+          module: "Module 1 : Les Fondations du Marketing Digital",
+          lessons: ["Comprendre le comportement du consommateur moderne", "Définir sa proposition de valeur unique", "Cartographier le tunnel de vente"],
+        },
+        {
+          module: "Module 2 : La Publicité Meta Ads de A à Z",
+          lessons: ["Paramétrage optimal du Business Manager", "Comprendre l'algorithme et la structure de campagne", "Ciblage classique vs Ciblage avancé (Lookalike, Retargeting)"],
+        },
+        {
+          module: "Module 3 : Créatifs publicitaires & Copywriting",
+          lessons: ["Rédiger des accroches irrésistibles", "Créer des visuels qui convertissent", "L'art du storytelling publicitaire"],
+        },
+      ],
+    },
+    en: {
+      title: "Professional Digital Marketing",
+      duration: "6 weeks (30 course hours)",
+      difficulty: "All levels",
+      price: "On quote",
+      desc: "Acquire the essential skills to drive profitable client acquisition strategies. A practical training combining online courses, 1-on-1 coaching, and real case studies in the Central African market.",
+      audience: [
+        "Entrepreneurs and SMB founders wanting to automate their sales",
+        "Marketing managers looking to modernize",
+        "Students looking for highly sought-after skills in the job market",
+      ],
+      skills: [
+        "Defining personas and buying journeys",
+        "Setting up tracking pixels (Meta Pixel, Google Analytics)",
+        "Launching Facebook & Instagram Ads campaigns",
+        "Writing persuasive copy (Copywriting)",
+        "Optimizing Return on Ad Spend (ROAS)",
+      ],
+      program: [
+        {
+          module: "Module 1: Foundations of Digital Marketing",
+          lessons: ["Understanding modern consumer behavior", "Defining your unique value proposition", "Mapping the sales funnel"],
+        },
+        {
+          module: "Module 2: Meta Ads Advertising from A to Z",
+          lessons: ["Optimal setup of Business Manager", "Understanding the algorithm and campaign structure", "Classic vs Advanced targeting (Lookalike, Retargeting)"],
+        },
+        {
+          module: "Module 3: Ad Creatives & Copywriting",
+          lessons: ["Writing irresistible hooks", "Creating visuals that convert", "The art of advertising storytelling"],
+        },
+      ],
+    },
   },
   "community-management": {
-    title: "Community Management & Croissance",
-    duration: "4 semaines (20 heures de cours)",
-    difficulty: "Débutant",
-    price: "Sur devis",
-    desc: "Apprenez à animer des réseaux sociaux de manière professionnelle. Cette formation vous enseigne comment structurer une stratégie d'animation, créer des visuels magnifiques et engager votre communauté.",
-    audience: [
-      "Futurs community managers cherchant à se lancer en freelance",
-      "Propriétaires de commerces souhaitant développer leur visibilité locale",
-      "Chargés de communication en reconversion",
-    ],
-    skills: [
-      "Création de chartes éditoriales et calendriers de posts",
-      "Conception graphique rapide sur Canva Pro",
-      "Techniques d'animation de communautés Facebook & Instagram",
-      "Gestion de la modération de messagerie et de commentaires",
-    ],
-    program: [
-      {
-        module: "Module 1 : Rôle du Community Manager au Cameroun",
-        lessons: ["Comprendre l'écosystème local des réseaux sociaux", "Audit et analyse d'une page existante", "Définir la ligne éditoriale d'une marque"],
-      },
-      {
-        module: "Module 2 : Conception visuelle et design",
-        lessons: ["Les règles de base de la charte graphique", "Maîtrise complète de Canva pour le CM", "Création de Reels et infographies marquantes"],
-      },
-      {
-        module: "Module 3 : Gestion quotidienne & Modération",
-        lessons: ["Planifier et automatiser ses publications", "Gérer les avis négatifs et les crises", "Mise en place de scripts de réponses commerciales"],
-      },
-    ],
+    fr: {
+      title: "Community Management & Croissance",
+      duration: "4 semaines (20 heures de cours)",
+      difficulty: "Débutant",
+      price: "Sur devis",
+      desc: "Apprenez à animer des réseaux sociaux de manière professionnelle. Cette formation vous enseigne comment structurer une stratégie d'animation, créer des visuels magnifiques et engager votre communauté.",
+      audience: [
+        "Futurs community managers cherchant à se lancer en freelance",
+        "Propriétaires de commerces souhaitant développer leur visibilité locale",
+        "Chargés de communication en reconversion",
+      ],
+      skills: [
+        "Création de chartes éditoriales et calendriers de posts",
+        "Conception graphique rapide sur Canva Pro",
+        "Techniques d'animation de communautés Facebook & Instagram",
+        "Gestion de la modération de messagerie et de commentaires",
+      ],
+      program: [
+        {
+          module: "Module 1 : Rôle du Community Manager au Cameroun",
+          lessons: ["Comprendre l'écosystème local des réseaux sociaux", "Audit et analyse d'une page existante", "Définir la ligne éditoriale d'une marque"],
+        },
+        {
+          module: "Module 2 : Conception visuelle et design",
+          lessons: ["Les règles de base de la charte graphique", "Maîtrise complète de Canva pour le CM", "Création de Reels et infographies marquantes"],
+        },
+        {
+          module: "Module 3 : Gestion quotidienne & Modération",
+          lessons: ["Planifier et automatiser ses publications", "Gérer les avis négatifs et les crises", "Mise en place de scripts de réponses commerciales"],
+        },
+      ],
+    },
+    en: {
+      title: "Community Management & Growth",
+      duration: "4 weeks (20 course hours)",
+      difficulty: "Beginner",
+      price: "On quote",
+      desc: "Learn to animate social networks professionally. This training teaches you how to structure an animation strategy, create beautiful visuals, and engage your community.",
+      audience: [
+        "Future community managers looking to launch as freelancers",
+        "Business owners wanting to develop their local visibility",
+        "Communication officers in career transition",
+      ],
+      skills: [
+        "Creating editorial guidelines and post calendars",
+        "Quick graphic design on Canva Pro",
+        "Techniques to engage Facebook & Instagram communities",
+        "Managing message and comment moderation",
+      ],
+      program: [
+        {
+          module: "Module 1: Role of Community Manager in Cameroon",
+          lessons: ["Understanding the local social media ecosystem", "Audit and analysis of an existing page", "Defining a brand's editorial guidelines"],
+        },
+        {
+          module: "Module 2: Visual conception and design",
+          lessons: ["Basic rules of the graphic guidelines", "Complete mastery of Canva for the CM", "Creating striking Reels and infographics"],
+        },
+        {
+          module: "Module 3: Daily Management & Moderation",
+          lessons: ["Scheduling and automating publications", "Managing negative reviews and crises", "Setting up sales response scripts"],
+        },
+      ],
+    },
   },
   "creation-contenu-ia": {
-    title: "Création de contenu & IA générative",
-    duration: "3 semaines",
-    difficulty: "Tous niveaux",
-    price: "Sur devis",
-    desc: "Découvrez comment utiliser l'intelligence artificielle pour décupler votre vitesse de création. Apprenez à générer des visuels, des scripts et des vidéos courtes virales avec ChatGPT et CapCut.",
-    audience: [
-      "Créateurs de contenu et blogueurs",
-      "Social Media Managers voulant automatiser leur flux de travail",
-      "Entrepreneurs pressés souhaitant produire des visuels rapidement",
-    ],
-    skills: [
-      "Rédaction de prompts avancés pour ChatGPT",
-      "Génération d'images et d'assets avec les IA visuelles",
-      "Montage rapide et dynamique de Reels & TikTok sur CapCut",
-      "Automatisation de la création de visuels en lot",
-    ],
-    program: [
-      {
-        module: "Module 1 : ChatGPT & Ingénierie de Prompts",
-        lessons: ["Formuler des prompts pour obtenir des idées de posts", "Rédiger des scripts vidéo complets", "Traduire et adapter des tonalités"],
-      },
-      {
-        module: "Module 2 : Montage vidéo dynamique (Smartphone/PC)",
-        lessons: ["Les bases du montage sur CapCut", "Ajout de sous-titres animés et effets sonores", "Rythmer sa vidéo pour retenir l'attention"],
-      },
-      {
-        module: "Module 3 : Productivité & Automatisation",
-        lessons: ["Créer 30 visuels en 15 minutes avec Canva + IA", "Gérer ses contenus avec Notion", "Veille technologique sur les outils IA"],
-      },
-    ],
+    fr: {
+      title: "Création de contenu & IA générative",
+      duration: "3 semaines",
+      difficulty: "Tous niveaux",
+      price: "Sur devis",
+      desc: "Découvrez comment utiliser l'intelligence artificielle pour décupler votre vitesse de création. Apprenez à générer des visuels, des scripts et des vidéos courtes virales avec ChatGPT et CapCut.",
+      audience: [
+        "Créateurs de contenu et blogueurs",
+        "Social Media Managers voulant automatiser leur flux de travail",
+        "Entrepreneurs pressés souhaitant produire des visuels rapidement",
+      ],
+      skills: [
+        "Rédaction de prompts avancés pour ChatGPT",
+        "Génération d'images et d'assets avec les IA visuelles",
+        "Montage rapide et dynamique de Reels & TikTok sur CapCut",
+        "Automatisation de la création de visuels en lot",
+      ],
+      program: [
+        {
+          module: "Module 1 : ChatGPT & Ingénierie de Prompts",
+          lessons: ["Formuler des prompts pour obtenir des idées de posts", "Rédiger des scripts vidéo complets", "Traduire et adapter des tonalités"],
+        },
+        {
+          module: "Module 2 : Montage vidéo dynamique (Smartphone/PC)",
+          lessons: ["Les bases du montage sur CapCut", "Ajout de sous-titres animés et effets sonores", "Rythmer sa vidéo pour retenir l'attention"],
+        },
+        {
+          module: "Module 3 : Productivité & Automatisation",
+          lessons: ["Créer 30 visuels en 15 minutes avec Canva + IA", "Gérer ses contenus avec Notion", "Veille technologique sur les outils IA"],
+        },
+      ],
+    },
+    en: {
+      title: "Content Creation & Generative AI",
+      duration: "3 weeks",
+      difficulty: "All levels",
+      price: "On quote",
+      desc: "Discover how to use artificial intelligence to multiply your creation speed. Learn to generate visuals, scripts, and viral short videos with ChatGPT and CapCut.",
+      audience: [
+        "Content creators and bloggers",
+        "Social Media Managers wanting to automate their workflow",
+        "Busy entrepreneurs wanting to produce visuals quickly",
+      ],
+      skills: [
+        "Writing advanced prompts for ChatGPT",
+        "Generating images and assets with visual AIs",
+        "Fast and dynamic editing of Reels & TikTok on CapCut",
+        "Bulk automation of visual creation",
+      ],
+      program: [
+        {
+          module: "Module 1: ChatGPT & Prompt Engineering",
+          lessons: ["Formulating prompts to get post ideas", "Writing complete video scripts", "Translating and adapting tones"],
+        },
+        {
+          module: "Module 2: Dynamic video editing (Smartphone/PC)",
+          lessons: ["Editing basics on CapCut", "Adding animated subtitles and sound effects", "Pacing your video to retain attention"],
+        },
+        {
+          module: "Module 3: Productivity & Automation",
+          lessons: ["Create 30 visuals in 15 minutes with Canva + AI", "Managing content with Notion", "Technology watch on AI tools"],
+        },
+      ],
+    },
   },
   "freelancing-digital": {
-    title: "Formation Freelance & Business Digital",
-    duration: "4 semaines",
-    difficulty: "Avancé",
-    price: "Sur devis",
-    desc: "Ne soyez plus un simple technicien : devenez un entrepreneur digital. Apprenez à trouver des clients haut de gamme à Douala, Yaoundé ou à l'étranger, à Closer vos contrats et à structurer votre activité de freelance.",
-    audience: [
-      "Freelances en marketing/design manquant de clients réguliers",
-      "Étudiants sortant de formation souhaitant lancer leur propre activité",
-      "Professionnels voulant vendre leurs compétences en ligne",
-    ],
-    skills: [
-      "Création d'offres de services packagées haut de gamme",
-      "Techniques de vente et closing (téléphone, WhatsApp)",
-      "Rédaction de propositions commerciales irrésistibles",
-      "Prospection passive et active (LinkedIn, Cold Email)",
-    ],
-    program: [
-      {
-        module: "Module 1 : Structurer son positionnement",
-        lessons: ["Définir son client idéal (niche)", "Créer des offres packagées (abonnements vs forfaits)", "Calculer son Taux Journalier Moyen (TJM)"],
-      },
-      {
-        module: "Module 2 : Acquisition & Closing",
-        lessons: ["Techniques de prospection sur LinkedIn", "Conduire un appel de découverte avec un prospect", "Traiter les objections courantes ('C'est trop cher')"],
-      },
-      {
-        module: "Module 3 : Gestion & Facturation",
-        lessons: ["Rédiger des contrats et des CGV", "Mettre en place des outils de suivi client (Notion, Trello)", "Garantir des paiements sécurisés"],
-      },
-    ],
+    fr: {
+      title: "Formation Freelance & Business Digital",
+      duration: "4 semaines",
+      difficulty: "Avancé",
+      price: "Sur devis",
+      desc: "Ne soyez plus un simple technicien : devenez un entrepreneur digital. Apprenez à trouver des clients haut de gamme à Douala, Yaoundé ou à l'étranger, à Closer vos contrats et à structurer votre activité de freelance.",
+      audience: [
+        "Freelances en marketing/design manquant de clients réguliers",
+        "Étudiants sortant de formation souhaitant lancer leur propre activité",
+        "Professionnels voulant vendre leurs compétences en ligne",
+      ],
+      skills: [
+        "Création d'offres de services packagées haut de gamme",
+        "Techniques de vente et closing (téléphone, WhatsApp)",
+        "Rédaction de propositions commerciales irrésistibles",
+        "Prospection passive et active (LinkedIn, Cold Email)",
+      ],
+      program: [
+        {
+          module: "Module 1 : Structurer son positionnement",
+          lessons: ["Définir son client idéal (niche)", "Créer des offres packagées (abonnements vs forfaits)", "Calculer son Taux Journalier Moyen (TJM)"],
+        },
+        {
+          module: "Module 2 : Acquisition & Closing",
+          lessons: ["Techniques de prospection sur LinkedIn", "Conduire un appel de découverte avec un prospect", "Traiter les objections courantes ('C'est trop cher')"],
+        },
+        {
+          module: "Module 3 : Gestion & Facturation",
+          lessons: ["Rédiger des contrats et des CGV", "Mettre en place des outils de suivi client (Notion, Trello)", "Garantir des paiements sécurisés"],
+        },
+      ],
+    },
+    en: {
+      title: "Freelance & Digital Business Training",
+      duration: "4 weeks",
+      difficulty: "Advanced",
+      price: "On quote",
+      desc: "Stop being a simple technician: become a digital entrepreneur. Learn to find high-end clients in Douala, Yaoundé, or abroad, close your contracts, and structure your freelance business.",
+      audience: [
+        "Freelancers in marketing/design lacking regular clients",
+        "Students leaving training wishing to launch their own business",
+        "Professionals wanting to sell their skills online",
+      ],
+      skills: [
+        "Creating packaged high-end service offers",
+        "Sales and closing techniques (phone, WhatsApp)",
+        "Writing irresistible commercial proposals",
+        "Passive and active prospecting (LinkedIn, Cold Email)",
+      ],
+      program: [
+        {
+          module: "Module 1: Structuring your positioning",
+          lessons: ["Defining your ideal client (niche)", "Creating packaged offers (subscriptions vs packages)", "Calculating your Average Daily Rate (ADR)"],
+        },
+        {
+          module: "Module 2: Acquisition & Closing",
+          lessons: ["Prospecting techniques on LinkedIn", "Conducting a discovery call with a prospect", "Handling common objections ('It's too expensive')"],
+        },
+        {
+          module: "Module 3: Management & Invoicing",
+          lessons: ["Writing contracts and general terms of sale", "Setting up client tracking tools (Notion, Trello)", "Guaranteeing secure payments"],
+        },
+      ],
+    },
   },
 };
 
 const FormationDetail = () => {
   const { id } = useParams();
+  const { language } = useLanguage();
   const courses = getCourses();
-  const course = courses.find((c) => c.id === id);
+  
+  const storeCourse = courses.find((c) => c.id === id);
+  const localCourse = coursesData[id || ""]?.[language] || coursesData[id || ""]?.fr;
 
-  if (!course) {
+  if (!storeCourse && !localCourse) {
     return (
       <div className="min-h-screen flex items-center justify-center pt-24 text-center">
         <div>
-          <h2 className="text-2xl font-bold mb-4">Formation non trouvée</h2>
-          <Link to="/formations" className="text-primary hover:underline">Retourner aux formations</Link>
+          <h2 className="text-2xl font-bold mb-4">
+            {language === "fr" ? "Formation non trouvée" : "Course not found"}
+          </h2>
+          <Link to="/formations" className="text-primary hover:underline">
+            {language === "fr" ? "Retourner aux formations" : "Back to courses"}
+          </Link>
         </div>
       </div>
     );
+  }
+
+  const title = storeCourse
+    ? (language === "fr" ? storeCourse.title : (storeCourse.titleEn || storeCourse.title))
+    : localCourse.title;
+
+  const duration = storeCourse
+    ? (language === "fr" ? storeCourse.duration : (storeCourse.durationEn || storeCourse.duration))
+    : localCourse.duration;
+
+  const difficulty = storeCourse
+    ? (language === "fr" ? storeCourse.difficulty : (storeCourse.difficultyEn || storeCourse.difficulty))
+    : localCourse.difficulty;
+
+  const price = storeCourse
+    ? (language === "fr" ? storeCourse.price : (storeCourse.priceEn || storeCourse.price))
+    : localCourse.price;
+
+  const desc = storeCourse
+    ? (language === "fr" ? storeCourse.desc : (storeCourse.descEn || storeCourse.desc))
+    : localCourse.desc;
+
+  const audience = storeCourse
+    ? (language === "fr" ? storeCourse.audience : (storeCourse.audienceEn || storeCourse.audience))
+    : localCourse.audience;
+
+  const skills = storeCourse
+    ? (language === "fr" ? storeCourse.skills : (storeCourse.skillsEn || storeCourse.skills))
+    : localCourse.skills;
+
+  let program: { module: string; lessons: string[] }[] = [];
+  if (storeCourse) {
+    program = storeCourse.modules?.map((m) => ({
+      module: language === "fr" ? m.title : (m.titleEn || m.title),
+      lessons: m.videos?.map((v) => language === "fr" ? v.title : (v.titleEn || v.title)) || [],
+    })) || [];
+  } else if (localCourse) {
+    program = localCourse.program;
   }
 
   return (
@@ -165,7 +350,7 @@ const FormationDetail = () => {
       <div className="container mx-auto px-4 md:px-8 max-w-4xl">
         <Link to="/formations" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary mb-8 transition-colors">
           <ArrowLeft className="w-4 h-4" />
-          Retour aux formations
+          {language === "fr" ? "Retour aux formations" : "Back to courses"}
         </Link>
 
         {/* Hero Course */}
@@ -173,34 +358,36 @@ const FormationDetail = () => {
           <div className="flex flex-wrap gap-3 mb-6">
             <span className="text-xs bg-primary/10 text-primary font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5">
               <Clock className="w-3.5 h-3.5" />
-              {course.duration}
+              {duration}
             </span>
             <span className="text-xs bg-secondary text-muted-foreground font-semibold px-3 py-1.5 rounded-full flex items-center gap-1.5">
               <BookOpen className="w-3.5 h-3.5" />
-              {course.difficulty}
+              {difficulty}
             </span>
             <span className="text-xs bg-accent/10 text-accent font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5">
               <Award className="w-3.5 h-3.5" />
-              Certifiant
+              {language === "fr" ? "Certifiant" : "Certified"}
             </span>
           </div>
 
-          <h1 className="font-heading text-3xl md:text-4xl font-extrabold mb-6 text-foreground">{course.title}</h1>
-          <p className="text-muted-foreground text-base md:text-lg leading-relaxed mb-8">{course.desc}</p>
+          <h1 className="font-heading text-3xl md:text-4xl font-extrabold mb-6 text-foreground">{title}</h1>
+          <p className="text-muted-foreground text-base md:text-lg leading-relaxed mb-8">{desc}</p>
 
           <div className="flex flex-wrap items-center justify-between gap-6 pt-6 border-t border-border/40">
             <div>
-              <span className="text-xs text-muted-foreground uppercase block">Prix de la formation</span>
-              <span className="text-2xl font-extrabold text-foreground">{course.price}</span>
+              <span className="text-xs text-muted-foreground uppercase block">
+                {language === "fr" ? "Prix de la formation" : "Course price"}
+              </span>
+              <span className="text-2xl font-extrabold text-foreground">{price}</span>
             </div>
             <a
-              href={`https://wa.me/237692062677?text=Bonjour,%20je%20souhaite%20en%20savoir%20plus%20sur%20la%20formation%20:%20${encodeURIComponent(course.title)}`}
+              href={`https://wa.me/237692062677?text=${language === "fr" ? "Bonjour,%20je%20souhaite%20en%20savoir%20plus%20sur%20la%20formation%20:%20" : "Hello,%20I%20wish%20to%20know%20more%20about%20the%20course%20:%20"}${encodeURIComponent(title)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="bg-primary text-primary-foreground px-8 py-4 rounded-lg font-bold flex items-center gap-2 hover:opacity-90 transition-opacity shadow-glow w-full sm:w-auto justify-center"
             >
               <MessageCircle className="w-5 h-5 fill-current" />
-              S'inscrire via WhatsApp
+              {language === "fr" ? "S'inscrire via WhatsApp" : "Enroll via WhatsApp"}
             </a>
           </div>
         </div>
@@ -211,10 +398,10 @@ const FormationDetail = () => {
           <div className="p-6 rounded-2xl bg-secondary/20 border border-border/40">
             <h3 className="font-heading font-bold text-lg mb-4 text-foreground flex items-center gap-2">
               <GraduationCap className="w-5 h-5 text-primary" />
-              À qui s'adresse cette formation ?
+              {language === "fr" ? "À qui s'adresse cette formation ?" : "Who is this course for?"}
             </h3>
             <ul className="space-y-3">
-              {course.audience.map((item, idx) => (
+              {audience.map((item, idx) => (
                 <li key={idx} className="flex gap-2 text-xs text-muted-foreground leading-relaxed">
                   <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 mt-1.5" />
                   {item}
@@ -227,10 +414,10 @@ const FormationDetail = () => {
           <div className="p-6 rounded-2xl bg-secondary/20 border border-border/40">
             <h3 className="font-heading font-bold text-lg mb-4 text-foreground flex items-center gap-2">
               <CheckCircle2 className="w-5 h-5 text-primary" />
-              Compétences développées
+              {language === "fr" ? "Compétences développées" : "Skills developed"}
             </h3>
             <ul className="space-y-3">
-              {course.skills.map((skill, idx) => (
+              {skills.map((skill, idx) => (
                 <li key={idx} className="flex gap-2 text-xs text-muted-foreground leading-relaxed">
                   <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 mt-1.5" />
                   {skill}
@@ -242,9 +429,11 @@ const FormationDetail = () => {
 
         {/* Detailed Program */}
         <div className="space-y-6 mb-12">
-          <h3 className="font-heading font-bold text-xl text-foreground">Programme détaillé des modules</h3>
+          <h3 className="font-heading font-bold text-xl text-foreground">
+            {language === "fr" ? "Programme détaillé des modules" : "Detailed module program"}
+          </h3>
           <div className="space-y-4">
-            {course.program.map((prog, idx) => (
+            {program.map((prog, idx) => (
               <div key={idx} className="p-6 rounded-2xl bg-card border border-border/40">
                 <h4 className="font-heading font-bold text-base text-foreground mb-3">{prog.module}</h4>
                 <ul className="space-y-2">

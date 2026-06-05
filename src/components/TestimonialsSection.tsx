@@ -2,8 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
 import { Star, Quote } from "lucide-react";
+import { useLanguage } from "@/hooks/useLanguage";
 
 const TestimonialsSection = () => {
+  const { language } = useLanguage();
   const { data: testimonials = [] } = useQuery({
     queryKey: ["testimonials"],
     queryFn: async () => {
@@ -27,10 +29,12 @@ const TestimonialsSection = () => {
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
         >
-          Ce que disent <span className="text-gradient-accent">nos clients</span>
+          {language === "fr" ? "Ce que disent " : "What our "}<span className="text-gradient-accent">{language === "fr" ? "nos clients" : "clients say"}</span>
         </motion.h2>
         <p className="text-muted-foreground text-center max-w-2xl mx-auto mb-14">
-          La satisfaction de nos clients est notre meilleure publicité.
+          {language === "fr" 
+            ? "La satisfaction de nos clients est notre meilleure publicité." 
+            : "Our clients' satisfaction is our best advertising."}
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
