@@ -664,10 +664,25 @@ const Auth = () => {
                     onChange={(e) => setCountryCode(e.target.value)}
                     className="w-full bg-secondary border border-border rounded-xl px-2 py-2.5 text-xs text-foreground focus:outline-none focus:border-primary h-[38px]"
                   >
-                    <option value="+237">+237 CM</option>
-                    <option value="+33">+33 FR</option>
-                    <option value="+225">+225 CI</option>
-                    <option value="+221">+221 SN</option>
+                    <option value="+237">+237 (CM)</option>
+                    <option value="+225">+225 (CI)</option>
+                    <option value="+221">+221 (SN)</option>
+                    <option value="+241">+241 (GA)</option>
+                    <option value="+242">+242 (CG)</option>
+                    <option value="+243">+243 (CD)</option>
+                    <option value="+229">+229 (BJ)</option>
+                    <option value="+228">+228 (TG)</option>
+                    <option value="+223">+223 (ML)</option>
+                    <option value="+226">+226 (BF)</option>
+                    <option value="+224">+224 (GN)</option>
+                    <option value="+212">+212 (MA)</option>
+                    <option value="+213">+213 (DZ)</option>
+                    <option value="+216">+216 (TN)</option>
+                    <option value="+33">+33 (FR)</option>
+                    <option value="+32">+32 (BE)</option>
+                    <option value="+41">+41 (CH)</option>
+                    <option value="+1">+1 (CA)</option>
+                    <option value="+1">+1 (US)</option>
                   </select>
                 </div>
                 <div className="col-span-2">
