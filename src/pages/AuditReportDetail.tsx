@@ -1089,7 +1089,7 @@ const AuditReportDetail = () => {
                 <div className="space-y-2.5">
                   <span className="font-semibold text-foreground block">Étapes détaillées à suivre :</span>
                   <ol className="list-decimal list-inside space-y-2 text-muted-foreground pl-1">
-                    <li>Allez sur <a href="https://business.facebook.com/settings" target="_blank" rel="noopener noreferrer" className="text-primary underline">Meta Business Settings</a>.</li>
+                    <li>Allez sur <a href="https://business.facebook.com/settings" target="_blank" rel="noopener noreferrer" className="text-primary underline">Meta Business Settings</a>. <span className="text-muted-foreground block text-[10px] italic mt-0.5 ml-4">(Note : Si Meta affiche la page de connexion, cliquez simplement sur <strong>"Continuer avec Facebook"</strong> pour vous connecter et accéder aux paramètres)</span>.</li>
                     <li><strong>Sélectionnez votre entreprise</strong> dans la liste (ex : <em>Cabinet De Recrutement de Barclès</em> ou <em>hotelsoft.cm</em>).</li>
                     <li>Dans le menu ou les raccourcis à gauche, cliquez sur <strong>Paramètres de l'entreprise</strong> (l'icône d'engrenage ⚙️).</li>
                     <li>Dans le menu latéral gauche, cliquez sur <strong>Utilisateurs</strong> puis sur <strong>Partenaires</strong>.</li>
@@ -1101,9 +1101,7 @@ const AuditReportDetail = () => {
                 <div className="border-t border-border/25 pt-4 space-y-2">
                   <span className="font-bold text-foreground block">Option B : Directement via votre Page Facebook (Simple)</span>
                   <ol className="list-decimal list-inside space-y-1.5 text-muted-foreground pl-1">
-                    <li>Ouvrez votre page Facebook sur votre ordinateur et basculez sur le profil de votre Page.</li>
-                    <li>Cliquez sur votre photo de profil en haut à droite &gt; <strong>Paramètres et confidentialité</strong> &gt; <strong>Paramètres</strong>.</li>
-                    <li>Dans le menu latéral gauche, cliquez sur <strong>Nouvelle expérience des pages</strong> (ou <strong>Accès à la page</strong>).</li>
+                    <li>Allez directement sur les <a href="https://www.facebook.com/settings?tab=profile_access" target="_blank" rel="noopener noreferrer" className="text-primary underline">Paramètres d'accès de votre Page</a>. <span className="text-muted-foreground block text-[10px] italic mt-0.5 ml-4">(Assurez-vous d'avoir basculé sur le profil de votre Page Facebook pour y accéder)</span>.</li>
                     <li>Sous la section <em>Personnes ayant un accès aux tâches</em> (ou <em>Accès Facebook</em>), cliquez sur <strong>Ajouter</strong>.</li>
                     <li>Saisissez l'adresse e-mail GLN : <strong className="text-foreground">audit@glndigital.com</strong>, cochez uniquement l'accès aux **Statistiques / Performances** et validez l'invitation.</li>
                   </ol>
