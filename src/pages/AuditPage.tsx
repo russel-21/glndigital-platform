@@ -792,12 +792,19 @@ const AuditPage = () => {
                     </div>
 
                     <div className="border-t border-border/25 pt-4 space-y-2">
-                      <span className="font-bold text-foreground block">Option B : Directement via votre Page Facebook (Simple)</span>
+                      <span className="font-bold text-foreground block">Option B : Via votre Page Facebook & Meta Business Suite</span>
                       <ol className="list-decimal list-inside space-y-1.5 text-muted-foreground pl-1 font-normal">
-                        <li>Allez directement sur les <a href="https://www.facebook.com/settings?tab=profile_access" target="_blank" rel="noopener noreferrer" className="text-primary underline inline-flex items-center gap-0.5">Paramètres d'accès de votre Page <ExternalLink className="w-3 h-3" /></a>. <span className="text-muted-foreground block text-[10px] italic mt-0.5 ml-4">(Assurez-vous d'avoir basculé sur le profil de votre Page Facebook pour y accéder)</span>.</li>
-                        <li>Sur l'écran affiché, repérez la section <strong>"Personnes ayant un accès partiel"</strong> et cliquez sur le lien bleu <strong>"Gérer"</strong> situé à l'extrême droite.</li>
-                        <li>Dans l'écran ou la fenêtre qui s'ouvre, cliquez sur le bouton <strong>"Ajouter"</strong> (ou <strong>"Ajouter nouveau"</strong>).</li>
-                        <li>Saisissez l'adresse e-mail GLN : <strong className="text-foreground">audit@glndigital.com</strong>, cochez uniquement l'autorisation pour les **Statistiques / Performances** (accès en lecture seule) et validez l'invitation.</li>
+                        <li>Allez sur les <a href="https://www.facebook.com/settings?tab=profile_access" target="_blank" rel="noopener noreferrer" className="text-primary underline inline-flex items-center gap-0.5">Paramètres d'accès de votre Page <ExternalLink className="w-3 h-3" /></a>. <span className="text-muted-foreground block text-[10px] italic mt-0.5 ml-4">(Assurez-vous d'avoir basculé sur le profil de votre Page Facebook)</span>.</li>
+                        <li>Cliquez sur le lien bleu <strong>"Gérer"</strong> situé à droite de <strong>"Personnes ayant un accès partiel"</strong>.</li>
+                        <li>Sur le pop-up qui s'affiche, cliquez sur le bouton bleu <strong>"Accéder à Meta Business Suite"</strong>.</li>
+                        <li>Une fois dans Meta Business Suite :
+                          <ul className="list-disc list-inside pl-5 mt-1.5 space-y-1 text-[10px] italic font-normal">
+                            <li>Dans le menu de gauche, allez dans <strong>Utilisateurs</strong> puis <strong>Personnes</strong>.</li>
+                            <li>Cliquez sur le bouton bleu <strong>"Inviter des personnes"</strong> (ou "Ajouter") en haut à droite.</li>
+                            <li>Saisissez notre adresse e-mail : <strong className="text-foreground">audit@glndigital.com</strong></li>
+                            <li>Sélectionnez votre Page, attribuez uniquement l'accès aux <strong>Statistiques / Performances</strong> (accès partiel/lecture seule) et envoyez l'invitation.</li>
+                          </ul>
+                        </li>
                       </ol>
                     </div>
                   </div>
