@@ -785,14 +785,25 @@ const AuditPage = () => {
                         <li><strong>Copiez notre identifiant partenaire</strong> ci-dessus (`1780587266753`).</li>
                         <li>Allez sur les <a href="https://www.facebook.com/settings?tab=profile_access" target="_blank" rel="noopener noreferrer" className="text-primary underline inline-flex items-center gap-0.5">Paramètres d'accès de votre Page <ExternalLink className="w-3 h-3" /></a>. <span className="text-muted-foreground block text-[10px] italic mt-0.5 ml-4">(Basculez sur le profil de votre Page Facebook si demandé)</span>.</li>
                         <li>Cliquez sur le lien bleu <strong>"Gérer"</strong> situé à droite de <strong>"Personnes ayant un accès partiel"</strong>.</li>
-                        <li>Sur le pop-up qui s'affiche, cliquez sur le bouton bleu <strong>"Accéder à Meta Business Suite"</strong>.</li>
-                        <li>Une fois sur la page de Meta Business Suite (comme sur votre écran) :
-                          <ul className="list-disc list-inside pl-5 mt-1.5 space-y-1.5 text-[11px] italic font-normal text-muted-foreground">
-                            <li>Dans le menu latéral gauche, sous <strong>Utilisateur(ice)s</strong>, cliquez précisément sur le bouton <strong>"Partenaires"</strong> (le deuxième lien sous Utilisateur(ice)s).</li>
-                            <li>Sur la page qui s'ouvre, cliquez sur le bouton bleu <strong>"Ajouter"</strong> (ou "Ajouter un partenaire").</li>
-                            <li>Sélectionnez <strong>"Partager des éléments avec un partenaire"</strong>.</li>
-                            <li>Collez l'identifiant partenaire copié : <strong className="text-foreground">1780587266753</strong>.</li>
-                            <li>Sélectionnez votre Page, cochez uniquement l'autorisation pour les <strong>Statistiques / Performances</strong> (accès en lecture seule) et validez.</li>
+                                <li>Une fois sur la page de Meta Business Suite (comme sur votre écran) :
+                          <ul className="list-disc list-inside pl-5 mt-1.5 space-y-2 text-[11px] italic font-normal text-muted-foreground">
+                            <li>
+                              <strong className="text-foreground">Méthode 1 : Invitation par E-mail (Recommandée & la plus fiable)</strong>
+                              <ol className="list-decimal list-inside pl-4 mt-1 space-y-1 text-muted-foreground font-normal">
+                                <li>Dans le menu latéral gauche, cliquez sur <strong>"Personnes"</strong> (juste au-dessus de Partenaires).</li>
+                                <li>Cliquez sur le bouton bleu <strong>"Inviter des personnes"</strong> (ou "Ajouter") en haut à droite.</li>
+                                <li>Saisissez l'adresse e-mail : <strong className="text-foreground">audit@glndigital.com</strong></li>
+                                <li>Cochez uniquement l'accès <strong>Statistiques / Performances</strong> (accès partiel/lecture seule) et envoyez l'invitation.</li>
+                              </ol>
+                            </li>
+                            <li className="border-t border-border/20 pt-2">
+                              <strong className="text-foreground">Méthode 2 : Par ID Partenaire</strong>
+                              <ol className="list-decimal list-inside pl-4 mt-1 space-y-1 text-muted-foreground font-normal">
+                                <li>Dans le menu de gauche, cliquez sur <strong>"Partenaires"</strong>.</li>
+                                <li>Cliquez sur <strong>"Ajouter"</strong> &gt; <strong>"Partager des éléments avec un partenaire"</strong>.</li>
+                                <li>Collez l'ID : <strong className="text-foreground">1780587266753</strong>. <em>(Note : Si Facebook indique "ID de l'entreprise non valide", veuillez utiliser la <strong>Méthode 1 par E-mail</strong> ci-dessus)</em>.</li>
+                              </ol>
+                            </li>
                           </ul>
                         </li>
                       </ol>
