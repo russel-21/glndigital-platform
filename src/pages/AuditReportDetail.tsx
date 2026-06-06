@@ -1087,28 +1087,19 @@ const AuditReportDetail = () => {
                 </div>
 
                 <div className="space-y-2.5">
-                  <span className="font-semibold text-foreground block">Étapes détaillées à suivre :</span>
-                  <ol className="list-decimal list-inside space-y-2 text-muted-foreground pl-1">
-                    <li>Allez sur <a href="https://business.facebook.com/settings" target="_blank" rel="noopener noreferrer" className="text-primary underline">Meta Business Settings</a>. <span className="text-muted-foreground block text-[10px] italic mt-0.5 ml-4">(Note : Si Meta affiche la page de connexion, cliquez simplement sur <strong>"Continuer avec Facebook"</strong> pour vous connecter et accéder aux paramètres)</span>.</li>
-                    <li><strong>Sélectionnez votre entreprise</strong> dans la liste (ex : <em>Cabinet De Recrutement de Barclès</em> ou <em>hotelsoft.cm</em>).</li>
-                    <li>Dans le menu ou les raccourcis à gauche, cliquez sur <strong>Paramètres de l'entreprise</strong> (l'icône d'engrenage ⚙️).</li>
-                    <li>Dans le menu latéral gauche, cliquez sur <strong>Utilisateurs</strong> puis sur <strong>Partenaires</strong>.</li>
-                    <li>Sous la section <em>Partenaires avec qui partager des éléments</em>, cliquez sur le bouton bleu <strong>Ajouter</strong>.</li>
-                    <li>Collez notre ID partenaire ci-dessus (`1780587266753`), sélectionnez votre Page et Compte publicitaire, puis activez l'autorisation <strong>"Afficher les performances" (Lecture seule)</strong> et enregistrez.</li>
-                  </ol>
-                </div>
-
-                <div className="border-t border-border/25 pt-4 space-y-2">
-                  <span className="font-bold text-foreground block">Option B : Via votre Page Facebook & Meta Business Suite</span>
-                  <ol className="list-decimal list-inside space-y-1.5 text-muted-foreground pl-1">
-                    <li>Allez sur les <a href="https://www.facebook.com/settings?tab=profile_access" target="_blank" rel="noopener noreferrer" className="text-primary underline">Paramètres d'accès de votre Page</a>. <span className="text-muted-foreground block text-[10px] italic mt-0.5 ml-4">(Assurez-vous d'avoir basculé sur le profil de votre Page Facebook)</span>.</li>
+                  <span className="font-semibold text-foreground block">Étapes détaillées pas-à-pas :</span>
+                  <ol className="list-decimal list-inside space-y-2.5 text-muted-foreground pl-1">
+                    <li><strong>Copiez notre identifiant partenaire</strong> ci-dessus (`1780587266753`).</li>
+                    <li>Allez sur les <a href="https://www.facebook.com/settings?tab=profile_access" target="_blank" rel="noopener noreferrer" className="text-primary underline">Paramètres d'accès de votre Page</a>. <span className="text-muted-foreground block text-[10px] italic mt-0.5 ml-4">(Basculez sur le profil de votre Page Facebook si demandé)</span>.</li>
                     <li>Cliquez sur le lien bleu <strong>"Gérer"</strong> situé à droite de <strong>"Personnes ayant un accès partiel"</strong>.</li>
                     <li>Sur le pop-up qui s'affiche, cliquez sur le bouton bleu <strong>"Accéder à Meta Business Suite"</strong>.</li>
-                    <li>Une fois redirigé sur l'écran Paramètres de Meta Business Suite :
-                      <ul className="list-disc list-inside pl-5 mt-1.5 space-y-1 text-[10px] italic">
-                        <li><strong>Option la plus simple (Partenaire) :</strong> Cliquez sur le bouton <strong>"Affecter un partenaire"</strong> au centre. Saisissez notre identifiant partenaire <strong className="text-foreground">1780587266753</strong>, cochez l'accès <strong>Statistiques/Performances</strong> et validez.</li>
-                        <li><strong>Option par E-mail :</strong> Cliquez sur le bouton <strong>"Affecter l'accès"</strong> au centre, saisissez l'adresse e-mail <strong className="text-foreground">audit@glndigital.com</strong>, attribuez uniquement l'accès aux <strong>Statistiques</strong> (lecture seule) et validez.</li>
-                        <li><em>Note de secours : Si besoin, vous pouvez également utiliser le menu latéral gauche sous <strong>Utilisateur(ice)s</strong> &gt; <strong>Personnes</strong> (ou <strong>Partenaires</strong>) pour envoyer l'invitation.</em></li>
+                    <li>Une fois sur la page de Meta Business Suite (comme sur votre écran) :
+                      <ul className="list-disc list-inside pl-5 mt-1.5 space-y-1.5 text-[11px] italic text-muted-foreground">
+                        <li>Dans le menu latéral gauche, sous <strong>Utilisateur(ice)s</strong>, cliquez précisément sur le bouton <strong>"Partenaires"</strong>.</li>
+                        <li>Sur la page qui s'ouvre, cliquez sur le bouton bleu <strong>"Ajouter"</strong> (ou "Ajouter un partenaire").</li>
+                        <li>Sélectionnez <strong>"Partager des éléments avec un partenaire"</strong>.</li>
+                        <li>Collez l'identifiant partenaire copié : <strong className="text-foreground">1780587266753</strong>.</li>
+                        <li>Sélectionnez votre Page, cochez uniquement l'autorisation pour les <strong>Statistiques / Performances</strong> (accès en lecture seule) et validez.</li>
                       </ul>
                     </li>
                   </ol>
