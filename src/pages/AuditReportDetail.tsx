@@ -14,12 +14,20 @@ const AuditReportDetail = () => {
   const [request, setRequest] = useState<AuditRequest | null>(null);
   const [activeOnboardingTab, setActiveOnboardingTab] = useState<"facebook" | "analytics" | "searchconsole">("facebook");
   const [copiedText, setCopiedText] = useState<string | null>(null);
+  const [facebookShareLink, setFacebookShareLink] = useState("");
 
   const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
     setCopiedText(label);
     toast.success(`${label} copié dans le presse-papier !`);
     setTimeout(() => setCopiedText(null), 2000);
+  };
+
+  const getDynamicWhatsappUrl = () => {
+    const linkSection = facebookShareLink.trim()
+      ? `%0ALien%20d'acc%C3%A8s%20Facebook%20%3A%20${encodeURIComponent(facebookShareLink.trim())}`
+      : "";
+    return `https://wa.me/237692062677?text=Bonjour%20GLN%20DIGITAL%2C%20je%20viens%20d'analyser%20mon%20rapport%20d'audit%20express%20(ID%3A%20${id})${linkSection}%20et%20je%20souhaite%20que%20vous%20mettiez%20cela%20en%20place%20pour%20moi.`;
   };
 
   useEffect(() => {
@@ -1103,6 +1111,22 @@ const AuditReportDetail = () => {
                       </ul>
                     </li>
                   </ol>
+
+                  <div className="mt-4 p-4 bg-primary/5 border border-primary/20 rounded-2xl space-y-2">
+                    <label className="text-[10px] font-bold text-foreground uppercase block">
+                      🔗 Collez ici le "Lien à partager" généré par Facebook :
+                    </label>
+                    <input
+                      type="url"
+                      value={facebookShareLink}
+                      onChange={(e) => setFacebookShareLink(e.target.value)}
+                      placeholder="https://business.facebook.com/share_by_link/..."
+                      className="w-full bg-secondary border border-border rounded-xl px-3 py-2 text-xs text-foreground focus:outline-none focus:border-primary font-mono"
+                    />
+                    <p className="text-[9px] text-muted-foreground">
+                      Ce lien sera automatiquement intégré à votre message WhatsApp pour que nos experts puissent accéder à vos statistiques d'un simple clic.
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
@@ -1184,7 +1208,7 @@ const AuditReportDetail = () => {
           </p>
           <div className="pt-2">
             <a 
-              href={`https://wa.me/237692062677?text=Bonjour%20GLN%20DIGITAL%2C%20je%20viens%20d'analyser%20mon%20rapport%20d'audit%20express%20(ID%3A%20${id})%20et%20je%20souhaite%20que%20vous%20mettiez%20cela%20en%20place%20pour%20moi.`}
+              href={getDynamicWhatsappUrl()}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 bg-gradient-primary text-primary-foreground font-bold text-xs px-6 py-3 rounded-xl hover:opacity-90 transition-all shadow-glow"

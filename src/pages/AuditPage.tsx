@@ -16,12 +16,31 @@ const AuditPage = () => {
   const [activeOnboardingTab, setActiveOnboardingTab] = useState<"facebook" | "analytics" | "searchconsole">("facebook");
   const [copiedText, setCopiedText] = useState("");
   const [whatsappUrl, setWhatsappUrl] = useState("");
+  const [facebookShareLink, setFacebookShareLink] = useState("");
+  const [submittedAuditId, setSubmittedAuditId] = useState("");
 
   const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
     setCopiedText(label);
     toast.success(`${label} copié avec succès !`);
     setTimeout(() => setCopiedText(""), 2000);
+  };
+
+  const getDynamicWhatsappUrl = () => {
+    const linkSection = facebookShareLink.trim()
+      ? `\n🔗 Lien d'accès Facebook (Partenaire) : ${facebookShareLink.trim()}`
+      : "";
+    const whatsappText = encodeURIComponent(
+      `Bonjour GLN DIGITAL!\n\nJe viens de soumettre ma demande d'Audit Express.\n\n` +
+      `👤 Nom: ${clientName.trim()}\n` +
+      `🏢 Entreprise: ${companyName.trim()}\n` +
+      `💼 Secteur: ${activitySector.trim()}\n` +
+      `📍 Ville/Pays: ${city.trim()}, ${country.trim()}\n` +
+      `🎯 Objectifs: ${mainObjective}\n` +
+      `📝 Problème: ${mainProblem.trim()}${linkSection}\n` +
+      `📦 ID Audit: ${submittedAuditId || "aud-express"}`
+    );
+    return `https://wa.me/237692062677?text=${whatsappText}`;
   };
 
   // Form states
@@ -218,7 +237,8 @@ const AuditPage = () => {
         messageEn: `Your free audit request for "${companyName.trim()}" has been received. It is pending review by our experts.`
       });
 
-      toast.success("Votre demande d'audit a été enregistrée avec succès !");
+       toast.success("Votre demande d'audit a été enregistrée avec succès !");
+      setSubmittedAuditId(reqId);
       
       const whatsappText = encodeURIComponent(
         `Bonjour GLN DIGITAL!\n\nJe viens de soumettre ma demande d'Audit Express.\n\n` +
@@ -807,6 +827,22 @@ const AuditPage = () => {
                           </ul>
                         </li>
                       </ol>
+
+                      <div className="mt-4 p-4 bg-primary/5 border border-primary/20 rounded-2xl space-y-2">
+                        <label className="text-[10px] font-bold text-foreground uppercase block">
+                          🔗 Collez ici le "Lien à partager" généré par Facebook :
+                        </label>
+                        <input
+                          type="url"
+                          value={facebookShareLink}
+                          onChange={(e) => setFacebookShareLink(e.target.value)}
+                          placeholder="https://business.facebook.com/share_by_link/..."
+                          className="w-full bg-secondary border border-border rounded-xl px-3 py-2 text-xs text-foreground focus:outline-none focus:border-primary font-mono"
+                        />
+                        <p className="text-[9px] text-muted-foreground">
+                          Ce lien sera automatiquement intégré à votre message WhatsApp pour que nos experts puissent accéder à vos statistiques d'un simple clic.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -883,7 +919,7 @@ const AuditPage = () => {
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-3">
                 <a
-                  href={whatsappUrl}
+                  href={getDynamicWhatsappUrl()}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex-1 bg-gradient-primary text-primary-foreground py-3.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:opacity-90 transition-all shadow-glow text-center"
