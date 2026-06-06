@@ -1102,8 +1102,9 @@ const AuditReportDetail = () => {
                   <span className="font-bold text-foreground block">Option B : Directement via votre Page Facebook (Simple)</span>
                   <ol className="list-decimal list-inside space-y-1.5 text-muted-foreground pl-1">
                     <li>Allez directement sur les <a href="https://www.facebook.com/settings?tab=profile_access" target="_blank" rel="noopener noreferrer" className="text-primary underline">Paramètres d'accès de votre Page</a>. <span className="text-muted-foreground block text-[10px] italic mt-0.5 ml-4">(Assurez-vous d'avoir basculé sur le profil de votre Page Facebook pour y accéder)</span>.</li>
-                    <li>Sous la section <em>Personnes ayant un accès aux tâches</em> (ou <em>Accès Facebook</em>), cliquez sur <strong>Ajouter</strong>.</li>
-                    <li>Saisissez l'adresse e-mail GLN : <strong className="text-foreground">audit@glndigital.com</strong>, cochez uniquement l'accès aux **Statistiques / Performances** et validez l'invitation.</li>
+                    <li>Sur l'écran affiché, repérez la section <strong>"Personnes ayant un accès partiel"</strong> et cliquez sur le lien bleu <strong>"Gérer"</strong> situé à l'extrême droite.</li>
+                    <li>Dans l'écran ou la fenêtre qui s'ouvre, cliquez sur le bouton <strong>"Ajouter"</strong> (ou <strong>"Ajouter nouveau"</strong>).</li>
+                    <li>Saisissez l'adresse e-mail GLN : <strong className="text-foreground">audit@glndigital.com</strong>, cochez uniquement l'autorisation pour les **Statistiques / Performances** (accès en lecture seule) et validez l'invitation.</li>
                   </ol>
                 </div>
               </div>
