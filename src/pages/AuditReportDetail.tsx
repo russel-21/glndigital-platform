@@ -1104,12 +1104,11 @@ const AuditReportDetail = () => {
                     <li>Allez sur les <a href="https://www.facebook.com/settings?tab=profile_access" target="_blank" rel="noopener noreferrer" className="text-primary underline">Paramètres d'accès de votre Page</a>. <span className="text-muted-foreground block text-[10px] italic mt-0.5 ml-4">(Assurez-vous d'avoir basculé sur le profil de votre Page Facebook)</span>.</li>
                     <li>Cliquez sur le lien bleu <strong>"Gérer"</strong> situé à droite de <strong>"Personnes ayant un accès partiel"</strong>.</li>
                     <li>Sur le pop-up qui s'affiche, cliquez sur le bouton bleu <strong>"Accéder à Meta Business Suite"</strong>.</li>
-                    <li>Une fois dans Meta Business Suite :
+                    <li>Une fois redirigé sur l'écran Paramètres de Meta Business Suite :
                       <ul className="list-disc list-inside pl-5 mt-1.5 space-y-1 text-[10px] italic">
-                        <li>Dans le menu de gauche, allez dans <strong>Utilisateurs</strong> puis <strong>Personnes</strong>.</li>
-                        <li>Cliquez sur le bouton bleu <strong>"Inviter des personnes"</strong> (ou "Ajouter") en haut à droite.</li>
-                        <li>Saisissez notre adresse e-mail : <strong className="text-foreground">audit@glndigital.com</strong></li>
-                        <li>Sélectionnez votre Page, attribuez uniquement l'accès aux <strong>Statistiques / Performances</strong> (accès partiel/lecture seule) et envoyez l'invitation.</li>
+                        <li><strong>Option la plus simple (Partenaire) :</strong> Cliquez sur le bouton <strong>"Affecter un partenaire"</strong> au centre. Saisissez notre identifiant partenaire <strong className="text-foreground">1780587266753</strong>, cochez l'accès <strong>Statistiques/Performances</strong> et validez.</li>
+                        <li><strong>Option par E-mail :</strong> Cliquez sur le bouton <strong>"Affecter l'accès"</strong> au centre, saisissez l'adresse e-mail <strong className="text-foreground">audit@glndigital.com</strong>, attribuez uniquement l'accès aux <strong>Statistiques</strong> (lecture seule) et validez.</li>
+                        <li><em>Note de secours : Si besoin, vous pouvez également utiliser le menu latéral gauche sous <strong>Utilisateur(ice)s</strong> &gt; <strong>Personnes</strong> (ou <strong>Partenaires</strong>) pour envoyer l'invitation.</em></li>
                       </ul>
                     </li>
                   </ol>
