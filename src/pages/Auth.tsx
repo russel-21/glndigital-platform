@@ -159,7 +159,7 @@ const Auth = () => {
 
   // Google Sign-In
   const handleGoogleLogin = () => {
-    setShowGoogleModal(true);
+    triggerOfficialGoogle();
   };
 
   const triggerOfficialGoogle = async () => {
@@ -174,12 +174,17 @@ const Auth = () => {
       });
       if (error) throw error;
     } catch (e: any) {
+      const message = e?.message || "";
+      const isProviderDisabled = message.toLowerCase().includes("provider") || message.toLowerCase().includes("unsupported");
       toast.error(
         language === "fr"
-          ? "Connexion Google officielle échouée. Utilisation automatique du mode simulation."
-          : "Official Google connection failed. Automatically switching to simulation mode."
+          ? isProviderDisabled
+            ? "Google n'est pas encore activé dans Supabase. Activez le fournisseur Google puis réessayez."
+            : "Connexion Google échouée. Vérifiez la configuration OAuth et les URLs de redirection."
+          : isProviderDisabled
+            ? "Google is not enabled in Supabase yet. Enable the Google provider and try again."
+            : "Google sign-in failed. Check the OAuth configuration and redirect URLs."
       );
-      triggerSimulatedGoogle(simulatedEmail);
     } finally {
       setLoading(false);
     }
