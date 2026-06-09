@@ -55,6 +55,7 @@ const AuditPage = () => {
   const [instagramLink, setInstagramLink] = useState("");
   const [tiktokLink, setTiktokLink] = useState("");
   const [snapchatLink, setSnapchatLink] = useState("");
+  const [youtubeLink, setYoutubeLink] = useState("");
   const [googleAnalytics, setGoogleAnalytics] = useState("");
   const [websiteUrl, setWebsiteUrl] = useState("");
   
@@ -169,8 +170,19 @@ const AuditPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!clientName.trim() || !email.trim() || !phoneLocal.trim() || !companyName.trim() || !activitySector.trim() || !mainProblem.trim() || !city.trim() || !country.trim() || !singleLink.trim()) {
-      toast.error("Veuillez remplir les informations obligatoires (dont le lien à auditer).");
+    const rawLinks = {
+      facebook: facebookLink.trim(),
+      instagram: instagramLink.trim(),
+      tiktok: tiktokLink.trim(),
+      snapchat: snapchatLink.trim(),
+      youtube: youtubeLink.trim(),
+      website: websiteUrl.trim(),
+      primary: singleLink.trim()
+    };
+    const hasAnyAuditLink = Object.values(rawLinks).some(Boolean);
+
+    if (!clientName.trim() || !email.trim() || !phoneLocal.trim() || !companyName.trim() || !activitySector.trim() || !mainProblem.trim() || !city.trim() || !country.trim() || !hasAnyAuditLink) {
+      toast.error("Veuillez remplir les informations obligatoires et connecter au moins un canal à auditer.");
       return;
     }
 
@@ -179,10 +191,38 @@ const AuditPage = () => {
     const fullPhone = `${countryCode} ${phoneLocal.trim()}`;
     const reqId = "aud-" + Math.random().toString(36).substring(2, 7);
 
-    const finalFb = linkType === "facebook" ? singleLink.trim() : undefined;
-    const finalInsta = linkType === "instagram" ? singleLink.trim() : undefined;
-    const finalTiktok = linkType === "tiktok" ? singleLink.trim() : undefined;
-    const finalWeb = linkType === "website" ? singleLink.trim() : undefined;
+    const detectPrimaryType = (url: string) => {
+      const lower = url.toLowerCase();
+      if (lower.includes("facebook.com")) return "facebook";
+      if (lower.includes("instagram.com")) return "instagram";
+      if (lower.includes("tiktok.com")) return "tiktok";
+      if (lower.includes("snapchat.com")) return "snapchat";
+      if (lower.includes("youtube.com") || lower.includes("youtu.be")) return "youtube";
+      return "website";
+    };
+
+    const primaryType = rawLinks.primary ? detectPrimaryType(rawLinks.primary) : "";
+    const finalFb = rawLinks.facebook || (primaryType === "facebook" ? rawLinks.primary : undefined);
+    const finalInsta = rawLinks.instagram || (primaryType === "instagram" ? rawLinks.primary : undefined);
+    const finalTiktok = rawLinks.tiktok || (primaryType === "tiktok" ? rawLinks.primary : undefined);
+    const finalSnap = rawLinks.snapchat || (primaryType === "snapchat" ? rawLinks.primary : undefined);
+    const finalYoutube = rawLinks.youtube || (primaryType === "youtube" ? rawLinks.primary : undefined);
+    const finalWeb = rawLinks.website || (primaryType === "website" ? rawLinks.primary : undefined);
+    const primaryAuditLink = rawLinks.primary || finalWeb || finalFb || finalInsta || finalTiktok || finalSnap || finalYoutube || "";
+    const auditTypes: AuditRequest["auditTypes"] = [];
+    if (finalFb || finalInsta || finalTiktok || finalSnap || finalYoutube) auditTypes.push("social");
+    if (finalWeb) auditTypes.push("web");
+    if (googleAnalytics.trim()) auditTypes.push("ads");
+    if (auditTypes.length === 0) auditTypes.push("social");
+    const connectedChannels = [
+      finalFb ? `Facebook: ${finalFb}` : "",
+      finalInsta ? `Instagram: ${finalInsta}` : "",
+      finalTiktok ? `TikTok: ${finalTiktok}` : "",
+      finalSnap ? `Snapchat: ${finalSnap}` : "",
+      finalYoutube ? `YouTube: ${finalYoutube}` : "",
+      finalWeb ? `Site web: ${finalWeb}` : "",
+      googleAnalytics.trim() ? `Google Analytics: ${googleAnalytics.trim()}` : ""
+    ].filter(Boolean);
 
     const newRequest: AuditRequest = {
       id: reqId,
@@ -190,30 +230,33 @@ const AuditPage = () => {
       email: email.trim(),
       phone: fullPhone,
       companyName: companyName.trim(),
-      auditTypes: linkType === "website" ? ["web"] : ["social"],
+      auditTypes,
       activitySector: activitySector.trim(),
       city: city.trim(),
       country: country.trim(),
-      singleLink: singleLink.trim(),
+      singleLink: primaryAuditLink,
       facebookLink: finalFb,
       instagramLink: finalInsta,
       tiktokLink: finalTiktok,
+      snapchatLink: finalSnap,
+      youtubeLink: finalYoutube,
+      googleAnalytics: googleAnalytics.trim() || undefined,
       websiteUrl: finalWeb,
       mainObjective,
       marketingBudget: marketingBudget.trim() || undefined,
       mainProblem: mainProblem.trim(),
       reportChoice,
       details: {
-        socialLink: finalInsta || finalFb || finalTiktok || undefined,
+        socialLink: finalInsta || finalFb || finalTiktok || finalSnap || finalYoutube || undefined,
         websiteUrl: finalWeb,
-        additionalNotes: `Lien unique audité: ${singleLink.trim()}. ${mainProblem.trim()}`
+        additionalNotes: `Canaux connectés: ${connectedChannels.join(" | ")}. Problème: ${mainProblem.trim()}`
       },
       status: "pending",
       createdAt: new Date().toISOString(),
       crm: {
         assignedCloser: "Vanessa M.",
         crmStatus: "new",
-        internalNotes: "Prospect express créé via formulaire intelligent à lien unique."
+        internalNotes: "Prospect express créé via formulaire intelligent multi-canaux."
       }
     };
 
@@ -258,6 +301,13 @@ const AuditPage = () => {
       
       // Clear inputs
       setSingleLink("");
+      setFacebookLink("");
+      setInstagramLink("");
+      setTiktokLink("");
+      setSnapchatLink("");
+      setYoutubeLink("");
+      setGoogleAnalytics("");
+      setWebsiteUrl("");
       setActivitySector("");
       setMarketingBudget("");
       setMainProblem("");
@@ -388,10 +438,9 @@ const AuditPage = () => {
             {/* Single Audit Link Input */}
             <div className="space-y-4">
               <div>
-                <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1.5 block">Lien unique à auditer (Compte Facebook, Instagram, TikTok, ou URL Site Web) *</label>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1.5 block">Lien principal à auditer (facultatif si vous connectez les canaux ci-dessous)</label>
                 <input
                   type="url"
-                  required
                   value={singleLink}
                   onChange={(e) => setSingleLink(e.target.value)}
                   className="w-full bg-secondary border border-border rounded-xl px-4 py-2.5 text-xs text-foreground focus:outline-none focus:border-primary shadow-inner"
@@ -552,6 +601,43 @@ const AuditPage = () => {
                   </div>
                 </div>
               )}
+
+              <div className="rounded-2xl border border-border/60 bg-secondary/20 p-4 space-y-4">
+                <div>
+                  <h4 className="font-heading text-xs font-bold text-foreground uppercase tracking-wider">Connexions de l'ecosysteme digital</h4>
+                  <p className="text-[10px] text-muted-foreground mt-1">Ajoutez chaque reseau disponible pour que les 7 moteurs IA analysent les bons canaux en parallele.</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1 block">Page Facebook / Meta</label>
+                    <input type="url" value={facebookLink} onChange={(e) => setFacebookLink(e.target.value)} className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-xs text-foreground focus:outline-none focus:border-primary" placeholder="https://facebook.com/..." />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1 block">Profil Instagram</label>
+                    <input type="url" value={instagramLink} onChange={(e) => setInstagramLink(e.target.value)} className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-xs text-foreground focus:outline-none focus:border-primary" placeholder="https://instagram.com/..." />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1 block">Compte TikTok</label>
+                    <input type="url" value={tiktokLink} onChange={(e) => setTiktokLink(e.target.value)} className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-xs text-foreground focus:outline-none focus:border-primary" placeholder="https://tiktok.com/@..." />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1 block">Snapchat</label>
+                    <input type="url" value={snapchatLink} onChange={(e) => setSnapchatLink(e.target.value)} className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-xs text-foreground focus:outline-none focus:border-primary" placeholder="https://snapchat.com/add/..." />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1 block">YouTube</label>
+                    <input type="url" value={youtubeLink} onChange={(e) => setYoutubeLink(e.target.value)} className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-xs text-foreground focus:outline-none focus:border-primary" placeholder="https://youtube.com/@..." />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1 block">Site web / Landing page</label>
+                    <input type="url" value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-xs text-foreground focus:outline-none focus:border-primary" placeholder="https://votresite.com" />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1 block">Acces Google Analytics / Search Console</label>
+                    <input type="text" value={googleAnalytics} onChange={(e) => setGoogleAnalytics(e.target.value)} className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-xs text-foreground focus:outline-none focus:border-primary" placeholder="Ex: propriete GA4, email d'acces envoye, ou note de connexion" />
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Objective Choice */}

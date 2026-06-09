@@ -2200,7 +2200,7 @@ function AuditsAdmin() {
     const instaProvided = req.instagramLink || (isLinkInsta ? req.singleLink : "") || (req.details?.socialLink?.includes("instagram") ? req.details.socialLink : "");
     const tiktokProvided = req.tiktokLink || (isLinkTiktok ? req.singleLink : "") || (req.details?.socialLink?.includes("tiktok") ? req.details.socialLink : "");
     const snapProvided = req.snapchatLink || (isLinkSnap ? req.singleLink : "") || (req.details?.socialLink?.includes("snapchat") ? req.details.socialLink : "");
-    const youtubeProvided = (isLinkYoutube ? req.singleLink : "") || (req.details?.socialLink?.includes("youtube") ? req.details.socialLink : "");
+    const youtubeProvided = req.youtubeLink || (isLinkYoutube ? req.singleLink : "") || (req.details?.socialLink?.includes("youtube") ? req.details.socialLink : "");
     const webProvided = req.websiteUrl || (isLinkWeb ? req.singleLink : "") || req.details?.websiteUrl;
 
     const hasFb = !!fbProvided;
@@ -3192,7 +3192,7 @@ function AuditsAdmin() {
     setInstaUrl(req.instagramLink || (isLinkInsta ? req.singleLink : "") || (req.details?.socialLink?.includes("instagram") ? req.details.socialLink : ""));
     setTiktokUrl(req.tiktokLink || (isLinkTiktok ? req.singleLink : "") || (req.details?.socialLink?.includes("tiktok") ? req.details.socialLink : ""));
     setSnapUrl(req.snapchatLink || (isLinkSnap ? req.singleLink : "") || (req.details?.socialLink?.includes("snapchat") ? req.details.socialLink : ""));
-    setYoutubeUrl((isLinkYoutube ? req.singleLink : "") || (req.details?.socialLink?.includes("youtube") ? req.details.socialLink : ""));
+    setYoutubeUrl(req.youtubeLink || (isLinkYoutube ? req.singleLink : "") || (req.details?.socialLink?.includes("youtube") ? req.details.socialLink : ""));
     setWebUrl(req.websiteUrl || (isLinkWeb ? req.singleLink : "") || req.details?.websiteUrl || "");
 
     const savedDeliverables = localStorage.getItem(`gln_audit_deliverables_${req.id}`);
@@ -4649,6 +4649,9 @@ function AuditsAdmin() {
                   )}
                   {evaluating.snapchatLink && (
                     <span>Snap: <a href={evaluating.snapchatLink} target="_blank" rel="noreferrer" className="text-primary hover:underline font-mono">{evaluating.snapchatLink}</a></span>
+                  )}
+                  {evaluating.youtubeLink && (
+                    <span>YouTube: <a href={evaluating.youtubeLink} target="_blank" rel="noreferrer" className="text-primary hover:underline font-mono">{evaluating.youtubeLink}</a></span>
                   )}
                   {evaluating.websiteUrl && (
                     <span>Site: <a href={evaluating.websiteUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline font-mono">{evaluating.websiteUrl}</a></span>

@@ -204,6 +204,7 @@ export interface AuditRequest {
   instagramLink?: string;
   tiktokLink?: string;
   snapchatLink?: string;
+  youtubeLink?: string;
   googleAnalytics?: string;
   websiteUrl?: string;
   mainObjective?: string;
