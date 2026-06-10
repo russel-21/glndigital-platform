@@ -15,6 +15,11 @@ const getDeviceToken = () => {
   return token;
 };
 
+const isMissingProfilesTableError = (error: any) => {
+  const message = String(error?.message || error?.details || "");
+  return error?.code === "PGRST205" || (message.includes("public.profiles") && message.includes("schema cache"));
+};
+
 const AuthCallback = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -197,7 +202,7 @@ const AuthCallback = () => {
         localStorage.setItem("gln_mock_user_logged_in", "true");
         toast.success("Profil complété !");
       } else {
-        const { error } = await supabase.from("profiles").upsert({
+        const profilePayload = {
           id: sessionUser.id,
           email: sessionUser.email,
           full_name: fullName,
@@ -206,10 +211,19 @@ const AuthCallback = () => {
           roles: [role],
           current_role: role,
           active_sessions: [deviceToken]
-        });
+        };
 
-        if (error) throw error;
-        toast.success("Profil complété !");
+        const { error } = await supabase.from("profiles").upsert(profilePayload);
+
+        if (error) {
+          if (!isMissingProfilesTableError(error)) throw error;
+
+          localStorage.setItem("gln_active_mock_profile", JSON.stringify(profilePayload));
+          localStorage.setItem("gln_mock_user_logged_in", "true");
+          toast.warning("Profil sauvegarde localement. La table Supabase profiles doit encore etre creee.");
+        } else {
+          toast.success("Profil complete !");
+        }
       }
 
       if (role === "partner") {
