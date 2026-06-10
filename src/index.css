@@ -60,6 +60,7 @@
 @layer base {
   * {
     @apply border-border;
+    min-width: 0;
   }
 
   body {
@@ -70,6 +71,8 @@
     overflow-x: hidden;
     text-size-adjust: 100%;
     -webkit-text-size-adjust: 100%;
+    overscroll-behavior-x: none;
+    touch-action: pan-y;
   }
 
   html {
@@ -126,6 +129,42 @@
     }
   }
 
+  @media (max-width: 480px) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    .glass {
+      background: hsl(220 22% 8% / 0.96);
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+
+    .shadow-glow,
+    .shadow-glow-accent {
+      box-shadow: none;
+    }
+
+    .animate-pulse-glow {
+      animation: none !important;
+    }
+  }
+
+  @media (max-width: 380px) {
+    .container {
+      padding-left: 0.875rem;
+      padding-right: 0.875rem;
+    }
+
+    h1 {
+      font-size: clamp(1.65rem, 8.2vw, 2.2rem);
+    }
+
+    h2 {
+      font-size: clamp(1.3rem, 6.5vw, 1.75rem);
+    }
+  }
+
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-heading);
   }
@@ -173,6 +212,10 @@
     contain: layout paint;
     min-width: 0;
     overflow-wrap: anywhere;
+  }
+
+  .stable-surface * {
+    min-width: 0;
   }
 
   .mobile-scroll-x {

@@ -305,9 +305,9 @@ const Navbar = () => {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass">
       <div className="container mx-auto px-4 md:px-8 flex items-center justify-between h-16 md:h-20">
-        <Link to="/" className="flex items-center gap-2">
-          <img src={logo} alt="GLN Digital logo" className="h-10 md:h-12 w-auto" />
-          <span className="font-heading text-xl md:text-2xl font-bold tracking-tight">
+        <Link to="/" className="flex min-w-0 items-center gap-2">
+          <img src={logo} alt="GLN Digital logo" className="h-9 sm:h-10 md:h-12 w-auto shrink-0" />
+          <span className="font-heading text-lg sm:text-xl md:text-2xl font-bold tracking-tight truncate">
             <span className="text-gradient-primary">GLN</span>{" "}
             <span className="text-foreground">DIGITAL</span>
           </span>
@@ -464,9 +464,9 @@ const Navbar = () => {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="md:hidden glass border-t border-border"
+            className="md:hidden glass border-t border-border max-h-[calc(100dvh-4rem)] overflow-y-auto"
           >
-            <div className="flex flex-col px-4 py-4 gap-3">
+            <div className="flex flex-col px-4 py-4 pb-6 gap-3">
               {navItems.map((item) => (
                 <Link
                   key={item.path}
