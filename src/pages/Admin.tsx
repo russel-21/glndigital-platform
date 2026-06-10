@@ -18,6 +18,9 @@ import { getCourses, saveCourses, Course, CourseModule, Lesson, generateDefaultQ
 import { 
   getAuditRequests, 
   saveAuditRequests, 
+  fetchRemoteAuditRequests,
+  saveRemoteAuditRequests,
+  deleteRemoteAuditRequest,
   AuditRequest, 
   AuditReport, 
   CompetitorData, 
@@ -3299,8 +3302,7 @@ function AuditsAdmin() {
       return r;
     });
 
-    saveAuditRequests(updatedRequests);
-    setRequests(updatedRequests);
+    persistAuditRequests(updatedRequests);
     localStorage.setItem(`gln_audit_deliverables_${evaluating.id}`, JSON.stringify(assignedDeliverables));
 
     // Send completed audit notification
@@ -3355,12 +3357,33 @@ function AuditsAdmin() {
   const [recommendationsText, setRecommendationsText] = useState("");
   const [overallSummary, setOverallSummary] = useState("");
 
-  const loadRequests = () => {
+  const persistAuditRequests = (nextRequests: AuditRequest[]) => {
+    saveAuditRequests(nextRequests);
+    setRequests(nextRequests);
+    saveRemoteAuditRequests(nextRequests).catch((error) => {
+      console.error("Remote audit sync failed:", error);
+      toast.warning("Audits sauvegardes localement, mais la synchronisation Supabase a echoue.");
+    });
+  };
+
+  const loadRequests = async () => {
+    try {
+      const remoteRequests = await fetchRemoteAuditRequests();
+      if (remoteRequests.length > 0) {
+        saveAuditRequests(remoteRequests);
+        setRequests(remoteRequests);
+        return;
+      }
+    } catch (error) {
+      console.error("Remote audit load failed:", error);
+      toast.warning("Lecture Supabase impossible. Affichage des audits locaux.");
+    }
+
     setRequests(getAuditRequests());
   };
 
   useEffect(() => {
-    loadRequests();
+    void loadRequests();
   }, []);
 
   const handleStartEvaluate = (req: AuditRequest) => {
@@ -3517,8 +3540,7 @@ function AuditsAdmin() {
       return r;
     });
 
-    saveAuditRequests(updatedRequests);
-    setRequests(updatedRequests);
+    persistAuditRequests(updatedRequests);
     localStorage.setItem(`gln_audit_deliverables_${evaluating.id}`, JSON.stringify(assignedDeliverables));
 
     // Send completed audit notification
@@ -3541,6 +3563,10 @@ function AuditsAdmin() {
       const updated = requests.filter(r => r.id !== id);
       saveAuditRequests(updated);
       setRequests(updated);
+      deleteRemoteAuditRequest(id).catch((error) => {
+        console.error("Remote audit delete failed:", error);
+        toast.warning("Audit supprime localement, mais la suppression Supabase a echoue.");
+      });
       toast.success("Demande d'audit supprimée.");
     }
   };
@@ -3560,8 +3586,7 @@ function AuditsAdmin() {
       return r;
     });
 
-    saveAuditRequests(updatedRequests);
-    setRequests(updatedRequests);
+    persistAuditRequests(updatedRequests);
 
     // Create notification for client
     addNotification({
@@ -3594,8 +3619,7 @@ function AuditsAdmin() {
           <Button
             onClick={() => {
               if (confirm("Voulez-vous charger/réinitialiser les données de démonstration ? Cela remplacera vos audits locaux.")) {
-                saveAuditRequests(defaultAuditRequests);
-                setRequests(defaultAuditRequests);
+                persistAuditRequests(defaultAuditRequests);
                 toast.success("Données de démonstration chargées avec succès !");
               }
             }}

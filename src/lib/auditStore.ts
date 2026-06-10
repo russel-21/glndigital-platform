@@ -375,3 +375,51 @@ export const getAuditRequests = (): AuditRequest[] => {
 export const saveAuditRequests = (requests: AuditRequest[]) => {
   localStorage.setItem("gln_audits_db", JSON.stringify(requests));
 };
+
+const toAuditRow = (request: AuditRequest) => ({
+  id: request.id,
+  email: request.email,
+  phone: request.phone,
+  client_name: request.clientName,
+  company_name: request.companyName || null,
+  status: request.status,
+  payload: request,
+  created_at: request.createdAt,
+  updated_at: new Date().toISOString(),
+});
+
+export const fetchRemoteAuditRequests = async (): Promise<AuditRequest[]> => {
+  const { data, error } = await (supabase as any)
+    .from("audit_requests")
+    .select("payload")
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return (data || []).map((row: any) => row.payload as AuditRequest).filter(Boolean);
+};
+
+export const upsertRemoteAuditRequest = async (request: AuditRequest) => {
+  const { error } = await (supabase as any)
+    .from("audit_requests")
+    .upsert(toAuditRow(request));
+
+  if (error) throw error;
+};
+
+export const saveRemoteAuditRequests = async (requests: AuditRequest[]) => {
+  const { error } = await (supabase as any)
+    .from("audit_requests")
+    .upsert(requests.map(toAuditRow));
+
+  if (error) throw error;
+};
+
+export const deleteRemoteAuditRequest = async (id: string) => {
+  const { error } = await (supabase as any)
+    .from("audit_requests")
+    .delete()
+    .eq("id", id);
+
+  if (error) throw error;
+};
+import { supabase } from "@/integrations/supabase/client";
