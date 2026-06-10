@@ -55,11 +55,8 @@ const Auth = () => {
       }
     }
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        redirectUser(session.user.id);
-      }
-    });
+    // Keep the login form available even when a Google/Supabase session exists.
+    // This lets the local admin credentials override a previously selected Google account.
   }, []);
 
   const redirectUser = async (userId: string) => {
@@ -238,6 +235,10 @@ const Auth = () => {
     // Direct local mock bypass check for russel@glndigital.com & GLN_Admin2026!
     if (finalIdentifier === "russel@glndigital.com" && currentPassword === "GLN_Admin2026!") {
       setLoading(true);
+      await supabase.auth.signOut();
+      localStorage.removeItem("gln_mock_user_session");
+      localStorage.removeItem("gln_mock_user_logged_in");
+      localStorage.removeItem("gln_active_mock_profile");
       localStorage.setItem("gln_mock_admin_session", "true");
       if (rememberMe) {
         localStorage.setItem("gln_trust_device", "true");
