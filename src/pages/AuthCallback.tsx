@@ -48,7 +48,7 @@ const AuthCallback = () => {
       return;
     }
 
-    supabase.auth.onAuthStateChange(async (event, session) => {
+    const handleSession = async (session: any) => {
       if (session) {
         setSessionUser(session.user);
         const deviceToken = getDeviceToken();
@@ -151,7 +151,21 @@ const AuthCallback = () => {
         setLoading(false);
         navigate("/auth");
       }
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      void handleSession(session);
     });
+
+    void supabase.auth.getSession().then(({ data: { session } }) => {
+      void handleSession(session);
+    }).catch((error) => {
+      toast.error(error.message || "Impossible de verifier la session.");
+      setLoading(false);
+      navigate("/auth");
+    });
+
+    return () => subscription.unsubscribe();
   }, [navigate]);
 
   const handleCompleteProfile = async (e: React.FormEvent) => {
