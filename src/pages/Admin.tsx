@@ -30,6 +30,13 @@ import {
   defaultAuditRequests
 } from "@/lib/auditStore";
 import { addNotification } from "@/lib/notificationsStore";
+import {
+  getSiteContentBlocks,
+  saveSiteContentBlocks,
+  siteContentPages,
+  SiteContentBlock,
+  SiteContentPage,
+} from "@/lib/siteContent";
 import { toast } from "sonner";
 
 const scrapePage = async (url: string, platform: 'facebook' | 'instagram' | 'tiktok' | 'youtube' | 'snapchat' | 'web') => {
@@ -243,6 +250,7 @@ const Admin = () => {
             <TabsTrigger value="roles">Rôles & Utilisateurs</TabsTrigger>
             <TabsTrigger value="audits">Audits & Prospects</TabsTrigger>
             <TabsTrigger value="site-settings">Configuration Site (Header/Footer)</TabsTrigger>
+            <TabsTrigger value="site-content">Contenu du site</TabsTrigger>
           </TabsList>
 
           <TabsContent value="testimonials">
@@ -259,6 +267,9 @@ const Admin = () => {
           </TabsContent>
           <TabsContent value="site-settings">
             <SiteSettingsAdmin />
+          </TabsContent>
+          <TabsContent value="site-content">
+            <SiteContentAdmin />
           </TabsContent>
           <TabsContent value="audits">
             <AuditsAdmin />
@@ -1378,16 +1389,14 @@ function SiteSettingsAdmin() {
     email: localStorage.getItem("gln_settings_email") || "contact@glndigital.com",
     whatsapp: localStorage.getItem("gln_settings_whatsapp") || "+237 692 062 677",
     address: localStorage.getItem("gln_settings_address") || "Douala, Cameroun",
-    hoursWeek: localStorage.getItem("gln_settings_hours_week") || "Lun - Ven: 08:30 - 18:30",
-    hoursSat: localStorage.getItem("gln_settings_hours_sat") || "Samedi: 09:00 - 14:00",
+    availability: localStorage.getItem("gln_settings_availability") || "Disponible 24h/24 et 7j/7",
   });
 
   const handleSave = () => {
     localStorage.setItem("gln_settings_email", form.email);
     localStorage.setItem("gln_settings_whatsapp", form.whatsapp);
     localStorage.setItem("gln_settings_address", form.address);
-    localStorage.setItem("gln_settings_hours_week", form.hoursWeek);
-    localStorage.setItem("gln_settings_hours_sat", form.hoursSat);
+    localStorage.setItem("gln_settings_availability", form.availability);
     
     // Dispatch storage event to notify other windows/components
     window.dispatchEvent(new Event("storage"));
@@ -1416,20 +1425,196 @@ function SiteSettingsAdmin() {
           <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label>Horaires - Semaine (Ex: Lun - Ven: 08:30 - 18:30)</Label>
-            <Input value={form.hoursWeek} onChange={(e) => setForm({ ...form, hoursWeek: e.target.value })} />
-          </div>
-          <div>
-            <Label>Horaires - Samedi (Ex: Samedi: 09:00 - 14:00)</Label>
-            <Input value={form.hoursSat} onChange={(e) => setForm({ ...form, hoursSat: e.target.value })} />
-          </div>
+        <div>
+          <Label>Disponibilite</Label>
+          <Input value={form.availability} onChange={(e) => setForm({ ...form, availability: e.target.value })} />
+          <p className="text-xs text-muted-foreground mt-2">
+            Les horaires fixes ont ete retires. GLN Digital est presente comme disponible 24h/24 et 7j/7.
+          </p>
         </div>
 
         <Button onClick={handleSave} className="bg-gradient-primary w-full md:w-auto">
           Enregistrer les modifications
         </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SiteContentAdmin() {
+  const emptyForm = {
+    page: "home" as SiteContentPage,
+    title: "",
+    body: "",
+    ctaLabel: "",
+    ctaUrl: "",
+    active: true,
+    order: 1,
+  };
+  const [blocks, setBlocks] = useState<SiteContentBlock[]>(() => getSiteContentBlocks());
+  const [form, setForm] = useState(emptyForm);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const persist = (next: SiteContentBlock[]) => {
+    const sorted = [...next].sort((a, b) => a.page.localeCompare(b.page) || a.order - b.order);
+    setBlocks(sorted);
+    saveSiteContentBlocks(sorted);
+  };
+
+  const resetForm = () => {
+    setForm(emptyForm);
+    setEditingId(null);
+  };
+
+  const handleSave = () => {
+    if (!form.title.trim() || !form.body.trim()) {
+      toast.error("Ajoutez au moins un titre et un contenu.");
+      return;
+    }
+
+    if (editingId) {
+      persist(blocks.map((block) => block.id === editingId ? { ...block, ...form } : block));
+      toast.success("Bloc de contenu modifie.");
+    } else {
+      persist([
+        ...blocks,
+        {
+          id: `content-${Date.now()}`,
+          ...form,
+        },
+      ]);
+      toast.success("Bloc de contenu ajoute.");
+    }
+    resetForm();
+  };
+
+  const handleEdit = (block: SiteContentBlock) => {
+    setEditingId(block.id);
+    setForm({
+      page: block.page,
+      title: block.title,
+      body: block.body,
+      ctaLabel: block.ctaLabel || "",
+      ctaUrl: block.ctaUrl || "",
+      active: block.active,
+      order: block.order,
+    });
+  };
+
+  const toggleActive = (block: SiteContentBlock) => {
+    persist(blocks.map((item) => item.id === block.id ? { ...item, active: !item.active } : item));
+  };
+
+  const removeBlock = (id: string) => {
+    persist(blocks.filter((block) => block.id !== id));
+    if (editingId === id) resetForm();
+    toast.success("Bloc supprime.");
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Gestion du contenu des pages</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label>Page</Label>
+            <Select value={form.page} onValueChange={(value) => setForm({ ...form, page: value as SiteContentPage })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Choisir une page" />
+              </SelectTrigger>
+              <SelectContent>
+                {siteContentPages.map((page) => (
+                  <SelectItem key={page.value} value={page.value}>{page.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Ordre d'affichage</Label>
+            <Input
+              type="number"
+              min={1}
+              value={form.order}
+              onChange={(e) => setForm({ ...form, order: Number(e.target.value) || 1 })}
+            />
+          </div>
+        </div>
+
+        <div>
+          <Label>Titre</Label>
+          <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+        </div>
+
+        <div>
+          <Label>Contenu</Label>
+          <Textarea rows={5} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label>Bouton optionnel</Label>
+            <Input value={form.ctaLabel} onChange={(e) => setForm({ ...form, ctaLabel: e.target.value })} placeholder="Ex: En savoir plus" />
+          </div>
+          <div>
+            <Label>Lien du bouton</Label>
+            <Input value={form.ctaUrl} onChange={(e) => setForm({ ...form, ctaUrl: e.target.value })} placeholder="/services ou https://..." />
+          </div>
+        </div>
+
+        <label className="flex items-center gap-2 text-sm font-medium">
+          <input
+            type="checkbox"
+            checked={form.active}
+            onChange={(e) => setForm({ ...form, active: e.target.checked })}
+          />
+          Bloc actif sur le site
+        </label>
+
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={handleSave} className="bg-gradient-primary">
+            {editingId ? "Modifier le bloc" : "Ajouter le bloc"}
+          </Button>
+          {editingId && (
+            <Button variant="outline" onClick={resetForm}>
+              Annuler
+            </Button>
+          )}
+        </div>
+
+        <div className="space-y-3">
+          {blocks.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Aucun bloc ajoute pour le moment.</p>
+          ) : (
+            blocks.map((block) => (
+              <div key={block.id} className="border border-border rounded-xl p-4 bg-secondary/10">
+                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+                  <div>
+                    <p className="text-xs text-primary font-bold uppercase">
+                      {siteContentPages.find((page) => page.value === block.page)?.label} · ordre {block.order}
+                    </p>
+                    <h3 className="font-heading text-lg font-bold">{block.title}</h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-line mt-1">{block.body}</p>
+                    <p className="text-xs mt-2">{block.active ? "Actif" : "Desactive"}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" variant="outline" onClick={() => handleEdit(block)}>
+                      <Edit2 className="w-4 h-4 mr-1" /> Modifier
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => toggleActive(block)}>
+                      {block.active ? <EyeOff className="w-4 h-4 mr-1" /> : <Eye className="w-4 h-4 mr-1" />}
+                      {block.active ? "Desactiver" : "Activer"}
+                    </Button>
+                    <Button size="sm" variant="destructive" onClick={() => removeBlock(block.id)}>
+                      <Trash2 className="w-4 h-4 mr-1" /> Supprimer
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </CardContent>
     </Card>
   );

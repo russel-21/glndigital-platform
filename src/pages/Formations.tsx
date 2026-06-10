@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { GraduationCap, ArrowRight, Video, FileText, CheckCircle2, MessageCircle } from "lucide-react";
 import { getCourses } from "@/lib/coursesStore";
 import { useLanguage } from "@/hooks/useLanguage";
+import SiteContentBlocks from "@/components/SiteContentBlocks";
 
 const Formations = () => {
   const courses = getCourses();
@@ -10,6 +11,7 @@ const Formations = () => {
 
   return (
     <div className="min-h-screen pt-24 pb-16">
+      <SiteContentBlocks page="formations" />
       <div className="container mx-auto px-4 md:px-8">
         {/* Title */}
         <motion.div

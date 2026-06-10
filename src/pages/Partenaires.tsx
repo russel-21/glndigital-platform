@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Award, ShieldCheck, Star, Users, ArrowRight, BookOpen, UserCheck, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useLanguage } from "@/hooks/useLanguage";
+import SiteContentBlocks from "@/components/SiteContentBlocks";
 
 const getPartnerTypes = (language: string) => [
   {
@@ -87,6 +88,7 @@ const Partenaires = () => {
 
   return (
     <div className="min-h-screen pt-24 pb-16">
+      <SiteContentBlocks page="partenaires" />
       <div className="container mx-auto px-4 md:px-8 max-w-5xl">
         {/* Header */}
         <motion.div

@@ -8,6 +8,7 @@ import { getNotificationsForUser, getNotifications, Notification, markAsRead } f
 import heroBg from "@/assets/hero-bg.jpg";
 import TestimonialsSection from "@/components/TestimonialsSection";
 import PortfolioSection from "@/components/PortfolioSection";
+import SiteContentBlocks from "@/components/SiteContentBlocks";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
@@ -186,6 +187,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen pt-20 md:pt-24">
+      <SiteContentBlocks page="home" />
       {/* Premium Notification Modal for Completed Audit */}
       {completedAuditNotif && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in">
