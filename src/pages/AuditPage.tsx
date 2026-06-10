@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Shield, Sparkles, Send, Globe, Check, Laptop, FileText, Video, Copy, X, ExternalLink, MessageCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { getAuditRequests, saveAuditRequests, AuditRequest } from "@/lib/auditStore";
+import { getAuditRequests, saveAuditRequests, upsertRemoteAuditRequest, AuditRequest } from "@/lib/auditStore";
 import { addNotification } from "@/lib/notificationsStore";
 import { toast } from "sonner";
 import { countryCodes } from "@/lib/countryCodes";
@@ -264,6 +264,13 @@ const AuditPage = () => {
       const current = getAuditRequests();
       current.push(newRequest);
       saveAuditRequests(current);
+
+      try {
+        await upsertRemoteAuditRequest(newRequest);
+      } catch (remoteError) {
+        console.error("Remote audit save failed:", remoteError);
+        toast.warning("Audit enregistre localement. Configurez la table Supabase audit_requests pour le rendre visible a l'admin partout.");
+      }
 
       // Save visitor email and phone for home screen notification check
       localStorage.setItem("gln_visitor_email", email.trim());
