@@ -378,7 +378,7 @@ const AuditPage = () => {
 
         {/* Audit Form Section */}
         <motion.div
-          className="bg-card border border-border/60 rounded-3xl p-6 md:p-8 shadow-glow"
+          className="stable-surface bg-card border border-border/60 rounded-2xl md:rounded-3xl p-4 sm:p-6 md:p-8 shadow-glow"
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
@@ -467,15 +467,15 @@ const AuditPage = () => {
               )}
 
               {previewStatus === "loaded" && (
-                <div className="rounded-2xl border border-border/85 bg-card overflow-hidden shadow-glow animate-fade-in text-xs">
+                <div className="stable-surface rounded-2xl border border-border/85 bg-card overflow-hidden shadow-glow animate-fade-in text-xs">
                   {/* Browser Chrome Bar Mockup */}
-                  <div className="bg-secondary/80 border-b border-border/40 px-4 py-2.5 flex items-center gap-4 text-[10px] text-muted-foreground font-mono">
+                  <div className="bg-secondary/80 border-b border-border/40 px-3 sm:px-4 py-2.5 flex flex-wrap items-center gap-2 sm:gap-4 text-[10px] text-muted-foreground font-mono">
                     <div className="flex gap-1.5 shrink-0">
                       <span className="w-2.5 h-2.5 rounded-full bg-red-500/60 block"></span>
                       <span className="w-2.5 h-2.5 rounded-full bg-yellow-500/60 block"></span>
                       <span className="w-2.5 h-2.5 rounded-full bg-green-500/60 block"></span>
                     </div>
-                    <div className="flex-1 bg-secondary/90 border border-border/50 rounded-lg px-3 py-1 text-center select-all truncate text-foreground/80 font-mono text-[9px] flex items-center justify-center gap-1.5 max-w-md mx-auto">
+                    <div className="min-w-0 flex-1 bg-secondary/90 border border-border/50 rounded-lg px-3 py-1 text-center select-all truncate text-foreground/80 font-mono text-[9px] flex items-center justify-center gap-1.5 max-w-md mx-auto">
                       <span className="text-green-400">🔒 HTTPS :</span>
                       <span>{singleLink}</span>
                     </div>
@@ -696,7 +696,7 @@ const AuditPage = () => {
               </div>
               <div>
                 <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1.5 block">Mode de réception souhaité</label>
-                <div className="grid grid-cols-2 gap-2 mt-0.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-0.5">
                   <button
                     type="button"
                     onClick={() => setReportChoice("pdf")}
@@ -767,11 +767,11 @@ const AuditPage = () => {
 
               <div>
                 <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1 block">Numéro de Téléphone WhatsApp *</label>
-                <div className="flex gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-[6rem_minmax(0,1fr)] gap-2">
                   <select
                     value={countryCode}
                     onChange={(e) => setCountryCode(e.target.value)}
-                    className="bg-secondary border border-border rounded-xl px-2 py-2.5 text-xs text-foreground focus:outline-none w-24 h-[38px]"
+                    className="bg-secondary border border-border rounded-xl px-2 py-2.5 text-xs text-foreground focus:outline-none w-full h-[42px] sm:h-[38px]"
                   >
                     {countryCodes.map((c) => (
                       <option key={`${c.country}-${c.code}`} value={c.code}>
@@ -819,7 +819,7 @@ const AuditPage = () => {
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="relative w-full max-w-2xl bg-card border border-border/80 rounded-3xl p-6 md:p-8 shadow-glow z-10 max-h-[90vh] overflow-y-auto text-foreground"
+              className="stable-surface relative w-full max-w-2xl bg-card border border-border/80 rounded-2xl md:rounded-3xl p-4 sm:p-6 md:p-8 shadow-glow z-10 max-h-[90vh] overflow-y-auto text-foreground"
             >
               <button
                 type="button"

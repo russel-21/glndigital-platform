@@ -593,9 +593,9 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen pt-24 pb-16 flex items-center justify-center bg-background">
+    <div className="min-h-screen pt-24 pb-16 px-4 flex items-center justify-center bg-background">
       <motion.div
-        className="w-full max-w-md p-8 rounded-3xl bg-card border border-border/60 shadow-glow"
+        className="stable-surface w-full max-w-md p-5 sm:p-8 rounded-2xl sm:rounded-3xl bg-card border border-border/60 shadow-glow"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
       >
@@ -668,7 +668,7 @@ const Auth = () => {
               </div>
 
               {/* Ville et Pays Grid */}
-              <div className="grid grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div>
                   <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1.5 block">
                     {language === "fr" ? "Ville *" : "City *"}
@@ -704,8 +704,8 @@ const Auth = () => {
               </div>
 
               {/* Phone Input Grid */}
-              <div className="grid grid-cols-3 gap-2">
-                <div className="col-span-1">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div className="sm:col-span-1">
                   <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1.5 block">
                     {language === "fr" ? "Code" : "Code"}
                   </label>
@@ -721,7 +721,7 @@ const Auth = () => {
                     ))}
                   </select>
                 </div>
-                <div className="col-span-2">
+                <div className="sm:col-span-2">
                   <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1.5 block">
                     {language === "fr" ? "Numéro de téléphone *" : "Phone Number *"}
                   </label>
@@ -892,7 +892,7 @@ const Auth = () => {
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="relative w-full max-w-sm p-6 rounded-3xl bg-card border border-border/80 shadow-glow text-foreground space-y-6 z-10"
+              className="stable-surface relative w-full max-w-sm p-5 sm:p-6 rounded-2xl sm:rounded-3xl bg-card border border-border/80 shadow-glow text-foreground space-y-6 z-10"
             >
               <div className="text-center">
                 <h3 className="font-heading text-lg font-extrabold font-bold">

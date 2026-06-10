@@ -242,11 +242,12 @@ const Admin = () => {
   }
 
   return (
-    <div className="min-h-screen pt-24 pb-16">
-      <div className="container mx-auto px-4 md:px-8">
+    <div className="min-h-screen pt-24 pb-16 overflow-x-hidden">
+      <div className="container mx-auto px-4 md:px-8 min-w-0">
         <h1 className="font-heading text-3xl font-bold mb-8">Panneau d'administration</h1>
         <Tabs defaultValue="testimonials">
-          <TabsList className="mb-6 flex flex-wrap gap-2">
+          <div className="mobile-scroll-x mb-6">
+          <TabsList className="flex w-max min-w-full flex-nowrap gap-2">
             <TabsTrigger value="testimonials">Témoignages</TabsTrigger>
             <TabsTrigger value="media">Médias / Portfolio</TabsTrigger>
             <TabsTrigger value="courses">Gestion des Cours</TabsTrigger>
@@ -255,6 +256,7 @@ const Admin = () => {
             <TabsTrigger value="site-settings">Configuration Site (Header/Footer)</TabsTrigger>
             <TabsTrigger value="site-content">Contenu du site</TabsTrigger>
           </TabsList>
+          </div>
 
           <TabsContent value="testimonials">
             <TestimonialsAdmin queryClient={queryClient} />
