@@ -260,10 +260,10 @@ const AuthCallback = () => {
   }
 
   return (
-    <div className="min-h-screen pt-24 pb-16 flex items-center justify-center bg-background">
+    <div className="min-h-screen pt-24 pb-16 px-4 flex items-center justify-center bg-background">
       {needsCompletion && (
         <motion.div
-          className="w-full max-w-md p-8 rounded-3xl bg-card border border-border/60 shadow-glow"
+          className="stable-surface w-full max-w-md p-5 sm:p-8 rounded-2xl sm:rounded-3xl bg-card border border-border/60 shadow-glow"
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
         >
@@ -292,7 +292,7 @@ const AuthCallback = () => {
 
             <div>
               <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1.5 block">Téléphone</label>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] gap-2">
                 <select
                   value={countryCode}
                   onChange={(e) => setCountryCode(e.target.value)}
