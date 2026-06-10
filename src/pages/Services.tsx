@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { Share2, Megaphone, Camera, Layout, GraduationCap, ArrowRight, MessageCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "@/hooks/useLanguage";
+import SiteContentBlocks from "@/components/SiteContentBlocks";
 
 const services = [
   {
@@ -132,6 +133,7 @@ const Services = () => {
 
   return (
     <div className="min-h-screen pt-24 pb-16">
+      <SiteContentBlocks page="services" />
       <div className="container mx-auto px-4 md:px-8">
         {/* Header */}
         <motion.div

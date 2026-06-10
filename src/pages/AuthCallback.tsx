@@ -32,6 +32,7 @@ const AuthCallback = () => {
   const [companyName, setCompanyName] = useState("");
   const [role, setRole] = useState<string>("visiteur");
   const [needsCompletion, setNeedsCompletion] = useState(false);
+  const authMode = new URLSearchParams(window.location.search).get("mode") === "signup" ? "signup" : "login";
 
   useEffect(() => {
     const mockSession = localStorage.getItem("gln_mock_user_session");
@@ -88,6 +89,16 @@ const AuthCallback = () => {
         }
 
         if (error || !profile || !profile.full_name || !profile.phone) {
+          if (authMode !== "signup") {
+            await supabase.auth.signOut();
+            localStorage.removeItem("gln_mock_user_session");
+            localStorage.removeItem("gln_mock_user_logged_in");
+            localStorage.removeItem("gln_active_mock_profile");
+            toast.error("Compte introuvable. Veuillez d'abord vous inscrire.");
+            navigate("/auth");
+            return;
+          }
+
           setFullName(session.user.user_metadata?.full_name || "");
           
           const rawPhone = session.user.user_metadata?.phone || "";
@@ -226,11 +237,11 @@ const AuthCallback = () => {
         }
       }
 
-      if (role === "partner") {
-        navigate("/partenaires-dashboard");
-      } else {
-        navigate("/eleve-dashboard");
-      }
+      localStorage.removeItem("gln_mock_user_session");
+      localStorage.removeItem("gln_mock_user_logged_in");
+      await supabase.auth.signOut();
+      toast.success("Inscription terminee. Connectez-vous maintenant.");
+      navigate("/auth");
     } catch (e) {
       toast.error((e as Error).message);
       setLoading(false);

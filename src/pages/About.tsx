@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { Search, Users, Lightbulb, PenTool, UserPlus, RefreshCw } from "lucide-react";
 import { useLanguage } from "@/hooks/useLanguage";
+import SiteContentBlocks from "@/components/SiteContentBlocks";
 
 const steps = [
   { icon: Search, labelFr: "Analyse du marché", labelEn: "Market analysis" },
@@ -16,6 +17,7 @@ const About = () => {
 
   return (
     <div className="min-h-screen pt-24 pb-16">
+      <SiteContentBlocks page="about" />
       <div className="container mx-auto px-4 md:px-8">
         {/* Header */}
         <motion.div

@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { useState } from "react";
 import MediaCard from "@/components/MediaCard";
 import { useLanguage } from "@/hooks/useLanguage";
+import SiteContentBlocks from "@/components/SiteContentBlocks";
 
 const getPlatformLabel = (value: string, language: string) => {
   switch (value) {
@@ -56,6 +57,7 @@ const Portfolio = () => {
 
   return (
     <div className="min-h-screen pt-24 pb-16">
+      <SiteContentBlocks page="portfolio" />
       <div className="container mx-auto px-4 md:px-8">
         <motion.h1
           className="font-heading text-4xl md:text-5xl font-bold text-center mb-4"

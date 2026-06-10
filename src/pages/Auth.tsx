@@ -8,6 +8,39 @@ import { getDeviceToken } from "./AuthCallback";
 import { useLanguage } from "@/hooks/useLanguage";
 import { countryCodes } from "@/lib/countryCodes";
 
+const TRUST_DEVICE_MS = 90 * 24 * 60 * 60 * 1000;
+
+const rememberTrustedDevice = () => {
+  localStorage.setItem("gln_trust_device", "true");
+  localStorage.setItem("gln_trust_device_until", String(Date.now() + TRUST_DEVICE_MS));
+};
+
+const clearTrustedDevice = () => {
+  localStorage.removeItem("gln_trust_device");
+  localStorage.removeItem("gln_trust_device_until");
+};
+
+const hasValidTrustedDevice = () => {
+  const legacyTrust = localStorage.getItem("gln_trust_device") === "true";
+  const trustedUntil = Number(localStorage.getItem("gln_trust_device_until") || "0");
+
+  if (!legacyTrust) return false;
+  if (!trustedUntil) {
+    rememberTrustedDevice();
+    return true;
+  }
+  if (trustedUntil > Date.now()) return true;
+
+  clearTrustedDevice();
+  return false;
+};
+
+const clearVisitorSessions = () => {
+  localStorage.removeItem("gln_mock_user_session");
+  localStorage.removeItem("gln_mock_user_logged_in");
+  localStorage.removeItem("gln_active_mock_profile");
+};
+
 const Auth = () => {
   const navigate = useNavigate();
   const { language } = useLanguage();
@@ -32,31 +65,35 @@ const Auth = () => {
   const [loginIdentifier, setLoginIdentifier] = useState(""); // Email or Phone for login
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Check if user is already logged in
+  // Check if user is already logged in only when this device is trusted.
   useEffect(() => {
+    if (!hasValidTrustedDevice()) {
+      return;
+    }
+
     const mockSession = localStorage.getItem("gln_mock_admin_session");
     if (mockSession === "true") {
       redirectUser("admin-mock-id-0000-000000000000");
       return;
     }
 
-    const savedTrust = localStorage.getItem("gln_trust_device");
-    if (savedTrust === "true") {
-      const mockUserSession = localStorage.getItem("gln_mock_user_logged_in") === "true";
-      if (mockUserSession) {
-        const activeMock = localStorage.getItem("gln_active_mock_profile");
-        if (activeMock) {
-          try {
-            const parsed = JSON.parse(activeMock);
-            redirectUser(parsed.id || "user-mock-id-0000-000000000000");
-            return;
-          } catch {}
-        }
+    const mockUserSession = localStorage.getItem("gln_mock_user_logged_in") === "true";
+    if (mockUserSession) {
+      const activeMock = localStorage.getItem("gln_active_mock_profile");
+      if (activeMock) {
+        try {
+          const parsed = JSON.parse(activeMock);
+          redirectUser(parsed.id || "user-mock-id-0000-000000000000");
+          return;
+        } catch {}
       }
     }
 
-    // Keep the login form available even when a Google/Supabase session exists.
-    // This lets the local admin credentials override a previously selected Google account.
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        redirectUser(session.user.id);
+      }
+    });
   }, []);
 
   const redirectUser = async (userId: string) => {
@@ -146,8 +183,10 @@ const Auth = () => {
         navigate("/admin");
       } else if (profile.current_role === "partner") {
         navigate("/partenaires-dashboard");
-      } else {
+      } else if (profile.current_role === "student") {
         navigate("/eleve-dashboard");
+      } else {
+        navigate("/");
       }
     } catch {
       navigate("/eleve-dashboard");
@@ -156,17 +195,17 @@ const Auth = () => {
 
   // Google Sign-In
   const handleGoogleLogin = () => {
-    triggerOfficialGoogle();
+    triggerOfficialGoogle(isSignUp ? "signup" : "login");
   };
 
-  const triggerOfficialGoogle = async () => {
+  const triggerOfficialGoogle = async (mode: "signup" | "login" = "login") => {
     setShowGoogleModal(false);
     try {
       setLoading(true);
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth-callback`,
+          redirectTo: `${window.location.origin}/auth-callback?mode=${mode}`,
         },
       });
       if (error) throw error;
@@ -199,7 +238,9 @@ const Auth = () => {
     if (emailToUse === "russel@glndigital.com") {
       localStorage.setItem("gln_mock_admin_session", "true");
       if (rememberMe) {
-        localStorage.setItem("gln_trust_device", "true");
+        rememberTrustedDevice();
+      } else {
+        clearTrustedDevice();
       }
       localStorage.setItem("gln_mock_admin_current_role", "admin");
       toast.success(
@@ -213,7 +254,9 @@ const Auth = () => {
       localStorage.setItem("gln_mock_user_email", emailToUse);
       localStorage.setItem("gln_mock_user_name", emailToUse.split('@')[0]);
       if (rememberMe) {
-        localStorage.setItem("gln_trust_device", "true");
+        rememberTrustedDevice();
+      } else {
+        clearTrustedDevice();
       }
       toast.success(
         language === "fr"
@@ -236,12 +279,12 @@ const Auth = () => {
     if (finalIdentifier === "russel@glndigital.com" && currentPassword === "GLN_Admin2026!") {
       setLoading(true);
       await supabase.auth.signOut();
-      localStorage.removeItem("gln_mock_user_session");
-      localStorage.removeItem("gln_mock_user_logged_in");
-      localStorage.removeItem("gln_active_mock_profile");
+      clearVisitorSessions();
       localStorage.setItem("gln_mock_admin_session", "true");
       if (rememberMe) {
-        localStorage.setItem("gln_trust_device", "true");
+        rememberTrustedDevice();
+      } else {
+        clearTrustedDevice();
       }
       localStorage.setItem("gln_mock_admin_current_role", "admin");
       toast.success(
@@ -356,6 +399,8 @@ const Auth = () => {
             : "Registration successful! Please log in with your credentials."
         );
         
+        await supabase.auth.signOut();
+
         // Return to login screen
         setLoginIdentifier(email);
         setIsSignUp(false);
@@ -406,9 +451,9 @@ const Auth = () => {
             throw error;
           }
           if (rememberMe) {
-            localStorage.setItem("gln_trust_device", "true");
+            rememberTrustedDevice();
           } else {
-            localStorage.removeItem("gln_trust_device");
+            clearTrustedDevice();
           }
           toast.success(language === "fr" ? "Connexion réussie !" : "Login successful!");
           redirectUser(data.user?.id || "");
@@ -425,9 +470,9 @@ const Auth = () => {
               localStorage.setItem("gln_mock_user_logged_in", "true");
               
               if (rememberMe) {
-                localStorage.setItem("gln_trust_device", "true");
+                rememberTrustedDevice();
               } else {
-                localStorage.removeItem("gln_trust_device");
+                clearTrustedDevice();
               }
 
               const deviceToken = getDeviceToken();
@@ -500,7 +545,9 @@ const Auth = () => {
         if (finalIdentifier === "russel@glndigital.com" && currentPassword === "GLN_Admin2026!") {
           localStorage.setItem("gln_mock_admin_session", "true");
           if (rememberMe) {
-            localStorage.setItem("gln_trust_device", "true");
+            rememberTrustedDevice();
+          } else {
+            clearTrustedDevice();
           }
           localStorage.setItem("gln_mock_admin_current_role", "admin");
           toast.success(
@@ -517,7 +564,9 @@ const Auth = () => {
         if (parsed && (parsed.email === finalIdentifier || parsed.phone === finalIdentifier)) {
           localStorage.setItem("gln_mock_user_logged_in", "true");
           if (rememberMe) {
-            localStorage.setItem("gln_trust_device", "true");
+            rememberTrustedDevice();
+          } else {
+            clearTrustedDevice();
           }
           toast.success(
             language === "fr"
@@ -530,18 +579,12 @@ const Auth = () => {
             navigate("/eleve-dashboard");
           }
         } else {
-          localStorage.setItem("gln_mock_user_session", "true");
-          localStorage.setItem("gln_mock_user_email", finalIdentifier);
-          localStorage.setItem("gln_mock_user_name", finalIdentifier.split('@')[0]);
-          if (rememberMe) {
-            localStorage.setItem("gln_trust_device", "true");
-          }
-          toast.success(
+          clearVisitorSessions();
+          toast.error(
             language === "fr"
-              ? "Simulation : Connexion réussie ! (Configuration du profil)"
-              : "Simulation: Login successful! (Profile setup)"
+              ? "Compte introuvable. Inscrivez-vous avant de vous connecter."
+              : "Account not found. Please sign up before logging in."
           );
-          navigate("/auth-callback");
         }
       }
     } finally {
@@ -897,7 +940,7 @@ const Auth = () => {
                 </div>
 
                 <button
-                  onClick={triggerOfficialGoogle}
+                  onClick={() => triggerOfficialGoogle("login")}
                   className="w-full bg-secondary hover:bg-secondary/80 border border-border text-foreground py-2.5 px-4 rounded-xl font-semibold text-xs transition-all flex items-center justify-center gap-2"
                 >
                   <Chrome className="w-4 h-4 text-primary" />

@@ -10,8 +10,7 @@ const Footer = () => {
     email: localStorage.getItem("gln_settings_email") || "contact@glndigital.com",
     whatsapp: localStorage.getItem("gln_settings_whatsapp") || "+237 692 062 677",
     address: localStorage.getItem("gln_settings_address") || "Douala, Cameroun",
-    hoursWeek: localStorage.getItem("gln_settings_hours_week") || "Lun - Ven: 08:30 - 18:30",
-    hoursSat: localStorage.getItem("gln_settings_hours_sat") || "Samedi: 09:00 - 14:00",
+    availability: localStorage.getItem("gln_settings_availability") || "Disponible 24h/24 et 7j/7",
   });
 
   useEffect(() => {
@@ -20,8 +19,7 @@ const Footer = () => {
         email: localStorage.getItem("gln_settings_email") || "contact@glndigital.com",
         whatsapp: localStorage.getItem("gln_settings_whatsapp") || "+237 692 062 677",
         address: localStorage.getItem("gln_settings_address") || "Douala, Cameroun",
-        hoursWeek: localStorage.getItem("gln_settings_hours_week") || "Lun - Ven: 08:30 - 18:30",
-        hoursSat: localStorage.getItem("gln_settings_hours_sat") || "Samedi: 09:00 - 14:00",
+        availability: localStorage.getItem("gln_settings_availability") || "Disponible 24h/24 et 7j/7",
       });
     };
 
@@ -38,6 +36,7 @@ const Footer = () => {
       contactTitle: "Contact",
       emailLabel: "Email pro :",
       whatsappLabel: "WhatsApp direct :",
+      availabilityLabel: "Disponibilite :",
       followTitle: "Suivez notre croissance",
       followDesc: "Cabinet de formation agréé et agence d'accompagnement de croissance digitale pour PME & Grandes Entreprises.",
       rights: "Tous droits réservés.",
@@ -56,6 +55,7 @@ const Footer = () => {
       contactTitle: "Contact",
       emailLabel: "Pro Email:",
       whatsappLabel: "Direct WhatsApp:",
+      availabilityLabel: "Availability:",
       followTitle: "Follow our growth",
       followDesc: "Certified training cabinet and digital growth support agency for SMBs & Large Enterprises.",
       rights: "All rights reserved.",
@@ -122,6 +122,10 @@ const Footer = () => {
               <p>
                 <span className="block text-foreground font-medium">{t.whatsappLabel}</span>
                 <a href={`https://wa.me/${whatsappRaw}`} target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors text-primary font-semibold">{settings.whatsapp}</a>
+              </p>
+              <p>
+                <span className="block text-foreground font-medium">{t.availabilityLabel}</span>
+                <span>{settings.availability}</span>
               </p>
             </div>
           </div>
