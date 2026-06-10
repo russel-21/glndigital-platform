@@ -244,7 +244,7 @@ const Index = () => {
 
       {/* Visitor Notifications (for disconnected users) */}
       {!isLoggedIn && visitorNotifs.length > 0 && (
-        <div className="fixed bottom-6 right-6 max-w-sm w-full bg-card/95 border border-primary/30 rounded-2xl p-4 shadow-glow z-50 animate-bounce-slow text-xs text-foreground backdrop-blur flex flex-col gap-3">
+        <div className="fixed inset-x-3 bottom-16 sm:inset-x-auto sm:bottom-6 sm:right-6 sm:max-w-sm sm:w-full bg-card/95 border border-primary/30 rounded-2xl p-3 sm:p-4 shadow-glow z-50 animate-bounce-slow text-xs text-foreground backdrop-blur flex flex-col gap-3">
           <div className="flex justify-between items-center border-b border-border/40 pb-2">
             <div className="flex items-center gap-1.5 font-bold">
               <Bell className="w-4 h-4 text-primary animate-pulse" />
