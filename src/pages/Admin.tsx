@@ -28,6 +28,7 @@ import {
   SocialMetrics, 
   WebMetrics, 
   ChannelMetrics,
+  AIGrowthSuite,
   ProformaInvoice,
   ProformaItem,
   defaultAuditRequests
@@ -3168,11 +3169,73 @@ function AuditsAdmin() {
     }
     summary += `En remplaçant les boosts de posts par de véritables campagnes publicitaires de conversion et en adoptant une identité visuelle premium, ${name} pourra convertir beaucoup plus de prospects satisfaits sous 30 jours.`;
 
+    const primaryOffer = sector.toLowerCase().includes("hotel") || sector.toLowerCase().includes("heberg")
+      ? "offre sejour professionnel / week-end premium"
+      : sector.toLowerCase().includes("cosmet") || sector.toLowerCase().includes("beaut")
+        ? "diagnostic gratuit + pack decouverte"
+        : "audit gratuit + offre d'appel limitee";
+
+    const acquisitionStrategy = [
+      `Positionner ${name} sur une promesse simple : ${primaryOffer}, avec une preuve visible et un CTA WhatsApp unique.`,
+      "Lancer une campagne Meta Ads Conversion WhatsApp avec 3 angles : probleme urgent, preuve client, offre d'appel.",
+      "Installer une landing page rapide qui qualifie le prospect avant WhatsApp : besoin, budget, urgence, ville.",
+      "Brancher Meta Pixel + Google Analytics pour recibler les visiteurs chauds et mesurer les demandes entrantes.",
+      "Mettre en place un tableau de bord hebdomadaire : leads WhatsApp, cout par lead, taux de reponse, ventes signees."
+    ];
+
+    const contentCalendar = [
+      `Semaine 1 - Diagnostic du probleme : 3 posts educatifs expliquant pourquoi les prospects n'achetent pas encore chez ${name}.`,
+      "Semaine 1 - 2 Reels courts avec hook en 3 secondes, preuve visuelle et CTA WhatsApp.",
+      "Semaine 2 - 3 contenus preuve sociale : temoignages, avant/apres, coulisses, resultats clients.",
+      "Semaine 3 - 3 contenus offre : detail du pack, objections, bonus, urgence douce.",
+      "Semaine 4 - 2 lives ou videos FAQ + 1 campagne de retargeting sur les personnes engagees."
+    ];
+
+    const whatsappScripts = [
+      `Message d'accueil : Bonjour, merci d'avoir contacte ${name}. Pour vous orienter rapidement, quel est votre besoin principal aujourd'hui ?`,
+      "Qualification : Vous etes situe(e) dans quelle ville et pour quand souhaitez-vous commencer ?",
+      `Offre : D'apres votre besoin, l'option la plus adaptee est ${primaryOffer}. Je peux vous envoyer les details et le tarif maintenant.`,
+      "Relance J+1 : Bonjour, je reviens vers vous concernant votre demande. Voulez-vous que je vous bloque une place / un creneau aujourd'hui ?",
+      "Cloture : Pour valider, il suffit de confirmer votre nom, votre contact et le mode de paiement souhaite. Je vous accompagne jusqu'a la finalisation."
+    ];
+
+    const landingPageSections = [
+      `Hero : ${name} - ${primaryOffer} pour ${evaluating.city || "Douala"} et le Cameroun.`,
+      "Bloc probleme : expliquer clairement la frustration du client et le cout de l'inaction.",
+      "Bloc solution : presenter l'offre en 3 benefices concrets.",
+      "Bloc preuve : temoignages, captures WhatsApp, resultats, photos ou videos reelles.",
+      "CTA final : bouton WhatsApp prerempli + formulaire court de qualification."
+    ];
+
+    const seoKeywords = [
+      `${sector} ${evaluating.city || "Douala"}`,
+      `${name} avis`,
+      `${sector} Cameroun prix`,
+      `meilleur ${sector} ${evaluating.city || "Douala"}`,
+      `${primaryOffer} Cameroun`,
+      `service ${sector} proche de moi`,
+      `${sector} WhatsApp Cameroun`
+    ];
+
+    const executionPlan = [
+      "Jour 1-2 : valider l'offre, la cible, le message et les preuves disponibles.",
+      "Jour 3-5 : produire la landing page, installer les pixels et creer les scripts WhatsApp.",
+      "Jour 6-10 : produire 8 contenus courts et 3 variantes publicitaires.",
+      "Jour 11-20 : lancer campagne Meta Ads, surveiller cout par lead et qualite des conversations.",
+      "Jour 21-30 : doubler les meilleurs angles, couper les faibles, relancer les prospects non convertis."
+    ];
+
     setStrongPointsText(strong.join("\n"));
     setWeakPointsText(weak.join("\n"));
     setGeneralErrorsText(weak.slice(0, 2).join("\n"));
     setRecommendationsText(recs.join("\n"));
     setOverallSummary(summary);
+    setAcquisitionStrategyText(acquisitionStrategy.join("\n"));
+    setContentCalendarText(contentCalendar.join("\n"));
+    setWhatsappScriptsText(whatsappScripts.join("\n"));
+    setLandingPageSectionsText(landingPageSections.join("\n"));
+    setSeoKeywordsText(seoKeywords.join("\n"));
+    setExecutionPlanText(executionPlan.join("\n"));
     
     // Exact realistic scoring matching the actual profiles
     let visScore = 5;
@@ -3275,7 +3338,8 @@ function AuditsAdmin() {
         visibility: { fbActive, instaActive, tiktokActive, seoLocal, reachGood },
         branding: { coherentGraphics, highQualityPhotos, videoReelsUsed, clearBio, socialProof },
         conversion: { whatsappCtaActive, linktreeCtaClear, fastLandingPage, metaPixelInstalled, metaAdsCampaignActive }
-      }
+      },
+      aiGrowthSuite: buildAiGrowthSuite()
     };
 
     const proforma = generateProformaForRequest(
@@ -3358,6 +3422,23 @@ function AuditsAdmin() {
   const [generalErrorsText, setGeneralErrorsText] = useState("");
   const [recommendationsText, setRecommendationsText] = useState("");
   const [overallSummary, setOverallSummary] = useState("");
+  const [acquisitionStrategyText, setAcquisitionStrategyText] = useState("");
+  const [contentCalendarText, setContentCalendarText] = useState("");
+  const [whatsappScriptsText, setWhatsappScriptsText] = useState("");
+  const [landingPageSectionsText, setLandingPageSectionsText] = useState("");
+  const [seoKeywordsText, setSeoKeywordsText] = useState("");
+  const [executionPlanText, setExecutionPlanText] = useState("");
+
+  const textToList = (text: string) => text.split("\n").map(s => s.trim()).filter(Boolean);
+
+  const buildAiGrowthSuite = (): AIGrowthSuite => ({
+    acquisitionStrategy: textToList(acquisitionStrategyText),
+    contentCalendar: textToList(contentCalendarText),
+    whatsappScripts: textToList(whatsappScriptsText),
+    landingPageSections: textToList(landingPageSectionsText),
+    seoKeywords: textToList(seoKeywordsText),
+    executionPlan: textToList(executionPlanText),
+  });
 
   const persistAuditRequests = (nextRequests: AuditRequest[]) => {
     saveAuditRequests(nextRequests);
@@ -3422,6 +3503,12 @@ function AuditsAdmin() {
       setConversionScore(req.report.conversionScore || 5);
       setStrongPointsText(req.report.strongPoints?.join("\n") || "");
       setWeakPointsText(req.report.weakPoints?.join("\n") || "");
+      setAcquisitionStrategyText(req.report.aiGrowthSuite?.acquisitionStrategy?.join("\n") || "");
+      setContentCalendarText(req.report.aiGrowthSuite?.contentCalendar?.join("\n") || "");
+      setWhatsappScriptsText(req.report.aiGrowthSuite?.whatsappScripts?.join("\n") || "");
+      setLandingPageSectionsText(req.report.aiGrowthSuite?.landingPageSections?.join("\n") || "");
+      setSeoKeywordsText(req.report.aiGrowthSuite?.seoKeywords?.join("\n") || "");
+      setExecutionPlanText(req.report.aiGrowthSuite?.executionPlan?.join("\n") || "");
       if (req.report.channelsMetrics) {
         setChannelsMetrics(req.report.channelsMetrics);
       } else {
@@ -3476,6 +3563,12 @@ function AuditsAdmin() {
       setGeneralErrorsText("");
       setRecommendationsText("");
       setOverallSummary("");
+      setAcquisitionStrategyText("");
+      setContentCalendarText("");
+      setWhatsappScriptsText("");
+      setLandingPageSectionsText("");
+      setSeoKeywordsText("");
+      setExecutionPlanText("");
       setVisibilityScore(5);
       setBrandingScore(5);
       setConversionScore(5);
@@ -3519,7 +3612,8 @@ function AuditsAdmin() {
       conversionScore: isExpress ? conversionScore : undefined,
       strongPoints: isExpress ? strongPointsText.split("\n").map(s => s.trim()).filter(Boolean) : undefined,
       weakPoints: isExpress ? weakPointsText.split("\n").map(s => s.trim()).filter(Boolean) : undefined,
-      channelsMetrics
+      channelsMetrics,
+      aiGrowthSuite: buildAiGrowthSuite()
     };
 
     const proforma = generateProformaForRequest(
@@ -4660,6 +4754,33 @@ function AuditsAdmin() {
                                 className="bg-secondary text-xs"
                               />
                             </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                              <div className="space-y-1">
+                                <Label className="text-[10px] font-bold text-primary">Strategie d'acquisition GLN</Label>
+                                <Textarea value={acquisitionStrategyText} onChange={(e) => setAcquisitionStrategyText(e.target.value)} rows={5} className="bg-secondary text-xs" />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px] font-bold text-primary">Calendrier contenu 30 jours</Label>
+                                <Textarea value={contentCalendarText} onChange={(e) => setContentCalendarText(e.target.value)} rows={5} className="bg-secondary text-xs" />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px] font-bold text-primary">Scripts WhatsApp de conversion</Label>
+                                <Textarea value={whatsappScriptsText} onChange={(e) => setWhatsappScriptsText(e.target.value)} rows={5} className="bg-secondary text-xs" />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px] font-bold text-primary">Landing page recommandee</Label>
+                                <Textarea value={landingPageSectionsText} onChange={(e) => setLandingPageSectionsText(e.target.value)} rows={5} className="bg-secondary text-xs" />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px] font-bold text-primary">Mots-cles SEO + IA</Label>
+                                <Textarea value={seoKeywordsText} onChange={(e) => setSeoKeywordsText(e.target.value)} rows={4} className="bg-secondary text-xs" />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px] font-bold text-primary">Plan d'exÃ©cution 30 jours</Label>
+                                <Textarea value={executionPlanText} onChange={(e) => setExecutionPlanText(e.target.value)} rows={4} className="bg-secondary text-xs" />
+                              </div>
+                            </div>
                           </div>
                         </div>
                       )}
@@ -4721,6 +4842,9 @@ function AuditsAdmin() {
                                 { id: "visual_screenshot", label: "Screenshot & Annotations (M4)" },
                                 { id: "copywriting_recs", label: "Synthèse & Copywriting LLM (M6)" },
                                 { id: "closing_scripts", label: "Scripts de vente WhatsApp (M7)" },
+                                { id: "acquisition_strategy", label: "Strategie acquisition GLN" },
+                                { id: "content_calendar", label: "Calendrier contenu 30 jours" },
+                                { id: "seo_ai_keywords", label: "Mots-cles SEO + IA" },
                               ].map((deliv) => {
                                 const checked = assignedDeliverables.includes(deliv.id);
                                 return (
