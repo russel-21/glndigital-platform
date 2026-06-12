@@ -316,8 +316,8 @@ const Index = () => {
             animate="visible"
             variants={{ visible: { transition: { staggerChildren: 0.1 } } }}
           >
-            <motion.div variants={fadeUp} className="inline-block mb-6">
-              <span className="bg-primary/10 text-primary text-xs font-semibold px-4 py-1.5 rounded-full border border-primary/20 tracking-wider uppercase">
+            <motion.div variants={fadeUp} className="mb-6 max-w-full">
+              <span className="inline-block max-w-full whitespace-normal break-words bg-primary/10 text-primary text-[10px] sm:text-xs font-semibold px-3 sm:px-4 py-1.5 rounded-full border border-primary/20 tracking-wide sm:tracking-wider uppercase leading-snug">
                 {t("hero.badge")}
               </span>
             </motion.div>
@@ -331,25 +331,25 @@ const Index = () => {
               {t("hero.description")}
             </motion.p>
 
-            <motion.div variants={fadeUp} className="flex flex-wrap gap-4 mb-10">
+            <motion.div variants={fadeUp} className="flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:gap-4 mb-10">
               <a
                 href="https://wa.me/237692062677"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bg-primary text-primary-foreground px-8 py-4 rounded-lg font-semibold flex items-center gap-2 hover:opacity-90 transition-opacity shadow-glow"
+                className="bg-primary text-primary-foreground px-5 sm:px-8 py-4 rounded-lg font-semibold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity shadow-glow text-sm sm:text-base leading-tight"
               >
                 <MessageCircle className="w-5 h-5 fill-current" />
                 {t("services.cta")}
               </a>
               <Link
                 to="/audit"
-                className="border border-border bg-secondary/50 text-foreground px-8 py-4 rounded-lg font-semibold hover:bg-secondary transition-colors"
+                className="border border-border bg-secondary/50 text-foreground px-5 sm:px-8 py-4 rounded-lg font-semibold hover:bg-secondary transition-colors text-center text-sm sm:text-base leading-tight"
               >
                 {t("hero.cta_audit")}
               </Link>
               <Link
                 to="/formations"
-                className="border border-primary/30 text-primary px-8 py-4 rounded-lg font-semibold hover:bg-primary/10 transition-colors flex items-center gap-2"
+                className="border border-primary/30 text-primary px-5 sm:px-8 py-4 rounded-lg font-semibold hover:bg-primary/10 transition-colors flex items-center justify-center gap-2 text-sm sm:text-base leading-tight"
               >
                 <GraduationCap className="w-5 h-5" />
                 {t("hero.cta_courses")}
