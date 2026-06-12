@@ -1646,7 +1646,7 @@ function CompetitiveIntelAdmin() {
   const handleReset = () => {
     const reset = resetCompetitiveIntel();
     setProfiles(reset);
-    toast.success("Base de veille IA reinitialisee avec les donnees Soro.");
+    toast.success("Base de veille IA reinitialisee avec les donnees concurrentielles.");
   };
 
   return (
@@ -1659,7 +1659,7 @@ function CompetitiveIntelAdmin() {
           </p>
         </div>
         <Button onClick={handleReset} variant="outline" size="sm" className="text-xs">
-          Recharger Soro
+          Recharger la veille
         </Button>
       </CardHeader>
       <CardContent className="pt-6 space-y-6">
