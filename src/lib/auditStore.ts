@@ -129,6 +129,15 @@ export interface ScoringChecklist {
   };
 }
 
+export interface AIGrowthSuite {
+  acquisitionStrategy: string[];
+  contentCalendar: string[];
+  whatsappScripts: string[];
+  landingPageSections: string[];
+  seoKeywords: string[];
+  executionPlan: string[];
+}
+
 export interface AuditReport {
   socialGrid?: SocialGrid;
   adsGrid?: AdsGrid;
@@ -160,6 +169,7 @@ export interface AuditReport {
   screenshotType?: "website" | "facebook" | "instagram";
   customScreenshot?: string;
   scoringChecklist?: ScoringChecklist;
+  aiGrowthSuite?: AIGrowthSuite;
 }
 
 export interface CRMDetails {

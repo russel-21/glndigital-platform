@@ -979,6 +979,46 @@ const AuditReportDetail = () => {
           </div>
         </div>
 
+        {report.aiGrowthSuite && (
+          <div className="mt-12 bg-card border border-primary/20 rounded-3xl p-6 md:p-8 space-y-6 shadow-glow print:border-gray-200 print:bg-white">
+            <div className="space-y-2">
+              <span className="bg-primary/10 text-primary text-[10px] font-bold px-3 py-1 rounded-full border border-primary/20 uppercase tracking-widest inline-flex items-center gap-1.5">
+                <Target className="w-3.5 h-3.5" />
+                Moteurs IA GLN
+              </span>
+              <h3 className="font-heading text-xl font-bold text-foreground print:text-black">
+                Plan d'acquisition genere pour depasser le simple SEO
+              </h3>
+              <p className="text-xs text-muted-foreground leading-relaxed max-w-2xl print:text-black">
+                Ce pack transforme le diagnostic en plan d'execution : acquisition, contenus, WhatsApp, landing page, mots-cles et actions prioritaires sur 30 jours.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[
+                { title: "Strategie d'acquisition", items: report.aiGrowthSuite.acquisitionStrategy },
+                { title: "Calendrier contenu 30 jours", items: report.aiGrowthSuite.contentCalendar },
+                { title: "Scripts WhatsApp", items: report.aiGrowthSuite.whatsappScripts },
+                { title: "Landing page recommandee", items: report.aiGrowthSuite.landingPageSections },
+                { title: "Mots-cles SEO + IA", items: report.aiGrowthSuite.seoKeywords },
+                { title: "Plan d'execution", items: report.aiGrowthSuite.executionPlan },
+              ].filter(section => section.items && section.items.length > 0).map((section) => (
+                <div key={section.title} className="bg-secondary/30 border border-border/40 rounded-2xl p-4 space-y-3 print:bg-white print:border-gray-200">
+                  <h4 className="font-heading font-bold text-sm text-primary print:text-black">{section.title}</h4>
+                  <ul className="space-y-2 text-xs text-muted-foreground print:text-black">
+                    {section.items.map((item, idx) => (
+                      <li key={idx} className="flex gap-2 items-start leading-relaxed">
+                        <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 mt-1.5"></span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Proforma Invoice Section */}
         {request.proforma && (
           <div className="mt-12 bg-card border border-primary/20 rounded-3xl p-6 md:p-8 space-y-6 shadow-glow print:border-gray-200 print:bg-white print:text-black">
