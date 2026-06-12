@@ -41,6 +41,11 @@ import {
   SiteContentBlock,
   SiteContentPage,
 } from "@/lib/siteContent";
+import {
+  CompetitiveProfile,
+  getCompetitiveIntel,
+  resetCompetitiveIntel,
+} from "@/lib/competitiveIntel";
 import { toast } from "sonner";
 
 const scrapePage = async (url: string, platform: 'facebook' | 'instagram' | 'tiktok' | 'youtube' | 'snapchat' | 'web') => {
@@ -254,6 +259,7 @@ const Admin = () => {
             <TabsTrigger value="courses">Gestion des Cours</TabsTrigger>
             <TabsTrigger value="roles">Rôles & Utilisateurs</TabsTrigger>
             <TabsTrigger value="audits">Audits & Prospects</TabsTrigger>
+            <TabsTrigger value="competitive-intel">Veille IA</TabsTrigger>
             <TabsTrigger value="site-settings">Configuration Site (Header/Footer)</TabsTrigger>
             <TabsTrigger value="site-content">Contenu du site</TabsTrigger>
           </TabsList>
@@ -279,6 +285,9 @@ const Admin = () => {
           </TabsContent>
           <TabsContent value="audits">
             <AuditsAdmin />
+          </TabsContent>
+          <TabsContent value="competitive-intel">
+            <CompetitiveIntelAdmin />
           </TabsContent>
         </Tabs>
       </div>
@@ -1627,6 +1636,145 @@ function SiteContentAdmin() {
 }
 
 // ─── Courses / Formations Admin ──────────────────────────────────
+function CompetitiveIntelAdmin() {
+  const [profiles, setProfiles] = useState<CompetitiveProfile[]>([]);
+
+  useEffect(() => {
+    setProfiles(getCompetitiveIntel());
+  }, []);
+
+  const handleReset = () => {
+    const reset = resetCompetitiveIntel();
+    setProfiles(reset);
+    toast.success("Base de veille IA reinitialisee avec les donnees Soro.");
+  };
+
+  return (
+    <Card className="glass border-border/40">
+      <CardHeader className="flex flex-row justify-between items-start gap-4 border-b border-border/40">
+        <div>
+          <CardTitle>Veille IA & Concurrents</CardTitle>
+          <p className="text-xs text-muted-foreground mt-1">
+            Base structuree pour entrainer les futures IA GLN a battre les outils concurrents.
+          </p>
+        </div>
+        <Button onClick={handleReset} variant="outline" size="sm" className="text-xs">
+          Recharger Soro
+        </Button>
+      </CardHeader>
+      <CardContent className="pt-6 space-y-6">
+        {profiles.map((profile) => (
+          <div key={profile.id} className="rounded-2xl border border-border/50 bg-card/70 p-4 md:p-5 space-y-5">
+            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="font-heading text-xl font-bold text-foreground">{profile.productName}</h3>
+                  <span className="text-[10px] uppercase font-bold text-primary bg-primary/10 border border-primary/20 rounded-full px-2 py-1">
+                    {profile.category}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2 max-w-3xl leading-relaxed">
+                  {profile.positioning}
+                </p>
+              </div>
+              <div className="text-[10px] text-muted-foreground md:text-right">
+                <p>Scrape: {profile.scrapedAt}</p>
+                <p>Confiance: {profile.dataConfidence}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="rounded-xl bg-secondary/40 border border-border/40 p-3 space-y-2">
+                <h4 className="text-xs font-bold text-primary">Funnel observe</h4>
+                <ul className="space-y-1.5 text-[11px] text-muted-foreground">
+                  {profile.funnelSummary.map((item, idx) => (
+                    <li key={idx} className="leading-relaxed">- {item}</li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="rounded-xl bg-secondary/40 border border-border/40 p-3 space-y-2">
+                <h4 className="text-xs font-bold text-primary">Pricing & preuves</h4>
+                <ul className="space-y-1.5 text-[11px] text-muted-foreground">
+                  {profile.pricingSignals.map((item, idx) => (
+                    <li key={idx} className="leading-relaxed">- {item}</li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="rounded-xl bg-secondary/40 border border-border/40 p-3 space-y-2">
+                <h4 className="text-xs font-bold text-primary">Claims publics</h4>
+                <ul className="space-y-1.5 text-[11px] text-muted-foreground">
+                  {profile.metricClaims.map((metric) => (
+                    <li key={metric.label} className="leading-relaxed">
+                      <span className="font-semibold text-foreground">{metric.value}</span> - {metric.label}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="rounded-xl bg-secondary/30 border border-border/40 p-3 space-y-3">
+                <h4 className="text-xs font-bold text-foreground">Fonctionnalites scrapees et opportunites GLN</h4>
+                <div className="space-y-2">
+                  {profile.features.map((feature) => (
+                    <div key={feature.name} className="rounded-lg border border-border/40 bg-background/40 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-bold text-primary">{feature.name}</span>
+                        <span className="text-[9px] uppercase text-muted-foreground">{feature.category}</span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">{feature.description}</p>
+                      <p className="text-[11px] text-foreground mt-2 leading-relaxed">
+                        GLN: {feature.glnOpportunity}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="rounded-xl bg-secondary/30 border border-border/40 p-3 space-y-2">
+                  <h4 className="text-xs font-bold text-foreground">Angles pour depasser Soro</h4>
+                  <ul className="space-y-1.5 text-[11px] text-muted-foreground">
+                    {profile.gapsForGLN.map((item, idx) => (
+                      <li key={idx} className="leading-relaxed">- {item}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="rounded-xl bg-primary/10 border border-primary/20 p-3 space-y-2">
+                  <h4 className="text-xs font-bold text-primary">Positionnement GLN recommande</h4>
+                  <ul className="space-y-1.5 text-[11px] text-foreground">
+                    {profile.glnCounterPositioning.map((item, idx) => (
+                      <li key={idx} className="leading-relaxed">- {item}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="rounded-xl bg-secondary/30 border border-border/40 p-3 space-y-2">
+                  <h4 className="text-xs font-bold text-foreground">Sources</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {profile.sourceUrls.map((url) => (
+                      <a
+                        key={url}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] text-primary underline break-all"
+                      >
+                        {url}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
 function CoursesAdmin() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
