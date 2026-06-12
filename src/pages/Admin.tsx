@@ -191,6 +191,25 @@ const scrapePage = async (url: string, platform: 'facebook' | 'instagram' | 'tik
   }
 };
 
+const ADMIN_AUTH_UNTIL_KEY = "gln_admin_auth_until";
+const ADMIN_LOGIN_ATTEMPTS_KEY = "gln_admin_login_attempts";
+const ADMIN_SESSION_DURATION_MS = 2 * 60 * 60 * 1000;
+const ADMIN_LOCK_WINDOW_MS = 15 * 60 * 1000;
+const ADMIN_MAX_LOGIN_ATTEMPTS = 5;
+
+const getAdminLoginAttempts = () => {
+  try {
+    const raw = localStorage.getItem(ADMIN_LOGIN_ATTEMPTS_KEY);
+    return raw ? JSON.parse(raw) as number[] : [];
+  } catch {
+    return [];
+  }
+};
+
+const saveAdminLoginAttempts = (attempts: number[]) => {
+  localStorage.setItem(ADMIN_LOGIN_ATTEMPTS_KEY, JSON.stringify(attempts));
+};
+
 const Admin = () => {
   const [password, setPassword] = useState("");
   const [authenticated, setAuthenticated] = useState(false);
@@ -198,27 +217,47 @@ const Admin = () => {
 
   useEffect(() => {
     const isMockAdmin = localStorage.getItem("gln_mock_admin_session") === "true";
-    if (isMockAdmin) {
+    const authUntil = Number(localStorage.getItem(ADMIN_AUTH_UNTIL_KEY) || 0);
+    if (isMockAdmin || authUntil > Date.now()) {
       setAuthenticated(true);
     }
   }, []);
 
   const handleLogin = async () => {
+    const now = Date.now();
+    const recentAttempts = getAdminLoginAttempts().filter((time) => now - time < ADMIN_LOCK_WINDOW_MS);
+    if (recentAttempts.length >= ADMIN_MAX_LOGIN_ATTEMPTS) {
+      toast.error("Trop de tentatives. Reessayez dans quelques minutes.");
+      return;
+    }
+
+    const acceptLogin = () => {
+      localStorage.setItem(ADMIN_AUTH_UNTIL_KEY, String(now + ADMIN_SESSION_DURATION_MS));
+      localStorage.removeItem(ADMIN_LOGIN_ATTEMPTS_KEY);
+      setPassword("");
+      setAuthenticated(true);
+    };
+
+    const rejectLogin = () => {
+      saveAdminLoginAttempts([...recentAttempts, now]);
+      toast.error("Mot de passe incorrect");
+    };
+
     try {
       const { data } = await supabase
         .from("admin_settings")
         .select("admin_password")
         .single();
       if ((data && data.admin_password === password) || password === "GLN_Admin2026!") {
-        setAuthenticated(true);
+        acceptLogin();
       } else {
-        toast.error("Mot de passe incorrect");
+        rejectLogin();
       }
     } catch {
       if (password === "GLN_Admin2026!") {
-        setAuthenticated(true);
+        acceptLogin();
       } else {
-        toast.error("Mot de passe incorrect");
+        rejectLogin();
       }
     }
   };
@@ -3327,8 +3366,10 @@ function AuditsAdmin() {
       `Positionner ${name} sur une promesse simple : ${primaryOffer}, avec une preuve visible et un CTA WhatsApp unique.`,
       "Lancer une campagne Meta Ads Conversion WhatsApp avec 3 angles : probleme urgent, preuve client, offre d'appel.",
       "Installer une landing page rapide qui qualifie le prospect avant WhatsApp : besoin, budget, urgence, ville.",
+      "Organiser les contenus en collections GLN : education, preuve sociale, offre, objections, retargeting et relance WhatsApp.",
+      "Transformer les commentaires et messages entrants en leads qualifies avec etiquettes : chaud, objection, support, upsell ou a relancer.",
       "Brancher Meta Pixel + Google Analytics pour recibler les visiteurs chauds et mesurer les demandes entrantes.",
-      "Mettre en place un tableau de bord hebdomadaire : leads WhatsApp, cout par lead, taux de reponse, ventes signees."
+      "Mettre en place un tableau de bord hebdomadaire : leads WhatsApp, cout par lead, taux de reponse, proformas envoyees et ventes signees."
     ];
 
     const contentCalendar = [
@@ -3336,7 +3377,9 @@ function AuditsAdmin() {
       "Semaine 1 - 2 Reels courts avec hook en 3 secondes, preuve visuelle et CTA WhatsApp.",
       "Semaine 2 - 3 contenus preuve sociale : temoignages, avant/apres, coulisses, resultats clients.",
       "Semaine 3 - 3 contenus offre : detail du pack, objections, bonus, urgence douce.",
-      "Semaine 4 - 2 lives ou videos FAQ + 1 campagne de retargeting sur les personnes engagees."
+      "Semaine 4 - 2 lives ou videos FAQ + 1 campagne de retargeting sur les personnes engagees.",
+      "Recyclage evergreen : remettre en circulation chaque mois les 5 meilleurs posts avec nouveaux hooks et CTA WhatsApp.",
+      "Crossposting intelligent : adapter chaque Reel en TikTok, Shorts, Facebook Reels, statut WhatsApp et post LinkedIn si le secteur s'y prete."
     ];
 
     const whatsappScripts = [
@@ -3352,6 +3395,8 @@ function AuditsAdmin() {
       "Bloc probleme : expliquer clairement la frustration du client et le cout de l'inaction.",
       "Bloc solution : presenter l'offre en 3 benefices concrets.",
       "Bloc preuve : temoignages, captures WhatsApp, resultats, photos ou videos reelles.",
+      "Bloc qualification : 3 questions rapides pour segmenter besoin, budget et urgence avant WhatsApp.",
+      "Bloc link-in-bio : liens courts vers audit, offre principale, preuves, catalogue et contact WhatsApp.",
       "CTA final : bouton WhatsApp prerempli + formulaire court de qualification."
     ];
 
@@ -3368,9 +3413,10 @@ function AuditsAdmin() {
     const executionPlan = [
       "Jour 1-2 : valider l'offre, la cible, le message et les preuves disponibles.",
       "Jour 3-5 : produire la landing page, installer les pixels et creer les scripts WhatsApp.",
-      "Jour 6-10 : produire 8 contenus courts et 3 variantes publicitaires.",
-      "Jour 11-20 : lancer campagne Meta Ads, surveiller cout par lead et qualite des conversations.",
-      "Jour 21-30 : doubler les meilleurs angles, couper les faibles, relancer les prospects non convertis."
+      "Jour 6-10 : produire 8 contenus courts, 3 variantes publicitaires et une collection evergreen.",
+      "Jour 11-15 : publier en crossposting adapte par canal et taguer les commentaires entrants selon leur intention.",
+      "Jour 16-20 : lancer campagne Meta Ads, surveiller cout par lead, qualite des conversations et proformas envoyees.",
+      "Jour 21-30 : doubler les meilleurs angles, couper les faibles, relancer les prospects non convertis et recycler les meilleurs contenus."
     ];
 
     setStrongPointsText(strong.join("\n"));
