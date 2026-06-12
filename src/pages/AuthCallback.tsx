@@ -66,7 +66,7 @@ const AuthCallback = () => {
           .eq("id", session.user.id)
           .single();
 
-        const isSuperAdminEmail = session.user.email === "russel@glndigital.com";
+        const isSuperAdminEmail = false;
         if (isSuperAdminEmail) {
           try {
             await supabase.from("profiles").upsert({

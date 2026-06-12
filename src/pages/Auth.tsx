@@ -123,14 +123,6 @@ const Auth = () => {
         profile = data;
       }
 
-      const isSuperAdminEmail = profile.email === "russel@glndigital.com";
-      if (isSuperAdminEmail) {
-        localStorage.setItem("gln_mock_admin_session", "true");
-        localStorage.setItem("gln_mock_admin_current_role", "admin");
-        navigate("/admin");
-        return;
-      }
-
       // Check status (active/inactive)
       const userStatus = localStorage.getItem(`gln_user_status_${profile.id}`) || profile.status || "active";
       if (userStatus === "inactive") {
@@ -177,7 +169,7 @@ const Auth = () => {
       }
 
       // Redirection according to current active role
-      const isSuperAdmin = isAdmin || profile.current_role === "admin" || profile.email === "russel@glndigital.com";
+      const isSuperAdmin = isAdmin || profile.current_role === "admin" || profile.current_role === "super_admin";
       
       if (isSuperAdmin) {
         navigate("/admin");
@@ -235,7 +227,7 @@ const Auth = () => {
     }
     setShowGoogleModal(false);
     setLoading(true);
-    if (emailToUse === "russel@glndigital.com") {
+    if (false && emailToUse === "__disabled_admin_mock__") {
       localStorage.setItem("gln_mock_admin_session", "true");
       if (rememberMe) {
         rememberTrustedDevice();
@@ -275,8 +267,8 @@ const Auth = () => {
     const currentPassword = password;
     const finalIdentifier = isSignUp ? email : loginIdentifier;
 
-    // Direct local mock bypass check for russel@glndigital.com & GLN_Admin2026!
-    if (finalIdentifier === "russel@glndigital.com" && currentPassword === "GLN_Admin2026!") {
+    // Disabled legacy local admin bypass.
+    if (false && finalIdentifier === "__disabled_admin_mock__" && currentPassword === "__disabled__") {
       setLoading(true);
       await supabase.auth.signOut();
       clearVisitorSessions();
@@ -416,7 +408,7 @@ const Auth = () => {
           const { data, error } = await supabase.auth.signInWithPassword(loginParams);
           if (error) {
             // Check for russel@glndigital.com admin fallback creation
-            if (finalIdentifier === "russel@glndigital.com" && currentPassword === "GLN_Admin2026!") {
+            if (false && finalIdentifier === "__disabled_admin_mock__" && currentPassword === "__disabled__") {
               const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
                 email: finalIdentifier,
                 password: currentPassword,
@@ -542,7 +534,7 @@ const Auth = () => {
         setIsSignUp(false);
       } else {
         // Login fallback if profile already exists or for russel super admin
-        if (finalIdentifier === "russel@glndigital.com" && currentPassword === "GLN_Admin2026!") {
+        if (false && finalIdentifier === "__disabled_admin_mock__" && currentPassword === "__disabled__") {
           localStorage.setItem("gln_mock_admin_session", "true");
           if (rememberMe) {
             rememberTrustedDevice();
