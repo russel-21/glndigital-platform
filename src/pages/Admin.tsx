@@ -191,94 +191,77 @@ const scrapePage = async (url: string, platform: 'facebook' | 'instagram' | 'tik
   }
 };
 
-const ADMIN_AUTH_UNTIL_KEY = "gln_admin_auth_until";
-const ADMIN_LOGIN_ATTEMPTS_KEY = "gln_admin_login_attempts";
-const ADMIN_SESSION_DURATION_MS = 2 * 60 * 60 * 1000;
-const ADMIN_LOCK_WINDOW_MS = 15 * 60 * 1000;
-const ADMIN_MAX_LOGIN_ATTEMPTS = 5;
-
-const getAdminLoginAttempts = () => {
-  try {
-    const raw = localStorage.getItem(ADMIN_LOGIN_ATTEMPTS_KEY);
-    return raw ? JSON.parse(raw) as number[] : [];
-  } catch {
-    return [];
-  }
-};
-
-const saveAdminLoginAttempts = (attempts: number[]) => {
-  localStorage.setItem(ADMIN_LOGIN_ATTEMPTS_KEY, JSON.stringify(attempts));
-};
-
 const Admin = () => {
-  const [password, setPassword] = useState("");
   const [authenticated, setAuthenticated] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    const isMockAdmin = localStorage.getItem("gln_mock_admin_session") === "true";
-    const authUntil = Number(localStorage.getItem(ADMIN_AUTH_UNTIL_KEY) || 0);
-    if (isMockAdmin || authUntil > Date.now()) {
-      setAuthenticated(true);
-    }
+    const checkAdminAccess = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) {
+          setAuthenticated(false);
+          return;
+        }
+
+        const { data: profile, error } = await supabase
+          .from("profiles")
+          .select("roles,current_role,email")
+          .eq("id", session.user.id)
+          .single();
+
+        if (error || !profile) {
+          setAuthenticated(false);
+          return;
+        }
+
+        const roles = (profile.roles || []) as string[];
+        const isAdmin =
+          roles.includes("admin") ||
+          roles.includes("super_admin") ||
+          profile.current_role === "admin" ||
+          profile.current_role === "super_admin";
+
+        setAuthenticated(isAdmin);
+      } catch {
+        setAuthenticated(false);
+      } finally {
+        setAuthChecked(true);
+      }
+    };
+
+    void checkAdminAccess();
   }, []);
 
-  const handleLogin = async () => {
-    const now = Date.now();
-    const recentAttempts = getAdminLoginAttempts().filter((time) => now - time < ADMIN_LOCK_WINDOW_MS);
-    if (recentAttempts.length >= ADMIN_MAX_LOGIN_ATTEMPTS) {
-      toast.error("Trop de tentatives. Reessayez dans quelques minutes.");
-      return;
-    }
-
-    const acceptLogin = () => {
-      localStorage.setItem(ADMIN_AUTH_UNTIL_KEY, String(now + ADMIN_SESSION_DURATION_MS));
-      localStorage.removeItem(ADMIN_LOGIN_ATTEMPTS_KEY);
-      setPassword("");
-      setAuthenticated(true);
-    };
-
-    const rejectLogin = () => {
-      saveAdminLoginAttempts([...recentAttempts, now]);
-      toast.error("Mot de passe incorrect");
-    };
-
-    try {
-      const { data } = await supabase
-        .from("admin_settings")
-        .select("admin_password")
-        .single();
-      if ((data && data.admin_password === password) || password === "GLN_Admin2026!") {
-        acceptLogin();
-      } else {
-        rejectLogin();
-      }
-    } catch {
-      if (password === "GLN_Admin2026!") {
-        acceptLogin();
-      } else {
-        rejectLogin();
-      }
-    }
-  };
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center pt-20">
+        <Card className="w-full max-w-sm">
+          <CardHeader>
+            <CardTitle className="text-center">Verification admin</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground text-center">Controle de la session securisee...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (!authenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center pt-20">
         <Card className="w-full max-w-sm">
           <CardHeader>
-            <CardTitle className="text-center">Administration</CardTitle>
+            <CardTitle className="text-center">Acces admin requis</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Input
-              type="password"
-              placeholder="Mot de passe"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-            />
-            <Button onClick={handleLogin} className="w-full bg-gradient-primary">
-              Se connecter
+            <p className="text-sm text-muted-foreground text-center">
+              Connectez-vous avec un compte Supabase ayant le role admin ou super_admin.
+            </p>
+            <Button asChild className="w-full bg-gradient-primary">
+              <Link to="/auth">Aller a la connexion</Link>
             </Button>
           </CardContent>
         </Card>
