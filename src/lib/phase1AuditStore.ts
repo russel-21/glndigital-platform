@@ -11,12 +11,11 @@
 // RLS, so every function here assumes the signed-in Supabase user is an
 // admin; there is no separate auth check on the client side.
 //
-// NOTE: these tables are not yet in src/integrations/supabase/types.ts — the
-// migration has not been applied to the remote DB / types have not been
-// regenerated yet (see CLAUDE.md "État d'avancement"). Hence the
-// `(supabase as any)` casts below, same pattern already used in
-// fetchRemoteAuditRequests() in src/lib/auditStore.ts. Once the migration is
-// applied and `supabase gen types` is re-run, these casts can be dropped.
+// The generated Database type (src/integrations/supabase/types.ts) only
+// knows these two tables' columns as broad `string`/`Json` — the `as
+// SocialConnection[]` / `as AuditSnapshot[]` casts below narrow that down to
+// this module's stricter domain types (Platform union, NormalizedAuditMetrics
+// shape), same as any other typed read from a jsonb/text column.
 
 import { supabase } from "@/integrations/supabase/client";
 
@@ -75,7 +74,7 @@ export interface AuditSnapshot {
 }
 
 export const fetchSocialConnections = async (): Promise<SocialConnection[]> => {
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from("social_connections")
     .select("*")
     .order("created_at", { ascending: false });
@@ -93,7 +92,7 @@ export interface NewSocialConnectionInput {
 export const createSocialConnection = async (
   input: NewSocialConnectionInput,
 ): Promise<SocialConnection> => {
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from("social_connections")
     .insert({
       platform: input.platform,
@@ -108,20 +107,20 @@ export const createSocialConnection = async (
 };
 
 export const deleteSocialConnection = async (id: string): Promise<void> => {
-  const { error } = await (supabase as any).from("social_connections").delete().eq("id", id);
+  const { error } = await supabase.from("social_connections").delete().eq("id", id);
   if (error) throw error;
 };
 
 export const fetchAuditSnapshots = async (
   socialConnectionId: string,
 ): Promise<AuditSnapshot[]> => {
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from("audit_snapshots")
     .select("*")
     .eq("social_connection_id", socialConnectionId)
     .order("extracted_at", { ascending: false });
   if (error) throw error;
-  return (data || []) as AuditSnapshot[];
+  return (data || []) as unknown as AuditSnapshot[];
 };
 
 export interface TriggerAuditResult {

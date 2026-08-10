@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Supabase CLI local state (project link cache, pooler URL, tool versions —
+# machine-specific, not meant to be shared/committed)
+supabase/.temp
+supabase/.branches

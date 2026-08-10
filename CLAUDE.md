@@ -166,9 +166,43 @@ mais reste séparé de ce qui suit.
     supabase.com/dashboard/account/tokens) puis `supabase link --project-ref ccrlfetratxnvgehiwnc`
     et `supabase db push` lui-même depuis son propre terminal — la migration ne peut pas être
     appliquée à distance depuis cette session sans cet accès.
-  - **Pas encore fait** : réactiver le projet Supabase, `supabase link` + `supabase db push` (à faire
-    par Russel), régénérer `src/integrations/supabase/types.ts` une fois la migration appliquée (pour
-    retirer les casts `as any` dans `phase1AuditStore.ts`/`auditStore.ts`), tests.
+  - **Migration Phase 1 appliquée sur la vraie base — 2026-08-10.** Blocage GitHub résolu au passage :
+    ce PC est celui de Russel, mais Git avait un compte GitHub (YAMEGOUCYRILLE, celui de Cyrille) en
+    cache sans accès en écriture sur `russel-21/glndigital-platform` — identifiants retirés du Windows
+    Credential Manager (`git credential-manager github logout`), Russel s'est reconnecté avec son propre
+    compte, `phase1-audit-admin-ui` est poussée sur GitHub.
+  - **`supabase db push` a échoué au premier essai** : `ERROR: syntax error at or near "current_role"
+    (SQLSTATE 42601)`. `current_role` est un mot réservé Postgres (comme `current_user`) — utilisé sans
+    guillemets comme nom de colonne dans `20260528183200_create_profiles.sql`, invalide en SQL strict.
+    Corrigé (`"current_role"` entre guillemets) dans ce fichier et dans
+    `20260612223000_harden_rls_policies.sql` (deux occurrences dans `is_admin()` et la policy update de
+    `profiles` — voir commentaires dans ce dernier fichier : condition toujours fausse/toujours vraie
+    selon le cas, jamais une faille de sécurité, juste du code mort qui ne faisait pas ce que son
+    commentaire disait).
+  - **Découverte plus importante en creusant** : `supabase migration list` a montré que seule la toute
+    première migration (`20260224100714`) avait jamais été réellement appliquée via le CLI — `profiles`
+    et `audit_requests` existent bien sur la base réelle (créés autrement, probablement via Lovable/
+    l'éditeur Supabase) mais **la fonction `public.is_admin()` n'existait pas du tout en prod avant
+    cette session** (confirmé par une 2e erreur `db push` : `function public.is_admin() does not exist`).
+    Autrement dit, les policies RLS durcies de `20260612223000_harden_rls_policies.sql` (admin-only sur
+    `admin_settings`/`testimonials`/`portfolio_media`, etc.) n'étaient jamais réellement passées en prod
+    malgré ce que ce fichier CLAUDE.md racontait précédemment — les anciennes policies permissives
+    ("Anyone can ...") de `...682d0edb...` ont probablement été actives en prod jusqu'à maintenant.
+    Utilisé `supabase migration repair` pour resynchroniser l'historique (les 3 migrations dont les
+    tables existaient déjà marquées "applied" sans ré-exécution, sauf `20260612223000` remise à
+    "reverted" puis réellement rejouée) ; `supabase db push` a ensuite appliqué pour de vrai le
+    durcissement RLS + les tables Phase 1 (`social_connections`, `audit_snapshots`). À vérifier par
+    Russel : aucune trace d'abus des policies permissives pendant qu'elles étaient actives (impossible
+    à auditer depuis cette session).
+  - **Types régénérés** (`supabase gen types typescript --linked`) : `src/integrations/supabase/
+    types.ts` reflète maintenant le vrai schéma. Retiré tous les casts `(supabase as any)` dans
+    `phase1AuditStore.ts`/`auditStore.ts` (remplacés par des casts `as unknown as X` ciblés uniquement
+    là où une colonne `jsonb`/`Json` doit être affinée vers un type domaine précis — pattern normal, pas
+    un contournement de typage). Ça a aussi fait apparaître un vrai bug pré-existant démasqué par les
+    types corrects : `src/pages/AuthCallback.tsx` testait `profile.role` (colonne inexistante, toujours
+    `undefined`) en plus de `profile.roles.includes(...)` — condition morte, corrigée (supprimée, la
+    vérification `roles.includes()` couvrait déjà le cas).
+  - `npx tsc --noEmit` et `npx eslint` sur les fichiers touchés : 0 erreur.
 - **Phases 2 à 7** : non commencées.
 
 ### 1. Contexte du projet

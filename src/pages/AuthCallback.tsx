@@ -135,7 +135,7 @@ const AuthCallback = () => {
           const currentRoles: string[] = profile.roles || ['student'];
           const activeSessions: string[] = profile.active_sessions || [];
 
-          const isAdmin = currentRoles.includes("admin") || currentRoles.includes("super_admin") || profile.role === "admin";
+          const isAdmin = currentRoles.includes("admin") || currentRoles.includes("super_admin");
           const maxAllowedDevices = isAdmin ? 3 : 1;
 
           // Add current device to list if not already inside
