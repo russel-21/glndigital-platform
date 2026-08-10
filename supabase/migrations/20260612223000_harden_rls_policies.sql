@@ -1,6 +1,19 @@
 -- Harden public data access and admin-only mutations.
 -- Apply this migration in Supabase after confirming the real admin user has
 -- roles including "admin" or "super_admin" in public.profiles.
+--
+-- NOTE: this file's two bare `current_role` references (below and in the
+-- profiles update policy further down) were bugs — current_role is a
+-- reserved Postgres keyword (like current_user) that always resolves to the
+-- session's database role, never to the profiles.current_role column, unless
+-- quoted or schema-qualified. As written it made both checks either always
+-- false or always true (dead/no-op conditions) rather than checking the
+-- actual column — never a security hole (the roles-array check next to it
+-- still gated access correctly), just not doing what the comment describes.
+-- This text was never actually run against Postgres before now (confirmed
+-- via `supabase db push`, which fails on the same class of syntax error in
+-- the profiles migration first), so there's no deployed history to
+-- preserve — fixed in place rather than via a new migration.
 
 create or replace function public.is_admin()
 returns boolean
@@ -15,7 +28,7 @@ as $$
     where id = auth.uid()
       and (
         roles && array['admin', 'super_admin']::text[]
-        or current_role in ('admin', 'super_admin')
+        or "current_role" in ('admin', 'super_admin')
       )
   );
 $$;
@@ -127,7 +140,7 @@ with check (
   or (
     auth.uid() = id
     and not (roles && array['admin', 'super_admin']::text[])
-    and current_role not in ('admin', 'super_admin')
+    and "current_role" not in ('admin', 'super_admin')
   )
 );
 

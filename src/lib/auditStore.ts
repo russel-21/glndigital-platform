@@ -393,23 +393,23 @@ const toAuditRow = (request: AuditRequest) => ({
   client_name: request.clientName,
   company_name: request.companyName || null,
   status: request.status,
-  payload: request,
+  payload: request as unknown as Json,
   created_at: request.createdAt,
   updated_at: new Date().toISOString(),
 });
 
 export const fetchRemoteAuditRequests = async (): Promise<AuditRequest[]> => {
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from("audit_requests")
     .select("payload")
     .order("created_at", { ascending: false });
 
   if (error) throw error;
-  return (data || []).map((row: any) => row.payload as AuditRequest).filter(Boolean);
+  return (data || []).map((row) => row.payload as unknown as AuditRequest).filter(Boolean);
 };
 
 export const upsertRemoteAuditRequest = async (request: AuditRequest) => {
-  const { error } = await (supabase as any)
+  const { error } = await supabase
     .from("audit_requests")
     .upsert(toAuditRow(request));
 
@@ -417,7 +417,7 @@ export const upsertRemoteAuditRequest = async (request: AuditRequest) => {
 };
 
 export const saveRemoteAuditRequests = async (requests: AuditRequest[]) => {
-  const { error } = await (supabase as any)
+  const { error } = await supabase
     .from("audit_requests")
     .upsert(requests.map(toAuditRow));
 
@@ -425,7 +425,7 @@ export const saveRemoteAuditRequests = async (requests: AuditRequest[]) => {
 };
 
 export const deleteRemoteAuditRequest = async (id: string) => {
-  const { error } = await (supabase as any)
+  const { error } = await supabase
     .from("audit_requests")
     .delete()
     .eq("id", id);
@@ -433,3 +433,4 @@ export const deleteRemoteAuditRequest = async (id: string) => {
   if (error) throw error;
 };
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";

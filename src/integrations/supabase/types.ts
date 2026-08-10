@@ -10,7 +10,32 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.1"
+    PostgrestVersion: "14.5"
+  }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
@@ -28,6 +53,89 @@ export type Database = {
           id?: string
         }
         Relationships: []
+      }
+      audit_requests: {
+        Row: {
+          client_name: string
+          company_name: string | null
+          created_at: string
+          email: string
+          id: string
+          payload: Json
+          phone: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          client_name: string
+          company_name?: string | null
+          created_at?: string
+          email: string
+          id: string
+          payload: Json
+          phone: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          client_name?: string
+          company_name?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          payload?: Json
+          phone?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      audit_snapshots: {
+        Row: {
+          created_at: string
+          error: string | null
+          extracted_at: string
+          id: string
+          is_mock: boolean
+          metrics: Json | null
+          platform: string
+          raw_response: Json | null
+          social_connection_id: string
+          source: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          extracted_at: string
+          id?: string
+          is_mock?: boolean
+          metrics?: Json | null
+          platform: string
+          raw_response?: Json | null
+          social_connection_id: string
+          source: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          extracted_at?: string
+          id?: string
+          is_mock?: boolean
+          metrics?: Json | null
+          platform?: string
+          raw_response?: Json | null
+          social_connection_id?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_snapshots_social_connection_id_fkey"
+            columns: ["social_connection_id"]
+            isOneToOne: false
+            referencedRelation: "social_connections"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       portfolio_media: {
         Row: {
@@ -71,6 +179,86 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          active_sessions: string[]
+          company_name: string | null
+          created_at: string
+          current_role: string
+          email: string
+          full_name: string
+          id: string
+          phone: string
+          roles: string[]
+          status: string
+        }
+        Insert: {
+          active_sessions?: string[]
+          company_name?: string | null
+          created_at?: string
+          current_role?: string
+          email: string
+          full_name: string
+          id: string
+          phone: string
+          roles?: string[]
+          status?: string
+        }
+        Update: {
+          active_sessions?: string[]
+          company_name?: string | null
+          created_at?: string
+          current_role?: string
+          email?: string
+          full_name?: string
+          id?: string
+          phone?: string
+          roles?: string[]
+          status?: string
+        }
+        Relationships: []
+      }
+      social_connections: {
+        Row: {
+          account_handle: string
+          client_profile_id: string | null
+          connection_status: string
+          created_at: string
+          id: string
+          platform: string
+          updated_at: string
+          zernio_account_id: string | null
+        }
+        Insert: {
+          account_handle: string
+          client_profile_id?: string | null
+          connection_status?: string
+          created_at?: string
+          id?: string
+          platform: string
+          updated_at?: string
+          zernio_account_id?: string | null
+        }
+        Update: {
+          account_handle?: string
+          client_profile_id?: string | null
+          connection_status?: string
+          created_at?: string
+          id?: string
+          platform?: string
+          updated_at?: string
+          zernio_account_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_connections_client_profile_id_fkey"
+            columns: ["client_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       testimonials: {
         Row: {
           avatar_url: string | null
@@ -110,56 +298,12 @@ export type Database = {
         }
         Relationships: []
       }
-      profiles: {
-        Row: {
-          id: string
-          email: string
-          full_name: string
-          phone: string
-          company_name: string | null
-          roles: string[]
-          current_role: string
-          active_sessions: string[]
-          created_at: string
-        }
-        Insert: {
-          id: string
-          email: string
-          full_name: string
-          phone: string
-          company_name?: string | null
-          roles?: string[]
-          current_role?: string
-          active_sessions?: string[]
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          email?: string
-          full_name?: string
-          phone?: string
-          company_name?: string | null
-          roles?: string[]
-          current_role?: string
-          active_sessions?: string[]
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "profiles_id_fkey"
-            columns: ["id"]
-            isOneToOne: true
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_admin: { Args: never; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
@@ -288,6 +432,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },
