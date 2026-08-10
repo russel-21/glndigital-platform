@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { 
   Trash2, Plus, Eye, EyeOff, Video, FileText, Edit2, ShieldAlert, CheckCircle, 
   Clock, AlertTriangle, Lightbulb, Sparkles, Share2, Globe, BarChart2, Star, 
@@ -46,6 +47,17 @@ import {
   getCompetitiveIntel,
   resetCompetitiveIntel,
 } from "@/lib/competitiveIntel";
+import {
+  Platform as Phase1Platform,
+  PLATFORM_LABELS as PHASE1_PLATFORM_LABELS,
+  SocialConnection,
+  AuditSnapshot,
+  fetchSocialConnections,
+  createSocialConnection,
+  deleteSocialConnection,
+  fetchAuditSnapshots,
+  triggerPhase1Audit,
+} from "@/lib/phase1AuditStore";
 import { toast } from "sonner";
 
 const scrapePage = async (url: string, platform: 'facebook' | 'instagram' | 'tiktok' | 'youtube' | 'snapchat' | 'web') => {
@@ -281,6 +293,7 @@ const Admin = () => {
             <TabsTrigger value="courses">Gestion des Cours</TabsTrigger>
             <TabsTrigger value="roles">Rôles & Utilisateurs</TabsTrigger>
             <TabsTrigger value="audits">Audits & Prospects</TabsTrigger>
+            <TabsTrigger value="phase1-audit">Audit IA (Phase 1)</TabsTrigger>
             <TabsTrigger value="competitive-intel">Veille IA</TabsTrigger>
             <TabsTrigger value="site-settings">Configuration Site (Header/Footer)</TabsTrigger>
             <TabsTrigger value="site-content">Contenu du site</TabsTrigger>
@@ -307,6 +320,9 @@ const Admin = () => {
           </TabsContent>
           <TabsContent value="audits">
             <AuditsAdmin />
+          </TabsContent>
+          <TabsContent value="phase1-audit">
+            <Phase1AuditAdmin queryClient={queryClient} />
           </TabsContent>
           <TabsContent value="competitive-intel">
             <CompetitiveIntelAdmin />
@@ -1794,6 +1810,210 @@ function CompetitiveIntelAdmin() {
         ))}
       </CardContent>
     </Card>
+  );
+}
+
+// ─── Phase 1 Audit Admin ───────────────────────────────────────
+// Admin UI for the Phase 1 (Audit) agent — see CLAUDE.md, "Feature en cours
+// de cadrage : automatisation reseaux sociaux par agents IA", sections 3 et
+// 7. SCOPE: create/delete social_connections rows, trigger the phase1-audit
+// edge function against one, and browse its audit_snapshots history. No
+// interpretation happens here — that is Phase 2 (Diagnostic), a separate,
+// not-yet-built agent. Every snapshot's is_mock flag is surfaced prominently
+// so mock data (returned while no ZERNIO_API_KEY is configured — see
+// supabase/functions/_shared/zernioClient.ts) is never mistaken for a real
+// audit.
+function Phase1AuditAdmin({ queryClient }: { queryClient: any }) {
+  const { data: connections = [], isLoading } = useQuery({
+    queryKey: ["phase1-social-connections"],
+    queryFn: fetchSocialConnections,
+  });
+
+  const [platform, setPlatform] = useState<Phase1Platform>("meta_instagram");
+  const [accountHandle, setAccountHandle] = useState("");
+  const [zernioAccountId, setZernioAccountId] = useState("");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const createMutation = useMutation({
+    mutationFn: () =>
+      createSocialConnection({
+        platform,
+        account_handle: accountHandle,
+        zernio_account_id: zernioAccountId || null,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["phase1-social-connections"] });
+      setAccountHandle("");
+      setZernioAccountId("");
+      toast.success("Compte à auditer ajouté.");
+    },
+    onError: (err: any) => toast.error(`Erreur : ${err.message}`),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteSocialConnection(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["phase1-social-connections"] });
+      toast.success("Compte supprimé.");
+    },
+    onError: (err: any) => toast.error(`Erreur : ${err.message}`),
+  });
+
+  const auditMutation = useMutation({
+    mutationFn: (id: string) => triggerPhase1Audit(id),
+    onSuccess: (result, id) => {
+      queryClient.invalidateQueries({ queryKey: ["phase1-audit-snapshots", id] });
+      if (result.ok) {
+        toast.success(
+          result.is_mock
+            ? "Audit lancé — données factices (ZERNIO_API_KEY non configurée)."
+            : "Audit lancé avec succès.",
+        );
+      } else {
+        toast.error(`Audit échoué : ${result.error || "erreur inconnue"}`);
+      }
+      setExpandedId(id);
+    },
+    onError: (err: any) => toast.error(`Échec de l'appel à l'agent d'audit : ${err.message}`),
+  });
+
+  return (
+    <div className="space-y-8">
+      <Card>
+        <CardHeader>
+          <CardTitle>Ajouter un compte à auditer (Phase 1)</CardTitle>
+          <p className="text-xs text-muted-foreground mt-1">
+            Agent Phase 1 : collecte factuelle uniquement (Meta Graph API / TikTok Business API /
+            YouTube Data API via Zernio) — pas d'interprétation, pas de score. Tant qu'aucune clé
+            Zernio n'est configurée côté serveur, chaque audit retourne des données factices
+            clairement marquées « MOCK ».
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Label>Plateforme</Label>
+              <Select value={platform} onValueChange={(v) => setPlatform(v as Phase1Platform)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(PHASE1_PLATFORM_LABELS) as Phase1Platform[]).map((p) => (
+                    <SelectItem key={p} value={p}>{PHASE1_PLATFORM_LABELS[p]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Identifiant du compte (handle) *</Label>
+              <Input
+                value={accountHandle}
+                onChange={(e) => setAccountHandle(e.target.value)}
+                placeholder="ex: hotelbonaprisodouala"
+              />
+            </div>
+            <div>
+              <Label>ID compte Zernio (optionnel)</Label>
+              <Input
+                value={zernioAccountId}
+                onChange={(e) => setZernioAccountId(e.target.value)}
+                placeholder="laisser vide si non connecté"
+              />
+            </div>
+          </div>
+          <Button
+            onClick={() => createMutation.mutate()}
+            disabled={!accountHandle.trim() || createMutation.isPending}
+            className="bg-gradient-primary"
+          >
+            <Plus className="w-4 h-4 mr-2" /> Ajouter le compte
+          </Button>
+        </CardContent>
+      </Card>
+
+      <div className="space-y-3">
+        {isLoading && <p className="text-sm text-muted-foreground">Chargement…</p>}
+        {!isLoading && connections.length === 0 && (
+          <p className="text-sm text-muted-foreground">Aucun compte enregistré pour l'instant.</p>
+        )}
+        {(connections as SocialConnection[]).map((conn) => (
+          <Card key={conn.id} className="border-border/50">
+            <CardContent className="pt-6 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-foreground">{conn.account_handle}</span>
+                    <Badge variant="secondary">{PHASE1_PLATFORM_LABELS[conn.platform]}</Badge>
+                    <Badge variant="outline">{conn.connection_status}</Badge>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Ajouté le {new Date(conn.created_at).toLocaleString("fr-FR")}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => auditMutation.mutate(conn.id)}
+                    disabled={auditMutation.isPending}
+                  >
+                    Lancer un audit
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setExpandedId(expandedId === conn.id ? null : conn.id)}
+                  >
+                    {expandedId === conn.id ? "Masquer" : "Historique"}
+                  </Button>
+                  <button onClick={() => deleteMutation.mutate(conn.id)}>
+                    <Trash2 className="w-4 h-4 text-destructive" />
+                  </button>
+                </div>
+              </div>
+
+              {expandedId === conn.id && <Phase1AuditSnapshots socialConnectionId={conn.id} />}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Phase1AuditSnapshots({ socialConnectionId }: { socialConnectionId: string }) {
+  const { data: snapshots = [], isLoading } = useQuery({
+    queryKey: ["phase1-audit-snapshots", socialConnectionId],
+    queryFn: () => fetchAuditSnapshots(socialConnectionId),
+  });
+
+  if (isLoading) {
+    return <p className="text-xs text-muted-foreground">Chargement de l'historique…</p>;
+  }
+  if (snapshots.length === 0) {
+    return <p className="text-xs text-muted-foreground">Aucun audit encore lancé pour ce compte.</p>;
+  }
+
+  return (
+    <div className="space-y-2 border-t border-border/40 pt-4">
+      {(snapshots as AuditSnapshot[]).map((snap) => (
+        <div key={snap.id} className="rounded-lg border border-border/40 bg-secondary/20 p-3 text-xs space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-semibold">{new Date(snap.extracted_at).toLocaleString("fr-FR")}</span>
+            <Badge variant="outline">{snap.source}</Badge>
+            {snap.is_mock && <Badge variant="destructive">MOCK — données factices</Badge>}
+            {snap.error && <Badge variant="destructive">Erreur</Badge>}
+          </div>
+          {snap.error && <p className="text-destructive">{snap.error}</p>}
+          {snap.metrics && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-muted-foreground">
+              <div>Abonnés : <span className="text-foreground">{String(snap.metrics.followers_count)}</span></div>
+              <div>Publications : <span className="text-foreground">{String(snap.metrics.posts_count)}</span></div>
+              <div>Taux d'engagement : <span className="text-foreground">{String(snap.metrics.engagement_rate)}</span></div>
+              <div>Dernière publication : <span className="text-foreground">{String(snap.metrics.last_post_at)}</span></div>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
   );
 }
 
