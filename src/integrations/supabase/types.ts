@@ -137,6 +137,79 @@ export type Database = {
           },
         ]
       }
+      content_strategies: {
+        Row: {
+          created_at: string
+          diagnostic_id: string
+          editorial_calendar: Json | null
+          error: string | null
+          id: string
+          is_mock: boolean
+          pillars: Json | null
+          review_notes: string | null
+          review_status: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          social_connection_id: string
+          summary: string | null
+          trends_used: Json | null
+        }
+        Insert: {
+          created_at?: string
+          diagnostic_id: string
+          editorial_calendar?: Json | null
+          error?: string | null
+          id?: string
+          is_mock?: boolean
+          pillars?: Json | null
+          review_notes?: string | null
+          review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          social_connection_id: string
+          summary?: string | null
+          trends_used?: Json | null
+        }
+        Update: {
+          created_at?: string
+          diagnostic_id?: string
+          editorial_calendar?: Json | null
+          error?: string | null
+          id?: string
+          is_mock?: boolean
+          pillars?: Json | null
+          review_notes?: string | null
+          review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          social_connection_id?: string
+          summary?: string | null
+          trends_used?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_strategies_diagnostic_id_fkey"
+            columns: ["diagnostic_id"]
+            isOneToOne: false
+            referencedRelation: "diagnostics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_strategies_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_strategies_social_connection_id_fkey"
+            columns: ["social_connection_id"]
+            isOneToOne: false
+            referencedRelation: "social_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       diagnostic_screenshots: {
         Row: {
           created_at: string
