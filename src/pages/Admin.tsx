@@ -300,6 +300,7 @@ const Admin = () => {
         <Tabs defaultValue="testimonials">
           <div className="mobile-scroll-x mb-6">
           <TabsList className="flex w-max min-w-full flex-nowrap gap-2">
+            <TabsTrigger value="my-account">Mon compte</TabsTrigger>
             <TabsTrigger value="testimonials">Témoignages</TabsTrigger>
             <TabsTrigger value="media">Médias / Portfolio</TabsTrigger>
             <TabsTrigger value="courses">Gestion des Cours</TabsTrigger>
@@ -312,6 +313,9 @@ const Admin = () => {
           </TabsList>
           </div>
 
+          <TabsContent value="my-account">
+            <MyAccountAdmin />
+          </TabsContent>
           <TabsContent value="testimonials">
             <TestimonialsAdmin queryClient={queryClient} />
           </TabsContent>
@@ -344,6 +348,85 @@ const Admin = () => {
     </div>
   );
 };
+
+// ─── My Account (password change) ──────────────────────────────
+// Real Supabase Auth password change for the currently signed-in admin —
+// there was no such page anywhere on the site before this (verified: no
+// supabase.auth.updateUser call existed in the codebase). Uses the
+// authenticated client's own updateUser() call, which requires an active
+// session and re-hashes the password server-side — no direct table access,
+// no service-role key.
+function MyAccountAdmin() {
+  const [email, setEmail] = useState<string | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setEmail(session?.user?.email ?? null);
+    });
+  }, []);
+
+  const handleChangePassword = async () => {
+    if (newPassword.length < 8) {
+      toast.error("Le mot de passe doit contenir au moins 8 caractères.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("Les mots de passe ne correspondent pas.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      toast.success("Mot de passe changé avec succès.");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err: any) {
+      toast.error(`Erreur : ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Card className="max-w-md">
+      <CardHeader>
+        <CardTitle>Mon compte</CardTitle>
+        {email && <p className="text-xs text-muted-foreground mt-1">Connecté en tant que {email}</p>}
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+          <Label>Nouveau mot de passe (8 caractères min)</Label>
+          <Input
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            autoComplete="new-password"
+          />
+        </div>
+        <div>
+          <Label>Confirmer le nouveau mot de passe</Label>
+          <Input
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            autoComplete="new-password"
+          />
+        </div>
+        <Button
+          onClick={handleChangePassword}
+          disabled={loading || !newPassword || !confirmPassword}
+          className="bg-gradient-primary"
+        >
+          Changer le mot de passe
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
 
 // ─── Testimonials Admin ────────────────────────────────────────
 function TestimonialsAdmin({ queryClient }: { queryClient: any }) {
