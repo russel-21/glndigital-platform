@@ -70,6 +70,12 @@ import {
   triggerPhase2Diagnostic,
   reviewDiagnostic,
 } from "@/lib/phase2DiagnosticStore";
+import {
+  ContentStrategy,
+  fetchContentStrategies,
+  triggerPhase3Strategy,
+  reviewContentStrategy,
+} from "@/lib/phase3StrategyStore";
 import { toast } from "sonner";
 
 const scrapePage = async (url: string, platform: 'facebook' | 'instagram' | 'tiktok' | 'youtube' | 'snapchat' | 'web') => {
@@ -2069,6 +2075,7 @@ function Phase1AuditAdmin({ queryClient }: { queryClient: any }) {
                 <>
                   <Phase1AuditSnapshots socialConnectionId={conn.id} />
                   <Phase2DiagnosticPanel socialConnectionId={conn.id} />
+                  <Phase3StrategyPanel socialConnectionId={conn.id} />
                 </>
               )}
             </CardContent>
@@ -2327,6 +2334,175 @@ function Phase2DiagnosticPanel({ socialConnectionId }: { socialConnectionId: str
             )}
             {d.review_status !== "pending_review" && d.review_notes && (
               <p className="text-[10px] text-muted-foreground">Note : {d.review_notes}</p>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Phase 3 Strategy Panel ─────────────────────────────────────
+// Admin UI for the Phase 3 (Stratégie de contenu) agent — see CLAUDE.md,
+// sections 3 et 7. SCOPE: trigger the phase3-strategy edge function (which
+// itself refuses without an APPROVED Phase 2 diagnostic for this account)
+// and review the resulting pillars/calendar/trend sources. Approve/Reject
+// here is the real human-validation gate CLAUDE.md requires before Phase 4
+// (not yet built) could ever consume this data.
+function Phase3StrategyPanel({ socialConnectionId }: { socialConnectionId: string }) {
+  const queryClient = useQueryClient();
+  const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
+
+  const { data: diagnostics = [] } = useQuery({
+    queryKey: ["phase2-diagnostics", socialConnectionId],
+    queryFn: () => fetchDiagnostics(socialConnectionId),
+  });
+  const approvedDiagnosticsCount = diagnostics.filter((d) => d.review_status === "approved").length;
+
+  const { data: strategies = [], isLoading: loadingStrategies } = useQuery({
+    queryKey: ["phase3-strategies", socialConnectionId],
+    queryFn: () => fetchContentStrategies(socialConnectionId),
+  });
+
+  const generateMutation = useMutation({
+    mutationFn: () => triggerPhase3Strategy(socialConnectionId),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["phase3-strategies", socialConnectionId] });
+      toast[result.ok ? "success" : "error"](
+        result.ok ? "Stratégie générée — en attente de validation humaine." : `Échec : ${result.error}`,
+      );
+    },
+    onError: (err: any) => toast.error(`Erreur : ${err.message}`),
+  });
+
+  const reviewMutation = useMutation({
+    mutationFn: ({ id, decision }: { id: string; decision: "approved" | "rejected" }) =>
+      reviewContentStrategy(id, decision, reviewNotes[id]),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["phase3-strategies", socialConnectionId] });
+      toast.success("Validation enregistrée.");
+    },
+    onError: (err: any) => toast.error(`Erreur : ${err.message}`),
+  });
+
+  return (
+    <div className="space-y-4 border-t border-border/40 pt-4">
+      <p className="text-xs font-bold text-primary">Phase 3 — Stratégie de contenu</p>
+
+      {approvedDiagnosticsCount === 0 && (
+        <p className="text-[11px] text-muted-foreground">
+          Aucun diagnostic Phase 2 approuvé pour ce compte — approuve d'abord un diagnostic ci-dessus
+          avant de pouvoir générer une stratégie.
+        </p>
+      )}
+
+      <Button
+        size="sm"
+        onClick={() => generateMutation.mutate()}
+        disabled={approvedDiagnosticsCount === 0 || generateMutation.isPending}
+        className="bg-gradient-primary"
+      >
+        Générer une stratégie (calendrier 4 semaines)
+      </Button>
+
+      <div className="space-y-2">
+        {loadingStrategies && <p className="text-xs text-muted-foreground">Chargement…</p>}
+        {!loadingStrategies && strategies.length === 0 && (
+          <p className="text-xs text-muted-foreground">Aucune stratégie générée pour ce compte.</p>
+        )}
+        {(strategies as ContentStrategy[]).map((s) => (
+          <div key={s.id} className="rounded-lg border border-border/40 bg-secondary/20 p-3 text-xs space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-semibold">{new Date(s.created_at).toLocaleString("fr-FR")}</span>
+              <Badge variant={s.review_status === "approved" ? "default" : s.review_status === "rejected" ? "destructive" : "outline"}>
+                {s.review_status === "pending_review" ? "En attente de validation" : s.review_status === "approved" ? "Approuvé" : "Rejeté"}
+              </Badge>
+              {s.error && <Badge variant="destructive">Erreur</Badge>}
+            </div>
+
+            {s.error && <p className="text-destructive">{s.error}</p>}
+            {s.summary && <p className="text-foreground">{s.summary}</p>}
+
+            {s.pillars && s.pillars.length > 0 && (
+              <div>
+                <p className="font-semibold text-foreground mb-1">Piliers de contenu</p>
+                <ul className="space-y-1.5">
+                  {s.pillars.map((p, i) => (
+                    <li key={i} className="rounded border border-border/30 bg-background/40 p-2">
+                      <span className="font-semibold text-foreground">{p.name}</span> — {p.description}
+                      <p className="text-[10px] text-muted-foreground mt-1">{p.rationale}</p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {s.editorial_calendar && s.editorial_calendar.length > 0 && (
+              <div>
+                <p className="font-semibold text-foreground mb-1">Calendrier éditorial</p>
+                <ul className="space-y-1.5">
+                  {[...s.editorial_calendar]
+                    .sort((a, b) => a.day_offset - b.day_offset)
+                    .map((entry, i) => (
+                      <li key={i} className="rounded border border-border/30 bg-background/40 p-2">
+                        <span className="text-primary font-semibold">J+{entry.day_offset}</span>{" "}
+                        <Badge variant="secondary">{entry.platform}</Badge>{" "}
+                        <Badge variant="outline">{entry.pillar}</Badge>{" "}
+                        <span className="text-foreground font-semibold">{entry.working_title}</span>{" "}
+                        ({entry.format})
+                        <p className="text-[10px] text-muted-foreground mt-1">{entry.brief}</p>
+                      </li>
+                    ))}
+                </ul>
+              </div>
+            )}
+
+            {s.trends_used && s.trends_used.length > 0 && (
+              <div>
+                <p className="font-semibold text-foreground mb-1">Tendances utilisées (source réelle obligatoire)</p>
+                <ul className="space-y-1">
+                  {s.trends_used.map((t, i) => (
+                    <li key={i} className="text-[10px]">
+                      {t.claim} —{" "}
+                      <a href={t.source_url} target="_blank" rel="noopener noreferrer" className="text-primary underline">
+                        {t.source_title}
+                      </a>{" "}
+                      ({t.retrieved_at})
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {s.review_status === "pending_review" && !s.error && (
+              <div className="space-y-2 pt-2 border-t border-border/30">
+                <Textarea
+                  placeholder="Notes de validation (optionnel)"
+                  value={reviewNotes[s.id] || ""}
+                  onChange={(e) => setReviewNotes((n) => ({ ...n, [s.id]: e.target.value }))}
+                  rows={2}
+                  className="text-xs"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => reviewMutation.mutate({ id: s.id, decision: "approved" })}
+                  >
+                    <CheckCircle className="w-3 h-3 mr-1" /> Approuver
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => reviewMutation.mutate({ id: s.id, decision: "rejected" })}
+                  >
+                    Rejeter
+                  </Button>
+                </div>
+              </div>
+            )}
+            {s.review_status !== "pending_review" && s.review_notes && (
+              <p className="text-[10px] text-muted-foreground">Note : {s.review_notes}</p>
             )}
           </div>
         ))}

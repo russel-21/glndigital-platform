@@ -256,9 +256,32 @@ mais reste séparé de ce qui suit.
     par l'ajout d'un nouvel onglet **"Mon compte"** dans `Admin.tsx` utilisant le vrai
     `supabase.auth.updateUser({ password })`.
   - **Pas encore fait** : tests end-to-end réels avec `ANTHROPIC_API_KEY` configurée en secret Supabase
-    (à faire par Russel), annotation par pin si souhaitée, Phase 3 (qui devra vérifier
-    `review_status = 'approved'` avant de consommer un `diagnostics`).
-- **Phases 3 à 7** : non commencées.
+    (à faire par Russel), annotation par pin si souhaitée.
+- **Phase 3 (Stratégie de contenu) — fondation posée et déployée, 2026-08-15.** Décision prise avec
+  Russel : calendrier éditorial sur **4 semaines, ~2-3 publications/semaine**.
+  - `supabase/migrations/20260815223000_create_phase3_strategy_tables.sql` — table `content_strategies`
+    (`diagnostic_id` non-nullable : une stratégie doit toujours pointer vers le diagnostic Phase 2 dont
+    elle découle), avec la même porte de validation humaine `review_status` que Phase 2. RLS admin-only.
+    **Appliquée sur la vraie base + edge function déployée dans la foulée** (pas d'oubli cette fois).
+  - `supabase/functions/_shared/claudeClient.ts` — ajout de `generateContentStrategy()` (Phase 2 et
+    Phase 3 partagent ce fichier mais restent des fonctions séparées, chacune avec son propre system
+    prompt/schéma — pas de fusion des responsabilités). Utilise l'outil `web_search_20260209` de Claude
+    pour que toute "tendance actuelle" citée vienne d'une vraie recherche web horodatée (jamais de la
+    mémoire d'entraînement, conforme à la règle Phase 3) — chaque tendance utilisée doit apparaître dans
+    `trends_used` avec URL source + date. **Aucune référence concurrent** : Phase 1 tel que construit ne
+    collecte aucune donnée sur les concurrents (uniquement les métriques du compte audité lui-même), donc
+    le prompt interdit explicitement d'en inventer plutôt que de prétendre en avoir.
+  - `supabase/functions/phase3-strategy/index.ts` — edge function admin-only qui **refuse de tourner
+    s'il n'existe aucun diagnostic avec `review_status = 'approved'`** pour ce compte — c'est la porte
+    bloquante Phase 2 → Phase 3 exigée par CLAUDE.md, implémentée pour de vrai (pas juste documentée).
+  - `src/lib/phase3StrategyStore.ts` + nouveau bloc **"Phase 3 — Stratégie de contenu"** dans
+    `Admin.tsx`, sous le bloc Phase 2 : bouton désactivé tant qu'aucun diagnostic n'est approuvé,
+    affichage des piliers/calendrier/sources de tendances, boutons Approuver/Rejeter (vraie porte,
+    même mécanisme que Phase 2).
+  - Vérifié : `npx tsc --noEmit`, `npx eslint`, `npm run test` : 0 erreur.
+  - **Pas encore fait** : tests end-to-end réels (même dépendance à `ANTHROPIC_API_KEY`), Phase 4
+    (qui devra vérifier `review_status = 'approved'` sur `content_strategies`).
+- **Phases 4 à 7** : non commencées.
 
 ### 1. Contexte du projet
 
