@@ -240,8 +240,23 @@ mais reste séparé de ce qui suit.
     validation, mais rien n'empêche un appel API direct de modifier aussi le contenu généré par l'IA.
   - `supabase db push` appliqué directement depuis cette session (CLI encore authentifié sur cette
     machine), types régénérés, `npx tsc --noEmit` / `npx eslint` / `npm run test` : 0 erreur.
-  - **Pas encore fait** : tests end-to-end réels (nécessite `ANTHROPIC_API_KEY` configurée en secret
-    Supabase — à faire par Russel), annotation par pin si souhaitée, Phase 3 (qui devra vérifier
+  - **Bug de déploiement découvert en testant avec Russel, 2026-08-15** : `supabase db push` pousse les
+    migrations SQL mais **ne déploie pas les edge functions** — `phase1-audit` et `phase2-diagnostic`
+    n'avaient jamais été réellement déployées malgré tout le travail ci-dessus, d'où l'erreur "Failed to
+    send a request to the Edge Function" au premier vrai test. Corrigé avec
+    `supabase functions deploy phase1-audit` et `supabase functions deploy phase2-diagnostic` — les deux
+    sont maintenant `ACTIVE` sur le projet distant. À refaire à chaque modification du code d'une edge
+    function (`db push` seul ne suffit jamais pour ça).
+  - **Compte admin de test provisionné, 2026-08-15** : le compte Supabase Auth initial de Russel
+    (`russel@glndigital.com`) n'existait pas. Créé un nouveau compte (`nonamecrewf7@gmail.com`,
+    id `2e9c3e54-f6d1-4ecb-8c8f-444a271a2ab9`) + ligne `profiles` correspondante (`roles: {admin,
+    super_admin}`). Le mot de passe a dû être défini directement en SQL
+    (`update auth.users set encrypted_password = crypt(...)`) car le site n'avait aucune page de gestion
+    de mot de passe — ni définition après invitation par email, ni changement une fois connecté. Corrigé
+    par l'ajout d'un nouvel onglet **"Mon compte"** dans `Admin.tsx` utilisant le vrai
+    `supabase.auth.updateUser({ password })`.
+  - **Pas encore fait** : tests end-to-end réels avec `ANTHROPIC_API_KEY` configurée en secret Supabase
+    (à faire par Russel), annotation par pin si souhaitée, Phase 3 (qui devra vérifier
     `review_status = 'approved'` avant de consommer un `diagnostics`).
 - **Phases 3 à 7** : non commencées.
 
