@@ -203,7 +203,47 @@ mais reste séparé de ce qui suit.
     `undefined`) en plus de `profile.roles.includes(...)` — condition morte, corrigée (supprimée, la
     vérification `roles.includes()` couvrait déjà le cas).
   - `npx tsc --noEmit` et `npx eslint` sur les fichiers touchés : 0 erreur.
-- **Phases 2 à 7** : non commencées.
+- **Phase 2 (Diagnostic) — fondation posée et déployée, 2026-08-15.** Décision prise avec Russel : IA =
+  **Claude (Anthropic)**, modèle `claude-sonnet-5` (vision native, sortie JSON contrainte par schéma,
+  ~3$/15$ par million de tokens — nettement moins cher qu'Opus pour un usage répété ; changer `MODEL`
+  dans `claudeClient.ts` pour passer à `claude-opus-5` si besoin de qualité maximale).
+  - `supabase/migrations/20260810210000_create_phase2_diagnostic_tables.sql` — tables
+    `diagnostic_screenshots` (captures uploadées par l'admin, obligatoires par compte pour lancer un
+    diagnostic) et `diagnostics` (une ligne par run, avec **vraie porte de validation humaine**
+    `review_status` : `pending_review` → `approved`/`rejected`, jamais mise à `approved` automatiquement)
+    + bucket Storage privé `diagnostic-screenshots` (admin-only, pas public comme `portfolio`). RLS
+    admin-only partout via `public.is_admin()`. **Appliquée sur la vraie base** (pas de mode mock côté
+    schéma comme pour Phase 1 — voir plus bas pourquoi).
+  - `supabase/functions/_shared/claudeClient.ts` — appelle l'API Anthropic (SDK officiel via
+    `npm:@anthropic-ai/sdk`, pas de fetch brut) avec `output_config.format: json_schema` pour forcer une
+    sortie structurée (hypothèses + `confidence` + `based_on` obligatoire pour chaque hypothèse + données
+    manquantes). **Pas de mode mock** contrairement à Zernio : contrairement à l'API Zernio (jamais
+    vérifiée contre une doc officielle), le contrat de l'API Claude est parfaitement connu et implémenté
+    pour de vrai — sans `ANTHROPIC_API_KEY`, la fonction renvoie une erreur explicite "non configurée"
+    plutôt que d'inventer un faux diagnostic (rien de pertinent à mocker pour une tâche de raisonnement).
+  - `supabase/functions/phase2-diagnostic/index.ts` — edge function admin-only, refuse de tourner si
+    zéro capture d'écran fournie (conforme CLAUDE.md : diagnostic sans support visuel = incomplet),
+    résout l'`audit_snapshots` le plus récent si aucun n'est précisé, télécharge les captures depuis
+    Storage et les encode en base64 pour l'appel Claude.
+  - `src/lib/phase2DiagnosticStore.ts` + nouveau bloc **« Phase 2 — Diagnostic »** dans l'onglet
+    Audit IA (Phase 1) de `src/pages/Admin.tsx`, sous l'historique des snapshots de chaque compte :
+    upload de captures, sélection multiple, bouton « Générer un diagnostic » (désactivé sans capture
+    sélectionnée), affichage des hypothèses avec badge de confiance, et boutons **Approuver/Rejeter**
+    — vraie porte bloquante (écrit `review_status`/`reviewed_by`/`reviewed_at`), pas juste un log.
+  - **Simplification de portée assumée** : pas d'annotation par point (x/y + sévérité) comme l'outil
+    d'audit manuel existant (`auditStore.ts` → `ScreenshotAnnotation`) — juste upload + libellé. CLAUDE.md
+    n'exige que la présence de captures, pas l'annotation par pin ; à ajouter plus tard si Russel le
+    demande.
+  - **Limite RLS assumée** : la policy `UPDATE` sur `diagnostics` est admin-only mais pas restreinte aux
+    seules colonnes de validation (Postgres RLS ne fait pas de contrôle par colonne) — même compromis que
+    `admin_settings`/`testimonials` ailleurs dans ce projet. L'UI n'écrit jamais que les champs de
+    validation, mais rien n'empêche un appel API direct de modifier aussi le contenu généré par l'IA.
+  - `supabase db push` appliqué directement depuis cette session (CLI encore authentifié sur cette
+    machine), types régénérés, `npx tsc --noEmit` / `npx eslint` / `npm run test` : 0 erreur.
+  - **Pas encore fait** : tests end-to-end réels (nécessite `ANTHROPIC_API_KEY` configurée en secret
+    Supabase — à faire par Russel), annotation par pin si souhaitée, Phase 3 (qui devra vérifier
+    `review_status = 'approved'` avant de consommer un `diagnostics`).
+- **Phases 3 à 7** : non commencées.
 
 ### 1. Contexte du projet
 

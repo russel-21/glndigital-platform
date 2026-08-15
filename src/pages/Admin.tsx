@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Trash2, Plus, Eye, EyeOff, Video, FileText, Edit2, ShieldAlert, CheckCircle, 
   Clock, AlertTriangle, Lightbulb, Sparkles, Share2, Globe, BarChart2, Star, 
@@ -58,6 +59,17 @@ import {
   fetchAuditSnapshots,
   triggerPhase1Audit,
 } from "@/lib/phase1AuditStore";
+import {
+  DiagnosticScreenshot,
+  Diagnostic,
+  uploadDiagnosticScreenshot,
+  fetchDiagnosticScreenshots,
+  getDiagnosticScreenshotUrl,
+  deleteDiagnosticScreenshot,
+  fetchDiagnostics,
+  triggerPhase2Diagnostic,
+  reviewDiagnostic,
+} from "@/lib/phase2DiagnosticStore";
 import { toast } from "sonner";
 
 const scrapePage = async (url: string, platform: 'facebook' | 'instagram' | 'tiktok' | 'youtube' | 'snapchat' | 'web') => {
@@ -1970,7 +1982,12 @@ function Phase1AuditAdmin({ queryClient }: { queryClient: any }) {
                 </div>
               </div>
 
-              {expandedId === conn.id && <Phase1AuditSnapshots socialConnectionId={conn.id} />}
+              {expandedId === conn.id && (
+                <>
+                  <Phase1AuditSnapshots socialConnectionId={conn.id} />
+                  <Phase2DiagnosticPanel socialConnectionId={conn.id} />
+                </>
+              )}
             </CardContent>
           </Card>
         ))}
@@ -2013,6 +2030,224 @@ function Phase1AuditSnapshots({ socialConnectionId }: { socialConnectionId: stri
           )}
         </div>
       ))}
+    </div>
+  );
+}
+
+// ─── Phase 2 Diagnostic Panel ───────────────────────────────────
+// Admin UI for the Phase 2 (Diagnostic) agent — see CLAUDE.md, sections 3 et
+// 7. SCOPE: upload/manage screenshots for a social_connections row, trigger
+// the phase2-diagnostic edge function against a selection of them, and
+// review the AI-generated hypotheses. The Approve/Reject buttons are the
+// real human-validation gate CLAUDE.md requires before Phase 3 (which
+// doesn't exist yet) could ever consume this data — nothing here
+// auto-approves anything.
+function Phase2DiagnosticPanel({ socialConnectionId }: { socialConnectionId: string }) {
+  const queryClient = useQueryClient();
+  const [selectedScreenshotIds, setSelectedScreenshotIds] = useState<string[]>([]);
+  const [screenshotLabel, setScreenshotLabel] = useState("");
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
+
+  const { data: screenshots = [], isLoading: loadingScreenshots } = useQuery({
+    queryKey: ["phase2-screenshots", socialConnectionId],
+    queryFn: () => fetchDiagnosticScreenshots(socialConnectionId),
+  });
+
+  const { data: diagnostics = [], isLoading: loadingDiagnostics } = useQuery({
+    queryKey: ["phase2-diagnostics", socialConnectionId],
+    queryFn: () => fetchDiagnostics(socialConnectionId),
+  });
+
+  const uploadMutation = useMutation({
+    mutationFn: () => {
+      if (!pendingFile) throw new Error("Sélectionne un fichier.");
+      return uploadDiagnosticScreenshot(socialConnectionId, pendingFile, screenshotLabel);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["phase2-screenshots", socialConnectionId] });
+      setPendingFile(null);
+      setScreenshotLabel("");
+      toast.success("Capture ajoutée.");
+    },
+    onError: (err: any) => toast.error(`Erreur upload : ${err.message}`),
+  });
+
+  const deleteScreenshotMutation = useMutation({
+    mutationFn: (screenshot: DiagnosticScreenshot) => deleteDiagnosticScreenshot(screenshot),
+    onSuccess: (_data, screenshot) => {
+      queryClient.invalidateQueries({ queryKey: ["phase2-screenshots", socialConnectionId] });
+      setSelectedScreenshotIds((ids) => ids.filter((id) => id !== screenshot.id));
+    },
+  });
+
+  const previewMutation = useMutation({
+    mutationFn: (path: string) => getDiagnosticScreenshotUrl(path),
+    onSuccess: (url) => window.open(url, "_blank", "noopener,noreferrer"),
+    onError: () => toast.error("Impossible de générer l'aperçu."),
+  });
+
+  const diagnoseMutation = useMutation({
+    mutationFn: () => triggerPhase2Diagnostic(socialConnectionId, selectedScreenshotIds),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["phase2-diagnostics", socialConnectionId] });
+      toast[result.ok ? "success" : "error"](
+        result.ok ? "Diagnostic généré — en attente de validation humaine." : `Échec : ${result.error}`,
+      );
+    },
+    onError: (err: any) => toast.error(`Erreur : ${err.message}`),
+  });
+
+  const reviewMutation = useMutation({
+    mutationFn: ({ id, decision }: { id: string; decision: "approved" | "rejected" }) =>
+      reviewDiagnostic(id, decision, reviewNotes[id]),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["phase2-diagnostics", socialConnectionId] });
+      toast.success("Validation enregistrée.");
+    },
+    onError: (err: any) => toast.error(`Erreur : ${err.message}`),
+  });
+
+  const toggleScreenshot = (id: string) => {
+    setSelectedScreenshotIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
+  };
+
+  return (
+    <div className="space-y-4 border-t border-border/40 pt-4">
+      <p className="text-xs font-bold text-primary">Phase 2 — Diagnostic</p>
+
+      <div className="space-y-2">
+        <p className="text-[11px] text-muted-foreground">
+          Au moins une capture d'écran est obligatoire pour lancer un diagnostic (conforme Phase 2 : pas de
+          diagnostic sans support visuel).
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Input
+            type="file"
+            accept="image/*"
+            className="w-auto text-xs"
+            onChange={(e) => setPendingFile(e.target.files?.[0] ?? null)}
+          />
+          <Input
+            placeholder="Libellé (ex: page Instagram)"
+            value={screenshotLabel}
+            onChange={(e) => setScreenshotLabel(e.target.value)}
+            className="w-48 text-xs"
+          />
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!pendingFile || uploadMutation.isPending}
+            onClick={() => uploadMutation.mutate()}
+          >
+            <Upload className="w-3 h-3 mr-1" /> Ajouter la capture
+          </Button>
+        </div>
+
+        {loadingScreenshots && <p className="text-xs text-muted-foreground">Chargement…</p>}
+        {!loadingScreenshots && screenshots.length === 0 && (
+          <p className="text-xs text-muted-foreground">Aucune capture pour ce compte.</p>
+        )}
+        <div className="space-y-1">
+          {(screenshots as DiagnosticScreenshot[]).map((s) => (
+            <div key={s.id} className="flex items-center gap-2 text-xs">
+              <Checkbox
+                checked={selectedScreenshotIds.includes(s.id)}
+                onCheckedChange={() => toggleScreenshot(s.id)}
+              />
+              <button className="text-primary underline" onClick={() => previewMutation.mutate(s.storage_path)}>
+                {s.label}
+              </button>
+              <span className="text-muted-foreground">{new Date(s.created_at).toLocaleDateString("fr-FR")}</span>
+              <button onClick={() => deleteScreenshotMutation.mutate(s)}>
+                <Trash2 className="w-3 h-3 text-destructive" />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <Button
+          size="sm"
+          onClick={() => diagnoseMutation.mutate()}
+          disabled={selectedScreenshotIds.length === 0 || diagnoseMutation.isPending}
+          className="bg-gradient-primary"
+        >
+          Générer un diagnostic ({selectedScreenshotIds.length} capture{selectedScreenshotIds.length > 1 ? "s" : ""})
+        </Button>
+      </div>
+
+      <div className="space-y-2">
+        {loadingDiagnostics && <p className="text-xs text-muted-foreground">Chargement des diagnostics…</p>}
+        {!loadingDiagnostics && diagnostics.length === 0 && (
+          <p className="text-xs text-muted-foreground">Aucun diagnostic généré pour ce compte.</p>
+        )}
+        {(diagnostics as Diagnostic[]).map((d) => (
+          <div key={d.id} className="rounded-lg border border-border/40 bg-secondary/20 p-3 text-xs space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-semibold">{new Date(d.created_at).toLocaleString("fr-FR")}</span>
+              <Badge variant={d.review_status === "approved" ? "default" : d.review_status === "rejected" ? "destructive" : "outline"}>
+                {d.review_status === "pending_review" ? "En attente de validation" : d.review_status === "approved" ? "Approuvé" : "Rejeté"}
+              </Badge>
+              {d.conclusive === false && <Badge variant="destructive">Non concluant</Badge>}
+              {d.error && <Badge variant="destructive">Erreur</Badge>}
+            </div>
+
+            {d.error && <p className="text-destructive">{d.error}</p>}
+            {d.summary && <p className="text-foreground">{d.summary}</p>}
+
+            {d.hypotheses && d.hypotheses.length > 0 && (
+              <ul className="space-y-1.5">
+                {d.hypotheses.map((h, i) => (
+                  <li key={i} className="rounded border border-border/30 bg-background/40 p-2">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary">{h.confidence}</Badge>
+                      <span className="text-foreground">{h.statement}</span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      Basé sur : {h.based_on.join(", ")}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {d.missing_data && d.missing_data.length > 0 && (
+              <p className="text-muted-foreground">Données manquantes : {d.missing_data.join(", ")}</p>
+            )}
+
+            {d.review_status === "pending_review" && !d.error && (
+              <div className="space-y-2 pt-2 border-t border-border/30">
+                <Textarea
+                  placeholder="Notes de validation (optionnel)"
+                  value={reviewNotes[d.id] || ""}
+                  onChange={(e) => setReviewNotes((n) => ({ ...n, [d.id]: e.target.value }))}
+                  rows={2}
+                  className="text-xs"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => reviewMutation.mutate({ id: d.id, decision: "approved" })}
+                  >
+                    <CheckCircle className="w-3 h-3 mr-1" /> Approuver
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => reviewMutation.mutate({ id: d.id, decision: "rejected" })}
+                  >
+                    Rejeter
+                  </Button>
+                </div>
+              </div>
+            )}
+            {d.review_status !== "pending_review" && d.review_notes && (
+              <p className="text-[10px] text-muted-foreground">Note : {d.review_notes}</p>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

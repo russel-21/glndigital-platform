@@ -137,6 +137,124 @@ export type Database = {
           },
         ]
       }
+      diagnostic_screenshots: {
+        Row: {
+          created_at: string
+          id: string
+          label: string
+          social_connection_id: string
+          storage_path: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label: string
+          social_connection_id: string
+          storage_path: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string
+          social_connection_id?: string
+          storage_path?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "diagnostic_screenshots_social_connection_id_fkey"
+            columns: ["social_connection_id"]
+            isOneToOne: false
+            referencedRelation: "social_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "diagnostic_screenshots_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      diagnostics: {
+        Row: {
+          audit_snapshot_id: string | null
+          conclusive: boolean | null
+          created_at: string
+          error: string | null
+          hypotheses: Json | null
+          id: string
+          is_mock: boolean
+          missing_data: Json | null
+          review_notes: string | null
+          review_status: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          screenshot_ids: string[]
+          social_connection_id: string
+          summary: string | null
+        }
+        Insert: {
+          audit_snapshot_id?: string | null
+          conclusive?: boolean | null
+          created_at?: string
+          error?: string | null
+          hypotheses?: Json | null
+          id?: string
+          is_mock?: boolean
+          missing_data?: Json | null
+          review_notes?: string | null
+          review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          screenshot_ids?: string[]
+          social_connection_id: string
+          summary?: string | null
+        }
+        Update: {
+          audit_snapshot_id?: string | null
+          conclusive?: boolean | null
+          created_at?: string
+          error?: string | null
+          hypotheses?: Json | null
+          id?: string
+          is_mock?: boolean
+          missing_data?: Json | null
+          review_notes?: string | null
+          review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          screenshot_ids?: string[]
+          social_connection_id?: string
+          summary?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "diagnostics_audit_snapshot_id_fkey"
+            columns: ["audit_snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "audit_snapshots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "diagnostics_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "diagnostics_social_connection_id_fkey"
+            columns: ["social_connection_id"]
+            isOneToOne: false
+            referencedRelation: "social_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       portfolio_media: {
         Row: {
           created_at: string
