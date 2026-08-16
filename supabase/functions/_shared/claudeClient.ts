@@ -1,9 +1,10 @@
-// Claude (Anthropic) adapter — shared by the Phase 2 (Diagnostic) and
-// Phase 3 (Stratégie) agents. Each phase's SCOPE is documented above its
-// own function below — do not let one phase's function call into another's
-// helpers beyond the shared `client`/`MODEL` setup. See CLAUDE.md, "Feature
-// en cours de cadrage", section 7: "Respecter strictement le découpage en
-// 7 skills/agents séparés — ne pas fusionner les responsabilités."
+// Claude (Anthropic) adapter — shared by the Phase 2 (Diagnostic), Phase 3
+// (Stratégie) and Phase 4a (Production texte) agents. Each phase's SCOPE is
+// documented above its own function below — do not let one phase's
+// function call into another's helpers beyond the shared `client`/`MODEL`
+// setup. See CLAUDE.md, "Feature en cours de cadrage", section 7 :
+// "Respecter strictement le découpage en 7 skills/agents séparés — ne pas
+// fusionner les responsabilités."
 //
 // Model: claude-sonnet-5 — chosen for cost, since this runs on every
 // admin-triggered call rather than as a one-off task: ~$3/$15 per
@@ -368,6 +369,126 @@ export async function generateContentStrategy(
     }
 
     let payload: StrategyPayload;
+    try {
+      payload = JSON.parse(textBlock.text);
+    } catch {
+      return { ok: false, error: "Réponse du modèle non conforme au JSON attendu.", raw_response: textBlock.text };
+    }
+
+    return { ok: true, payload, raw_response: response };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: message };
+  }
+}
+
+// ─── Phase 4a (Production texte) — SCOPE ────────────────────────
+//   - Input: the client's brand_brief (free text, admin-provided) + one
+//     specific entry from an APPROVED Phase 3 editorial calendar
+//     (platform, pillar, format, working title, brief).
+//   - Output: a caption, a hook, and — only for video-shaped formats — a
+//     short script outline. Nothing else: no visuals, no scheduling,
+//     that's Phase 4b/5.
+//   - INTERDICTION ABSOLUE d'inventer des chiffres/statistiques. Tout fait
+//     sur l'entreprise/produit vient exclusivement du brand_brief fourni —
+//     jamais de la mémoire du modèle. The caller (edge function) refuses
+//     to invoke this at all when brand_brief is empty; this function's
+//     system prompt reinforces the same rule as a second layer.
+//   - Never presented as ready-to-publish without human review — this
+//     function only ever produces a draft; the review gate lives in the
+//     database (content_drafts.review_status), not here.
+
+export interface DraftPayload {
+  caption: string;
+  hook: string;
+  /** Empty string when the format isn't video-shaped. */
+  script: string;
+}
+
+export interface DraftResult {
+  ok: boolean;
+  payload?: DraftPayload;
+  raw_response?: unknown;
+  error?: string;
+}
+
+const DRAFT_SCHEMA = {
+  type: "object",
+  properties: {
+    caption: { type: "string" },
+    hook: { type: "string", description: "The opening line/hook, distinct from the full caption" },
+    script: {
+      type: "string",
+      description: "Short script outline for video formats; empty string if the format isn't video-shaped",
+    },
+  },
+  required: ["caption", "hook", "script"],
+  additionalProperties: false,
+} as const;
+
+const DRAFT_SYSTEM_PROMPT = `Tu es l'agent Phase 4a (Production texte) de la plateforme GLN Digital.
+
+SCOPE STRICT : tu rédiges une légende, une accroche (hook), et si le format est vidéo, un court script/plan pour UNE SEULE publication planifiée en Phase 3. Tu ne génères aucun visuel, aucune vidéo, aucune programmation — hors scope (Phase 4b/5).
+
+RÈGLES OBLIGATOIRES (anti-hallucination, non négociables) :
+1. INTERDICTION ABSOLUE d'inventer des chiffres, statistiques, prix, dates d'événements ou promotions qui ne sont pas explicitement présents dans le brand brief fourni.
+2. Tout fait sur l'entreprise, ses produits/services vient EXCLUSIVEMENT du brand brief fourni ci-dessous — jamais de ta mémoire générale sur des entreprises similaires.
+3. Si le brand brief ne contient pas assez d'information pour rédiger un contenu spécifique et crédible, reste volontairement générique plutôt que d'inventer un détail — ne présente jamais une supposition comme un fait.
+4. Le champ "script" ne doit être rempli que si le format de la publication est de type vidéo (ex: Reel, Short, vidéo) — sinon laisse une chaîne vide "".
+5. Ce texte est un brouillon : ne le présente jamais comme prêt à publier, une relecture humaine est obligatoire après toi.
+
+Réponds uniquement dans le format JSON structuré demandé.`;
+
+export async function generateContentDraft(
+  brandBrief: string,
+  calendarEntry: { platform: string; pillar: string; format: string; working_title: string; brief: string },
+  strategySummary: string,
+): Promise<DraftResult> {
+  const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
+  if (!apiKey) {
+    return { ok: false, error: "ANTHROPIC_API_KEY non configurée côté serveur." };
+  }
+
+  const client = new Anthropic({ apiKey });
+
+  try {
+    const response = await client.messages.create({
+      model: MODEL,
+      max_tokens: 4096,
+      thinking: { type: "adaptive" },
+      output_config: {
+        effort: "medium",
+        format: { type: "json_schema", schema: DRAFT_SCHEMA },
+      },
+      system: DRAFT_SYSTEM_PROMPT,
+      messages: [
+        {
+          role: "user",
+          content:
+            `Brand brief (seule source de vérité sur l'entreprise) :\n${brandBrief}\n\n` +
+            `Contexte de la stratégie Phase 3 :\n${strategySummary}\n\n` +
+            `Publication à rédiger :\n` +
+            `- Plateforme : ${calendarEntry.platform}\n` +
+            `- Pilier : ${calendarEntry.pillar}\n` +
+            `- Format : ${calendarEntry.format}\n` +
+            `- Titre de travail : ${calendarEntry.working_title}\n` +
+            `- Brief : ${calendarEntry.brief}`,
+        },
+      ],
+    });
+
+    if (response.stop_reason === "refusal") {
+      return { ok: false, error: "Requête refusée par les filtres de sécurité du modèle." };
+    }
+
+    const textBlock = response.content.find(
+      (b): b is Anthropic.TextBlock => b.type === "text",
+    );
+    if (!textBlock) {
+      return { ok: false, error: "Réponse du modèle sans contenu texte exploitable.", raw_response: response };
+    }
+
+    let payload: DraftPayload;
     try {
       payload = JSON.parse(textBlock.text);
     } catch {

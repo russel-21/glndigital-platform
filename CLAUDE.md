@@ -279,9 +279,41 @@ mais reste séparé de ce qui suit.
     affichage des piliers/calendrier/sources de tendances, boutons Approuver/Rejeter (vraie porte,
     même mécanisme que Phase 2).
   - Vérifié : `npx tsc --noEmit`, `npx eslint`, `npm run test` : 0 erreur.
-  - **Pas encore fait** : tests end-to-end réels (même dépendance à `ANTHROPIC_API_KEY`), Phase 4
-    (qui devra vérifier `review_status = 'approved'` sur `content_strategies`).
-- **Phases 4 à 7** : non commencées.
+  - **Test réel tenté le 15/08 avec Russel** : clé `ANTHROPIC_API_KEY` ajoutée avec succès (confirmé —
+    l'edge function atteint bien l'API Claude), mais le compte Anthropic Console n'a pas encore de
+    crédits (`"Your credit balance is too low..."`). Décision de Russel : on continue à construire sans
+    attendre — même logique que Phase 1 sans compte Zernio, le circuit est vérifiable par ses erreurs
+    explicites en attendant.
+- **Phase 4a (Production texte) — fondation posée et déployée, 2026-08-16.** Décisions prises avec
+  Russel : (1) le "brand brief" exigé par la règle anti-hallucination Phase 4a n'existe nulle part dans
+  le système — ajout d'un champ texte libre par compte, rempli par l'admin, aucune autre source
+  réutilisée ; (2) granularité = un brouillon par entrée du calendrier Phase 3, validé individuellement
+  (pas un lot groupé pour tout le mois).
+  - `supabase/migrations/20260816120000_create_phase4a_text_tables.sql` — colonne `brand_brief` ajoutée
+    à `social_connections` (nullable, texte libre) + table `content_drafts` (une ligne par
+    caption/hook/script généré, toujours liée à un index précis du `editorial_calendar` d'une stratégie
+    Phase 3 approuvée — champs du calendrier dénormalisés sur la ligne pour affichage direct). Même
+    porte de validation humaine `review_status` que Phase 2/3. RLS admin-only. Appliquée + edge function
+    déployée dans la foulée.
+  - `supabase/functions/_shared/claudeClient.ts` — ajout de `generateContentDraft()` (Phase 2/3/4a
+    partagent ce fichier, fonctions et prompts toujours séparés). Pas d'outil de recherche web ici
+    (contrairement à Phase 3) — juste légende + accroche + script optionnel (uniquement si format vidéo).
+  - `supabase/functions/phase4a-text/index.ts` — edge function admin-only qui **refuse de tourner si
+    `brand_brief` est vide** sur le compte (sinon l'IA n'aurait aucune source fiable sur l'entreprise) et
+    **si la stratégie référencée n'est pas `approved`** — deux portes bloquantes réelles, pas juste
+    documentées.
+  - `src/lib/phase4aTextStore.ts` (+ `updateBrandBrief()` ajoutée à `phase1AuditStore.ts`, puisque
+    `brand_brief` vit sur `social_connections`) + nouveau bloc **"Brand brief"** (éditeur texte libre,
+    juste avant l'historique Phase 1) et **"Phase 4a — Production texte"** (sous le bloc Phase 3, une
+    entrée de calendrier à la fois avec bouton "Générer légende", affichage accroche/légende/script,
+    boutons Approuver/Rejeter) dans `Admin.tsx`.
+  - Vérifié : `npx tsc --noEmit`, `npx eslint`, `npm run test` : 0 erreur.
+  - **Pas encore fait** : tests end-to-end réels (dépend des crédits Anthropic), **Phase 4b (production
+    visuelle/vidéo)** — volontairement traitée à part : elle nécessite un vrai outil de
+    traitement/génération image/vidéo non encore choisi (Claude seul ne le fait pas), donc une nouvelle
+    décision d'architecture avec Russel avant de commencer, contrairement à 4a qui réutilisait le même
+    schéma Claude déjà en place.
+- **Phases 4b à 7** : non commencées.
 
 ### 1. Contexte du projet
 
