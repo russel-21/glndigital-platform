@@ -137,6 +137,88 @@ export type Database = {
           },
         ]
       }
+      content_drafts: {
+        Row: {
+          calendar_day_offset: number
+          calendar_entry_index: number
+          calendar_platform: string
+          calendar_working_title: string
+          caption: string | null
+          created_at: string
+          error: string | null
+          hook: string | null
+          id: string
+          is_mock: boolean
+          review_notes: string | null
+          review_status: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          script: string | null
+          social_connection_id: string
+          strategy_id: string
+        }
+        Insert: {
+          calendar_day_offset: number
+          calendar_entry_index: number
+          calendar_platform: string
+          calendar_working_title: string
+          caption?: string | null
+          created_at?: string
+          error?: string | null
+          hook?: string | null
+          id?: string
+          is_mock?: boolean
+          review_notes?: string | null
+          review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          script?: string | null
+          social_connection_id: string
+          strategy_id: string
+        }
+        Update: {
+          calendar_day_offset?: number
+          calendar_entry_index?: number
+          calendar_platform?: string
+          calendar_working_title?: string
+          caption?: string | null
+          created_at?: string
+          error?: string | null
+          hook?: string | null
+          id?: string
+          is_mock?: boolean
+          review_notes?: string | null
+          review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          script?: string | null
+          social_connection_id?: string
+          strategy_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_drafts_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_drafts_social_connection_id_fkey"
+            columns: ["social_connection_id"]
+            isOneToOne: false
+            referencedRelation: "social_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_drafts_strategy_id_fkey"
+            columns: ["strategy_id"]
+            isOneToOne: false
+            referencedRelation: "content_strategies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       content_strategies: {
         Row: {
           created_at: string
@@ -412,6 +494,7 @@ export type Database = {
       social_connections: {
         Row: {
           account_handle: string
+          brand_brief: string | null
           client_profile_id: string | null
           connection_status: string
           created_at: string
@@ -422,6 +505,7 @@ export type Database = {
         }
         Insert: {
           account_handle: string
+          brand_brief?: string | null
           client_profile_id?: string | null
           connection_status?: string
           created_at?: string
@@ -432,6 +516,7 @@ export type Database = {
         }
         Update: {
           account_handle?: string
+          brand_brief?: string | null
           client_profile_id?: string | null
           connection_status?: string
           created_at?: string

@@ -58,6 +58,7 @@ import {
   deleteSocialConnection,
   fetchAuditSnapshots,
   triggerPhase1Audit,
+  updateBrandBrief,
 } from "@/lib/phase1AuditStore";
 import {
   DiagnosticScreenshot,
@@ -76,6 +77,12 @@ import {
   triggerPhase3Strategy,
   reviewContentStrategy,
 } from "@/lib/phase3StrategyStore";
+import {
+  ContentDraft,
+  fetchContentDrafts,
+  triggerPhase4aDraft,
+  reviewContentDraft,
+} from "@/lib/phase4aTextStore";
 import { toast } from "sonner";
 
 const scrapePage = async (url: string, platform: 'facebook' | 'instagram' | 'tiktok' | 'youtube' | 'snapchat' | 'web') => {
@@ -2073,9 +2080,11 @@ function Phase1AuditAdmin({ queryClient }: { queryClient: any }) {
 
               {expandedId === conn.id && (
                 <>
+                  <BrandBriefEditor socialConnectionId={conn.id} currentBrief={conn.brand_brief} />
                   <Phase1AuditSnapshots socialConnectionId={conn.id} />
                   <Phase2DiagnosticPanel socialConnectionId={conn.id} />
                   <Phase3StrategyPanel socialConnectionId={conn.id} />
+                  <Phase4aTextPanel socialConnectionId={conn.id} />
                 </>
               )}
             </CardContent>
@@ -2507,6 +2516,231 @@ function Phase3StrategyPanel({ socialConnectionId }: { socialConnectionId: strin
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ─── Brand Brief Editor ─────────────────────────────────────────
+// One free-text field per client account — the ONLY source of truth on
+// the company/product Phase 4a is allowed to draw facts from (CLAUDE.md:
+// never invented). Lives on social_connections.brand_brief.
+function BrandBriefEditor({
+  socialConnectionId,
+  currentBrief,
+}: {
+  socialConnectionId: string;
+  currentBrief: string | null;
+}) {
+  const queryClient = useQueryClient();
+  const [brief, setBrief] = useState(currentBrief || "");
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await updateBrandBrief(socialConnectionId, brief);
+      queryClient.invalidateQueries({ queryKey: ["phase1-social-connections"] });
+      toast.success("Brand brief enregistré.");
+    } catch (err: any) {
+      toast.error(`Erreur : ${err.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-2 border-t border-border/40 pt-4">
+      <p className="text-xs font-bold text-primary">Brand brief</p>
+      <p className="text-[11px] text-muted-foreground">
+        Obligatoire avant la Phase 4a (production texte) — seule source de vérité que l'IA peut utiliser
+        sur l'entreprise (nom, ton, offres, ce qu'il ne faut jamais dire). Rien n'est jamais inventé
+        au-delà de ce texte.
+      </p>
+      <Textarea
+        value={brief}
+        onChange={(e) => setBrief(e.target.value)}
+        rows={4}
+        placeholder="Ex : GLN Digital est une agence de marketing digital basée à Douala/Yaoundé..."
+        className="text-xs"
+      />
+      <Button size="sm" variant="outline" onClick={handleSave} disabled={saving}>
+        Enregistrer le brand brief
+      </Button>
+    </div>
+  );
+}
+
+// ─── Phase 4a Text Panel ────────────────────────────────────────
+// Admin UI for the Phase 4a (Production texte) agent — see CLAUDE.md,
+// sections 3 et 7. SCOPE: for each APPROVED Phase 3 strategy, generate a
+// caption/hook/script per calendar entry and review it individually
+// (decision with Russel: one draft per entry, not a batch). Approve/Reject
+// is the real human-validation gate CLAUDE.md requires before Phase 5.
+function Phase4aTextPanel({ socialConnectionId }: { socialConnectionId: string }) {
+  const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
+
+  const { data: strategies = [] } = useQuery({
+    queryKey: ["phase3-strategies", socialConnectionId],
+    queryFn: () => fetchContentStrategies(socialConnectionId),
+  });
+  const approvedStrategies = (strategies as ContentStrategy[]).filter((s) => s.review_status === "approved");
+
+  return (
+    <div className="space-y-4 border-t border-border/40 pt-4">
+      <p className="text-xs font-bold text-primary">Phase 4a — Production texte</p>
+      {approvedStrategies.length === 0 && (
+        <p className="text-[11px] text-muted-foreground">
+          Aucune stratégie Phase 3 approuvée pour ce compte — approuve d'abord une stratégie ci-dessus.
+        </p>
+      )}
+      {approvedStrategies.map((strategy) => (
+        <Phase4aStrategyCalendar
+          key={strategy.id}
+          socialConnectionId={socialConnectionId}
+          strategy={strategy}
+          reviewNotes={reviewNotes}
+          setReviewNotes={setReviewNotes}
+        />
+      ))}
+    </div>
+  );
+}
+
+function Phase4aStrategyCalendar({
+  socialConnectionId,
+  strategy,
+  reviewNotes,
+  setReviewNotes,
+}: {
+  socialConnectionId: string;
+  strategy: ContentStrategy;
+  reviewNotes: Record<string, string>;
+  setReviewNotes: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+}) {
+  const queryClient = useQueryClient();
+
+  const { data: drafts = [] } = useQuery({
+    queryKey: ["phase4a-drafts", strategy.id],
+    queryFn: () => fetchContentDrafts(strategy.id),
+  });
+  const draftByIndex = new Map((drafts as ContentDraft[]).map((d) => [d.calendar_entry_index, d]));
+
+  const generateMutation = useMutation({
+    mutationFn: (entryIndex: number) => triggerPhase4aDraft(socialConnectionId, strategy.id, entryIndex),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["phase4a-drafts", strategy.id] });
+      toast[result.ok ? "success" : "error"](
+        result.ok ? "Brouillon généré — en attente de validation." : `Échec : ${result.error}`,
+      );
+    },
+    onError: (err: any) => toast.error(`Erreur : ${err.message}`),
+  });
+
+  const reviewMutation = useMutation({
+    mutationFn: ({ id, decision }: { id: string; decision: "approved" | "rejected" }) =>
+      reviewContentDraft(id, decision, reviewNotes[id]),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["phase4a-drafts", strategy.id] });
+      toast.success("Validation enregistrée.");
+    },
+    onError: (err: any) => toast.error(`Erreur : ${err.message}`),
+  });
+
+  const calendar = strategy.editorial_calendar || [];
+
+  return (
+    <div className="rounded-lg border border-border/40 bg-secondary/10 p-3 space-y-2">
+      <p className="text-[11px] text-muted-foreground">
+        Stratégie du {new Date(strategy.created_at).toLocaleDateString("fr-FR")}
+      </p>
+      {calendar.map((entry, index) => {
+        const draft = draftByIndex.get(index);
+        return (
+          <div key={index} className="rounded border border-border/30 bg-background/40 p-2 text-xs space-y-1.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-primary font-semibold">J+{entry.day_offset}</span>
+              <Badge variant="secondary">{entry.platform}</Badge>
+              <span className="text-foreground font-semibold">{entry.working_title}</span>
+              {!draft && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="ml-auto"
+                  onClick={() => generateMutation.mutate(index)}
+                  disabled={generateMutation.isPending}
+                >
+                  Générer légende
+                </Button>
+              )}
+            </div>
+            {draft && (
+              <div className="space-y-1.5 pt-1.5 border-t border-border/20">
+                <div className="flex items-center gap-2">
+                  <Badge
+                    variant={
+                      draft.review_status === "approved"
+                        ? "default"
+                        : draft.review_status === "rejected"
+                          ? "destructive"
+                          : "outline"
+                    }
+                  >
+                    {draft.review_status === "pending_review"
+                      ? "En attente"
+                      : draft.review_status === "approved"
+                        ? "Approuvé"
+                        : "Rejeté"}
+                  </Badge>
+                  {draft.error && <Badge variant="destructive">Erreur</Badge>}
+                </div>
+                {draft.error && <p className="text-destructive">{draft.error}</p>}
+                {draft.hook && (
+                  <p>
+                    <span className="font-semibold">Accroche :</span> {draft.hook}
+                  </p>
+                )}
+                {draft.caption && (
+                  <p>
+                    <span className="font-semibold">Légende :</span> {draft.caption}
+                  </p>
+                )}
+                {draft.script && (
+                  <p>
+                    <span className="font-semibold">Script :</span> {draft.script}
+                  </p>
+                )}
+                {draft.review_status === "pending_review" && !draft.error && (
+                  <div className="space-y-1.5 pt-1.5 border-t border-border/20">
+                    <Textarea
+                      placeholder="Notes (optionnel)"
+                      value={reviewNotes[draft.id] || ""}
+                      onChange={(e) => setReviewNotes((n) => ({ ...n, [draft.id]: e.target.value }))}
+                      rows={2}
+                      className="text-xs"
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => reviewMutation.mutate({ id: draft.id, decision: "approved" })}
+                      >
+                        <CheckCircle className="w-3 h-3 mr-1" /> Approuver
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => reviewMutation.mutate({ id: draft.id, decision: "rejected" })}
+                      >
+                        Rejeter
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

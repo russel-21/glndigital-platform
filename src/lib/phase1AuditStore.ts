@@ -37,6 +37,11 @@ export interface SocialConnection {
   account_handle: string;
   zernio_account_id: string | null;
   connection_status: ConnectionStatus;
+  /** Free-text, admin-provided source of truth on the client's business —
+   * required before Phase 4a can generate any text (see CLAUDE.md: every
+   * company/product fact in generated content must come from here, never
+   * invented). Null until an admin fills it in. */
+  brand_brief: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -108,6 +113,14 @@ export const createSocialConnection = async (
 
 export const deleteSocialConnection = async (id: string): Promise<void> => {
   const { error } = await supabase.from("social_connections").delete().eq("id", id);
+  if (error) throw error;
+};
+
+export const updateBrandBrief = async (id: string, brandBrief: string): Promise<void> => {
+  const { error } = await supabase
+    .from("social_connections")
+    .update({ brand_brief: brandBrief.trim() || null })
+    .eq("id", id);
   if (error) throw error;
 };
 
