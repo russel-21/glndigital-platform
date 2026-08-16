@@ -491,6 +491,95 @@ export type Database = {
         }
         Relationships: []
       }
+      publication_log: {
+        Row: {
+          detail: string | null
+          event: string
+          id: string
+          occurred_at: string
+          scheduled_publication_id: string
+        }
+        Insert: {
+          detail?: string | null
+          event: string
+          id?: string
+          occurred_at?: string
+          scheduled_publication_id: string
+        }
+        Update: {
+          detail?: string | null
+          event?: string
+          id?: string
+          occurred_at?: string
+          scheduled_publication_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "publication_log_scheduled_publication_id_fkey"
+            columns: ["scheduled_publication_id"]
+            isOneToOne: false
+            referencedRelation: "scheduled_publications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scheduled_publications: {
+        Row: {
+          content_draft_id: string
+          content_snapshot: Json
+          created_at: string
+          error: string | null
+          id: string
+          is_mock: boolean
+          platform_post_id: string | null
+          published_at: string | null
+          scheduled_at: string
+          social_connection_id: string
+          status: string
+        }
+        Insert: {
+          content_draft_id: string
+          content_snapshot: Json
+          created_at?: string
+          error?: string | null
+          id?: string
+          is_mock?: boolean
+          platform_post_id?: string | null
+          published_at?: string | null
+          scheduled_at: string
+          social_connection_id: string
+          status?: string
+        }
+        Update: {
+          content_draft_id?: string
+          content_snapshot?: Json
+          created_at?: string
+          error?: string | null
+          id?: string
+          is_mock?: boolean
+          platform_post_id?: string | null
+          published_at?: string | null
+          scheduled_at?: string
+          social_connection_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduled_publications_content_draft_id_fkey"
+            columns: ["content_draft_id"]
+            isOneToOne: false
+            referencedRelation: "content_drafts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_publications_social_connection_id_fkey"
+            columns: ["social_connection_id"]
+            isOneToOne: false
+            referencedRelation: "social_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       social_connections: {
         Row: {
           account_handle: string

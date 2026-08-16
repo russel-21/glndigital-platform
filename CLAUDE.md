@@ -313,7 +313,52 @@ mais reste séparé de ce qui suit.
     traitement/génération image/vidéo non encore choisi (Claude seul ne le fait pas), donc une nouvelle
     décision d'architecture avec Russel avant de commencer, contrairement à 4a qui réutilisait le même
     schéma Claude déjà en place.
-- **Phases 4b à 7** : non commencées.
+- **Phase 5 (Publication) — fondation posée et déployée, 2026-08-16.** Déclenchée par une question de
+  Russel ("la plateforme doit aussi fonctionner comme un social media manager, publier aux heures
+  propices...") — confirmé que c'était déjà exactement la Phase 5 du plan initial, rien d'oublié.
+  Décision : fondations en mode mock (même logique que Zernio en Phase 1), pas d'attente d'un vrai accès
+  Zernio pour poser la structure.
+  - **Point important non résolu** : "publier aux heures propices en fonction de l'analyse" a besoin
+    d'une vraie donnée d'activité d'audience — ni Phase 1 (ne collecte pas ce type de donnée
+    actuellement) ni aucune autre source ne la fournit encore. Deux pistes possibles, aucune branchée :
+    (1) si l'API Zernio expose des insights d'audience une fois un vrai compte en main, (2) la boucle
+    Phase 7 → Phase 2 déjà prévue dans le plan (apprentissage empirique à partir des publications
+    passées). Tant que ni l'une ni l'autre n'existe, la Phase 5 utilise une heure de programmation
+    choisie manuellement par l'admin — jamais une heure "optimale" inventée par l'IA (conforme à la
+    règle anti-hallucination générale du projet).
+  - `supabase/functions/_shared/zernioClient.ts` — ajout de `publishPost()`, même pattern strict que
+    `fetchAccountMetrics()` : sans `ZERNIO_API_KEY`, retourne un résultat factice clairement marqué
+    (`isMock: true`, `platform_post_id` du type `mock_post_...`) ; avec la clé définie, lève une erreur
+    explicite ("callRealZernioPublishApi non implémenté") plutôt que de deviner le contrat de l'API
+    Zernio de publication (jamais vérifié contre une doc officielle).
+  - `supabase/migrations/20260816133000_create_phase5_publication_tables.sql` — table
+    `scheduled_publications` (le champ `content_snapshot` fige le contenu approuvé au moment de la
+    planification ; la publication utilise toujours cette copie figée, jamais une relecture en direct de
+    `content_drafts` — c'est ce qui applique structurellement la règle CLAUDE.md "aucune modification
+    silencieuse entre validation et publication", pas juste une convention) + table `publication_log`
+    (append-only, une entrée horodatée par transition d'état — règle CLAUDE.md "log horodaté de
+    traçabilité"). RLS admin-only. Appliquée + edge function déployée dans la foulée.
+  - `supabase/functions/phase5-publish/index.ts` — edge function admin-only à deux modes : (1)
+    `content_draft_id` + `scheduled_at` → crée la planification à partir d'un brouillon Phase 4a
+    **approuvé** (sinon refus), publie immédiatement si la date est passée/immédiate ; (2)
+    `scheduled_publication_id` seul → exécute une planification existante maintenant. Pas de nouvelle
+    porte de validation humaine ici (conforme au tableau CLAUDE.md Phase 5 : "Non") — l'approbation
+    Phase 4a en amont suffit, cette fonction se contente de la vérifier.
+  - **Limite assumée et documentée dans le code** : le mode (2) ("Publier maintenant") est un
+    déclenchement manuel qui tient lieu de vrai planificateur — **aucun cron n'existe encore** pour
+    exécuter automatiquement une publication programmée à une date future. Une planification future
+    reste simplement en statut `scheduled` jusqu'à ce qu'un admin la déclenche manuellement, ou qu'une
+    prochaine session ajoute une vraie exécution planifiée (pg_cron ou déclencheur externe — décision
+    d'infrastructure à prendre avec Russel, pas supposée ici).
+  - `src/lib/phase5PublishStore.ts` + nouveau bloc **"Phase 5 — Publication"** dans `Admin.tsx`, sous
+    chaque brouillon Phase 4a approuvé : sélecteur date/heure + bouton "Planifier", liste des
+    publications planifiées/publiées avec badge MOCK et bouton "Publier maintenant" pour celles en
+    attente.
+  - Vérifié : `npx tsc --noEmit`, `npx eslint`, `npm run test` : 0 erreur.
+  - **Pas encore fait** : vrai planificateur automatique (pg_cron ou équivalent), source de données
+    d'heures optimales d'audience, tests end-to-end réels (dépend toujours des crédits Anthropic +
+    Zernio), Phase 4b, Phase 6, Phase 7.
+- **Phase 4b, 6, 7** : non commencées.
 
 ### 1. Contexte du projet
 

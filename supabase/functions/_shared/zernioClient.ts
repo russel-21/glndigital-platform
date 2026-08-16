@@ -1,10 +1,16 @@
-// Zernio adapter — Phase 1 (Audit) data source.
+// Zernio adapter — Phase 1 (Audit) data source AND Phase 5 (Publication)
+// distribution channel. Two agents, two functions below
+// (fetchAccountMetrics / publishPost) — same external aggregator, but kept
+// as separate functions so Phase 1 and Phase 5 stay independently
+// swappable and neither implicitly depends on the other's shape. See
+// CLAUDE.md, section "Feature en cours de cadrage", rules 3 and 4, and the
+// project-wide instruction that all social API integration goes through
+// Zernio, never a direct Meta/TikTok/YouTube connector.
 //
-// SCOPE: this module's only job is to return factual, per-platform account
-// metrics for a single account, tagged with where they came from and when
-// they were extracted. It must never estimate, score, or interpret — that is
-// the Diagnostic agent's job (Phase 2), not this one. See CLAUDE.md, section
-// "Feature en cours de cadrage", rules 3 and 4.
+// fetchAccountMetrics() SCOPE: return factual, per-platform account metrics
+// for a single account, tagged with where they came from and when they
+// were extracted. Must never estimate, score, or interpret — that's the
+// Diagnostic agent's job (Phase 2), not this one.
 //
 // STATUS (2026-08-09): Russel does not have a Zernio account/API key yet, so
 // the real HTTP integration below is intentionally NOT implemented — the
@@ -159,6 +165,115 @@ function buildMockResult(
         "ZERNIO_API_KEY non configuré — données factices générées côté " +
         "serveur, à ne jamais présenter comme un audit réel.",
       accountHandle,
+    },
+  };
+}
+
+// ─── Phase 5 (Publication) — publishPost() ──────────────────────
+// SCOPE: publish one already-approved piece of content (caption + hook +
+// optional script, see content_drafts) to one platform via Zernio.
+// Confirms/echoes back exactly what was sent — the caller (edge function)
+// is responsible for freezing the content snapshot before calling this, so
+// nothing here can silently diverge from what a human approved (CLAUDE.md
+// Phase 5 rule: "aucune modification silencieuse entre validation et
+// publication"). No scheduling logic here — this only performs the actual
+// publish/distribute call for content whose time has come.
+
+export interface PublishContent {
+  caption: string;
+  hook: string;
+  /** Empty string when not applicable. */
+  script: string;
+}
+
+export interface ZernioPublishResult {
+  ok: boolean;
+  source: string;
+  publishedAt: string;
+  isMock: boolean;
+  platformPostId?: string;
+  rawResponse?: unknown;
+  error?: string;
+}
+
+export async function publishPost(
+  platform: Platform,
+  accountHandle: string,
+  zernioAccountId: string | null,
+  content: PublishContent,
+): Promise<ZernioPublishResult> {
+  const apiKey = Deno.env.get("ZERNIO_API_KEY");
+  const publishedAt = new Date().toISOString();
+
+  if (!apiKey) {
+    return buildMockPublishResult(platform, accountHandle, content, publishedAt);
+  }
+
+  try {
+    const { platformPostId, rawResponse } = await callRealZernioPublishApi(
+      apiKey,
+      platform,
+      accountHandle,
+      zernioAccountId,
+      content,
+    );
+    return {
+      ok: true,
+      source: `zernio:${platform}`,
+      publishedAt,
+      isMock: false,
+      platformPostId,
+      rawResponse,
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return {
+      ok: false,
+      source: `zernio:${platform}`,
+      publishedAt,
+      isMock: false,
+      error: message,
+    };
+  }
+}
+
+// deno-lint-ignore require-await
+async function callRealZernioPublishApi(
+  _apiKey: string,
+  _platform: Platform,
+  _accountHandle: string,
+  _zernioAccountId: string | null,
+  _content: PublishContent,
+): Promise<{ platformPostId: string; rawResponse: unknown }> {
+  throw new ZernioNotConfiguredError(
+    "ZERNIO_API_KEY est défini mais l'appel réel de publication à l'API Zernio " +
+      "n'est pas implémenté : les endpoints et le format de requête/réponse " +
+      "n'ont pas été vérifiés contre la documentation officielle Zernio. " +
+      "Complète callRealZernioPublishApi() dans " +
+      "supabase/functions/_shared/zernioClient.ts une fois cette " +
+      "documentation en main, plutôt que de deviner le contrat de l'API.",
+  );
+}
+
+function buildMockPublishResult(
+  platform: Platform,
+  accountHandle: string,
+  content: PublishContent,
+  publishedAt: string,
+): ZernioPublishResult {
+  return {
+    ok: true,
+    source: `mock:${platform}`,
+    publishedAt,
+    isMock: true,
+    platformPostId: `mock_post_${crypto.randomUUID()}`,
+    rawResponse: {
+      mock: true,
+      note:
+        "ZERNIO_API_KEY non configuré — aucune publication réelle n'a eu lieu. " +
+        "Ceci simule uniquement la structure de réponse attendue.",
+      accountHandle,
+      content_echo: content,
     },
   };
 }
