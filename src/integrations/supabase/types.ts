@@ -410,6 +410,139 @@ export type Database = {
           },
         ]
       }
+      engagement_items: {
+        Row: {
+          author_handle: string | null
+          classification_rationale: string | null
+          content: string
+          created_at: string
+          error: string | null
+          handled: boolean
+          handled_at: string | null
+          handled_by: string | null
+          human_notes: string | null
+          id: string
+          is_mock: boolean
+          kind: string
+          needs_response: boolean | null
+          platform_comment_id: string
+          posted_at: string | null
+          social_connection_id: string
+        }
+        Insert: {
+          author_handle?: string | null
+          classification_rationale?: string | null
+          content: string
+          created_at?: string
+          error?: string | null
+          handled?: boolean
+          handled_at?: string | null
+          handled_by?: string | null
+          human_notes?: string | null
+          id?: string
+          is_mock?: boolean
+          kind: string
+          needs_response?: boolean | null
+          platform_comment_id: string
+          posted_at?: string | null
+          social_connection_id: string
+        }
+        Update: {
+          author_handle?: string | null
+          classification_rationale?: string | null
+          content?: string
+          created_at?: string
+          error?: string | null
+          handled?: boolean
+          handled_at?: string | null
+          handled_by?: string | null
+          human_notes?: string | null
+          id?: string
+          is_mock?: boolean
+          kind?: string
+          needs_response?: boolean | null
+          platform_comment_id?: string
+          posted_at?: string | null
+          social_connection_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "engagement_items_handled_by_fkey"
+            columns: ["handled_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engagement_items_social_connection_id_fkey"
+            columns: ["social_connection_id"]
+            isOneToOne: false
+            referencedRelation: "social_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      performance_analyses: {
+        Row: {
+          analysis_summary: string | null
+          baseline_snapshot_id: string
+          comparison_snapshot_id: string
+          correlation_note: string | null
+          created_at: string
+          error: string | null
+          id: string
+          is_mock: boolean
+          metrics_delta: Json | null
+          social_connection_id: string
+        }
+        Insert: {
+          analysis_summary?: string | null
+          baseline_snapshot_id: string
+          comparison_snapshot_id: string
+          correlation_note?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          is_mock?: boolean
+          metrics_delta?: Json | null
+          social_connection_id: string
+        }
+        Update: {
+          analysis_summary?: string | null
+          baseline_snapshot_id?: string
+          comparison_snapshot_id?: string
+          correlation_note?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          is_mock?: boolean
+          metrics_delta?: Json | null
+          social_connection_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_analyses_baseline_snapshot_id_fkey"
+            columns: ["baseline_snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "audit_snapshots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_analyses_comparison_snapshot_id_fkey"
+            columns: ["comparison_snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "audit_snapshots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_analyses_social_connection_id_fkey"
+            columns: ["social_connection_id"]
+            isOneToOne: false
+            referencedRelation: "social_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       portfolio_media: {
         Row: {
           created_at: string

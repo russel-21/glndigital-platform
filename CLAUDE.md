@@ -374,9 +374,54 @@ mais reste séparé de ce qui suit.
       Étendre les droits d'approbation à d'autres rôles (ex: partner) serait un chantier de permissions
       multi-tenant à part entière, pas supposé ici — à confirmer avec Russel si vraiment souhaité.
   - **Pas encore fait** : vrai planificateur automatique (pg_cron ou équivalent), approbation par rôle
-    non-admin (si souhaitée), tests end-to-end réels (dépend toujours des crédits Anthropic + Zernio),
-    Phase 4b, Phase 6, Phase 7.
-- **Phase 4b, 6, 7** : non commencées.
+    non-admin (si souhaitée), tests end-to-end réels (dépend toujours des crédits Anthropic + Zernio).
+- **Phase 6 (Engagement) — fondation posée et déployée, 2026-08-16.** Construite en mode mock (comme
+  Zernio partout ailleurs), sans attendre un vrai accès Zernio.
+  - `supabase/functions/_shared/zernioClient.ts` — ajout de `fetchComments()`, même pattern mock que
+    `fetchAccountMetrics()`/`publishPost()` : deux commentaires factices distincts en mode mock (un qui
+    nécessite clairement une réponse, un qui n'en nécessite pas), pour vérifier facilement que le
+    classificateur fonctionne.
+  - `supabase/functions/_shared/claudeClient.ts` — `classifyEngagementItem()` : **aucun champ
+    "réponse suggérée" n'existe nulle part dans son schéma** — seulement `needs_response` (booléen) +
+    `rationale`. C'est structurel, pas juste documenté : impossible pour cette fonction de générer une
+    réponse même si on le voulait, elle n'a jamais été conçue pour retourner ce genre de donnée.
+    Conforme à la règle CLAUDE.md : "Aucune réponse n'est générée ni publiée automatiquement par
+    l'agent, y compris pour les questions simples."
+  - `supabase/functions/phase6-engagement/index.ts` — edge function admin-only qui récupère les
+    commentaires/DMs (dédupliqués par `platform_comment_id`), les classe, et insère un
+    `engagement_items` par nouvel élément. Pas de porte de validation humaine sur la détection elle-même
+    (non exigée pour Phase 6) — la vraie porte, c'est qu'un humain doit rédiger et envoyer toute réponse
+    lui-même, entièrement hors de cet outil.
+  - `src/lib/phase6EngagementStore.ts` + nouveau bloc **"Phase 6 — Engagement"** dans `Admin.tsx` :
+    bouton "Vérifier les commentaires", liste des éléments nécessitant une réponse mise en avant,
+    bouton "Marquer comme traité" avec un champ de notes **qui ne sert qu'à l'admin, jamais envoyé
+    nulle part**. Volontairement, aucun bouton "envoyer" n'existe dans cette UI.
+- **Phase 7 (Analyse) — fondation posée et déployée, 2026-08-16.**
+  - **Interprétation assumée, à corriger par Russel si besoin** : la règle CLAUDE.md demande une
+    "comparaison performance prévue vs réelle", mais rien dans le système ne produit de chiffre prédit
+    (les Phases 3/4a ne prévoient pas d'engagement). Plutôt que d'en inventer un, cette phase compare
+    **deux vrais relevés Phase 1** du même compte (le plus ancien vs le plus récent par défaut) — les
+    deux sont factuels, aucun n'est fabriqué.
+  - `supabase/migrations/20260816153000_create_phase7_analysis_tables.sql` — table
+    `performance_analyses`, pas de porte de validation humaine (conforme au tableau CLAUDE.md : "Non"
+    pour Phase 7), append-only comme `audit_snapshots`.
+  - `supabase/functions/phase7-analysis/index.ts` — **les écarts (deltas) sont calculés en code
+    TypeScript, jamais par le modèle** (bonne pratique + respect de la règle "pas de ratio si une
+    valeur manque" : un champ n'est comparé que si les deux côtés sont de vrais nombres, jamais si l'un
+    des deux est `donnée_indisponible`). Claude ne fait que rédiger le résumé à partir des chiffres déjà
+    calculés.
+  - `supabase/functions/_shared/claudeClient.ts` — `analyzePerformance()` : le schéma structuré force
+    deux champs obligatoires — `summary` (doit citer les chiffres précis, conforme CLAUDE.md) et
+    `correlation_note` (distinction corrélation/causalité obligatoire, conforme CLAUDE.md) — impossible
+    structurellement de produire une conclusion sans ces deux éléments.
+  - `src/lib/phase7AnalysisStore.ts` + nouveau bloc **"Phase 7 — Analyse"** dans `Admin.tsx` : bouton
+    "Analyser (1er vs dernier audit)", affichage du résumé + note de corrélation + tableau des écarts
+    chiffrés par métrique.
+  - Vérifié (Phase 6 + 7) : `npx tsc --noEmit`, `npx eslint`, `npm run test` : 0 erreur.
+  - **Pas encore fait** : tests end-to-end réels (dépend toujours des crédits Anthropic + Zernio),
+    validation de l'interprétation Phase 7 par Russel.
+- **Phase 4b** : non commencée — en attente d'une décision d'outil de traitement image/vidéo avec
+  Russel (Claude seul ne le fait pas).
 
 ### 1. Contexte du projet
 

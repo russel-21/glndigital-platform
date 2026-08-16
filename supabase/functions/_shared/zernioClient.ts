@@ -1,11 +1,12 @@
-// Zernio adapter — Phase 1 (Audit) data source AND Phase 5 (Publication)
-// distribution channel. Two agents, two functions below
-// (fetchAccountMetrics / publishPost) — same external aggregator, but kept
-// as separate functions so Phase 1 and Phase 5 stay independently
-// swappable and neither implicitly depends on the other's shape. See
-// CLAUDE.md, section "Feature en cours de cadrage", rules 3 and 4, and the
-// project-wide instruction that all social API integration goes through
-// Zernio, never a direct Meta/TikTok/YouTube connector.
+// Zernio adapter — Phase 1 (Audit) data source, Phase 5 (Publication)
+// distribution channel, AND Phase 6 (Engagement) comment/DM source. Three
+// agents, three functions below (fetchAccountMetrics / publishPost /
+// fetchComments) — same external aggregator, but kept as separate
+// functions so each phase stays independently swappable and none
+// implicitly depends on another's shape. See CLAUDE.md, section "Feature
+// en cours de cadrage", rules 3 and 4, and the project-wide instruction
+// that all social API integration goes through Zernio, never a direct
+// Meta/TikTok/YouTube connector.
 //
 // fetchAccountMetrics() SCOPE: return factual, per-platform account metrics
 // for a single account, tagged with where they came from and when they
@@ -274,6 +275,109 @@ function buildMockPublishResult(
         "Ceci simule uniquement la structure de réponse attendue.",
       accountHandle,
       content_echo: content,
+    },
+  };
+}
+
+// ─── Phase 6 (Engagement) — fetchComments() ─────────────────────
+// SCOPE: return raw comments/DMs for one account since the last check —
+// factual retrieval only, exactly like fetchAccountMetrics(). No
+// classification, no interpretation happens in this file — "does this need
+// a response" is the Diagnostic-style job of the Phase 6 agent's Claude
+// call (see claudeClient.ts classifyEngagementItem()), not this adapter.
+
+export interface RawEngagementItem {
+  platformCommentId: string;
+  kind: "comment" | "dm";
+  authorHandle: string;
+  content: string;
+  postedAt: string;
+}
+
+export interface ZernioCommentsResult {
+  ok: boolean;
+  source: string;
+  fetchedAt: string;
+  isMock: boolean;
+  items: RawEngagementItem[];
+  rawResponse?: unknown;
+  error?: string;
+}
+
+export async function fetchComments(
+  platform: Platform,
+  accountHandle: string,
+  zernioAccountId: string | null,
+): Promise<ZernioCommentsResult> {
+  const apiKey = Deno.env.get("ZERNIO_API_KEY");
+  const fetchedAt = new Date().toISOString();
+
+  if (!apiKey) {
+    return buildMockCommentsResult(platform, accountHandle, fetchedAt);
+  }
+
+  try {
+    const { items, rawResponse } = await callRealZernioCommentsApi(apiKey, platform, accountHandle, zernioAccountId);
+    return { ok: true, source: `zernio:${platform}`, fetchedAt, isMock: false, items, rawResponse };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { ok: false, source: `zernio:${platform}`, fetchedAt, isMock: false, items: [], error: message };
+  }
+}
+
+// deno-lint-ignore require-await
+async function callRealZernioCommentsApi(
+  _apiKey: string,
+  _platform: Platform,
+  _accountHandle: string,
+  _zernioAccountId: string | null,
+): Promise<{ items: RawEngagementItem[]; rawResponse: unknown }> {
+  throw new ZernioNotConfiguredError(
+    "ZERNIO_API_KEY est défini mais l'appel réel de récupération des commentaires à l'API Zernio " +
+      "n'est pas implémenté : les endpoints et le format de réponse n'ont pas été vérifiés contre la " +
+      "documentation officielle Zernio. Complète callRealZernioCommentsApi() dans " +
+      "supabase/functions/_shared/zernioClient.ts une fois cette documentation en main, plutôt que de " +
+      "deviner le contrat de l'API.",
+  );
+}
+
+function buildMockCommentsResult(
+  platform: Platform,
+  accountHandle: string,
+  fetchedAt: string,
+): ZernioCommentsResult {
+  // Two deliberately distinct examples — one that obviously needs a human
+  // reply, one that obviously doesn't — so the Phase 6 classifier's output
+  // is easy to sanity-check against mock data.
+  const items: RawEngagementItem[] = [
+    {
+      platformCommentId: `mock_comment_${crypto.randomUUID()}`,
+      kind: "comment",
+      authorHandle: "mock_user_1",
+      content: "[MOCK] Est-ce que vous livrez à Yaoundé ? Merci de me répondre svp.",
+      postedAt: fetchedAt,
+    },
+    {
+      platformCommentId: `mock_comment_${crypto.randomUUID()}`,
+      kind: "comment",
+      authorHandle: "mock_user_2",
+      content: "[MOCK] Superbe publication, merci pour le partage !",
+      postedAt: fetchedAt,
+    },
+  ];
+
+  return {
+    ok: true,
+    source: `mock:${platform}`,
+    fetchedAt,
+    isMock: true,
+    items,
+    rawResponse: {
+      mock: true,
+      note:
+        "ZERNIO_API_KEY non configuré — commentaires factices générés côté serveur, à ne jamais " +
+        "présenter comme de vrais commentaires clients.",
+      accountHandle,
     },
   };
 }

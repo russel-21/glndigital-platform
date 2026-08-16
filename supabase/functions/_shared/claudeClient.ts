@@ -654,3 +654,223 @@ export async function suggestPublishTime(
     return { ok: false, error: message };
   }
 }
+
+// ─── Phase 6 (Engagement) — classifyEngagementItem() SCOPE ──────
+//   - Input: one comment/DM's text + platform.
+//   - Output: ONLY a boolean (needs_response) + a short rationale.
+//     Nothing else — there is deliberately no "suggested reply" field
+//     anywhere in this function's schema, request, or response type. Per
+//     CLAUDE.md, Phase 6's role is strictly detection + notification;
+//     drafting or publishing a reply is never this agent's job, "y
+//     compris pour les questions simples". If a future session is ever
+//     asked to add a suggested-reply field here, that is a scope change
+//     CLAUDE.md explicitly forbids without Russel's explicit sign-off.
+//   - Classification only, grounded in the given text itself — no company
+//     facts are asserted, so the brand-brief/anti-hallucination concerns
+//     that apply to Phase 4a don't apply here the same way. Still: never
+//     invents context about the commenter or account that isn't in the
+//     text provided.
+
+export interface EngagementClassification {
+  needs_response: boolean;
+  rationale: string;
+}
+
+export interface ClassifyResult {
+  ok: boolean;
+  payload?: EngagementClassification;
+  raw_response?: unknown;
+  error?: string;
+}
+
+const CLASSIFY_SCHEMA = {
+  type: "object",
+  properties: {
+    needs_response: {
+      type: "boolean",
+      description: "true if a human reply is expected or requested (question, complaint, request) — false for generic positive comments needing no reply",
+    },
+    rationale: { type: "string" },
+  },
+  required: ["needs_response", "rationale"],
+  additionalProperties: false,
+} as const;
+
+const CLASSIFY_SYSTEM_PROMPT = `Tu es l'agent Phase 6 (Engagement communautaire) de la plateforme GLN Digital.
+
+SCOPE STRICT ET NON NÉGOCIABLE : tu détectes UNIQUEMENT si un commentaire ou message privé attend une réponse humaine. Tu ne rédiges JAMAIS de réponse, même partielle, même pour une question simple. Tu ne proposes AUCUN brouillon de réponse — ce n'est pas ton rôle, la rédaction reste entièrement humaine.
+
+RÈGLES :
+1. needs_response=true si le commentaire pose une question, exprime une plainte, demande une action, ou attend explicitement une réaction.
+2. needs_response=false pour un commentaire positif générique ne nécessitant aucune suite (ex: "Superbe photo !").
+3. Base ta décision uniquement sur le texte fourni — n'invente aucun contexte sur l'auteur ou l'entreprise.
+
+Réponds uniquement dans le format JSON structuré demandé (needs_response + rationale — rien d'autre).`;
+
+export async function classifyEngagementItem(
+  commentText: string,
+  platform: string,
+): Promise<ClassifyResult> {
+  const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
+  if (!apiKey) {
+    return { ok: false, error: "ANTHROPIC_API_KEY non configurée côté serveur." };
+  }
+
+  const client = new Anthropic({ apiKey });
+
+  try {
+    const response = await client.messages.create({
+      model: MODEL,
+      max_tokens: 1024,
+      thinking: { type: "adaptive" },
+      output_config: {
+        effort: "low",
+        format: { type: "json_schema", schema: CLASSIFY_SCHEMA },
+      },
+      system: CLASSIFY_SYSTEM_PROMPT,
+      messages: [
+        { role: "user", content: `Plateforme : ${platform}\nCommentaire/message : ${commentText}` },
+      ],
+    });
+
+    if (response.stop_reason === "refusal") {
+      return { ok: false, error: "Requête refusée par les filtres de sécurité du modèle." };
+    }
+
+    const textBlock = response.content.find(
+      (b): b is Anthropic.TextBlock => b.type === "text",
+    );
+    if (!textBlock) {
+      return { ok: false, error: "Réponse du modèle sans contenu texte exploitable.", raw_response: response };
+    }
+
+    let payload: EngagementClassification;
+    try {
+      payload = JSON.parse(textBlock.text);
+    } catch {
+      return { ok: false, error: "Réponse du modèle non conforme au JSON attendu.", raw_response: textBlock.text };
+    }
+
+    return { ok: true, payload, raw_response: response };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: message };
+  }
+}
+
+// ─── Phase 7 (Analyse) — analyzePerformance() SCOPE ──────────────
+//   - Input: two real audit_snapshots (baseline + comparison) for the same
+//     account, and their per-field deltas ALREADY COMPUTED IN CODE by the
+//     caller (never by this function/the model — arithmetic belongs in
+//     code, not in the LLM, and the "donnée_indisponible" no-ratio-if-
+//     missing rule is enforced there, before this call ever happens).
+//   - Output: a narrative summary that must cite the exact compared
+//     figures (CLAUDE.md: "toute conclusion doit citer les chiffres
+//     précis comparés (avant/après)") and an explicit correlation-vs-
+//     causation note (CLAUDE.md: "Distinction obligatoire entre
+//     corrélation observée et causalité affirmée") — this system prompt
+//     structurally forces both fields to exist in the schema, not just
+//     asks nicely in prose.
+//   - Never invents a "predicted" figure — see the migration file's
+//     comment for why "prévue" is interpreted as "the account's own
+//     earlier real snapshot" here, not an AI-generated prediction.
+
+export interface AnalysisPayload {
+  summary: string;
+  correlation_note: string;
+}
+
+export interface AnalysisResult {
+  ok: boolean;
+  payload?: AnalysisPayload;
+  raw_response?: unknown;
+  error?: string;
+}
+
+const ANALYSIS_SCHEMA = {
+  type: "object",
+  properties: {
+    summary: {
+      type: "string",
+      description: "Must cite the exact before/after figures being compared — no vague claims without numbers",
+    },
+    correlation_note: {
+      type: "string",
+      description: "Explicit statement distinguishing observed correlation from any claim of causation",
+    },
+  },
+  required: ["summary", "correlation_note"],
+  additionalProperties: false,
+} as const;
+
+const ANALYSIS_SYSTEM_PROMPT = `Tu es l'agent Phase 7 (Analyse/optimisation) de la plateforme GLN Digital.
+
+SCOPE STRICT : tu compares deux relevés factuels réels (Phase 1) du même compte, dont les écarts (deltas) ont déjà été calculés par du code, pas par toi. Tu ne calcules RIEN toi-même — tu interprètes et expliques les chiffres qu'on te donne.
+
+RÈGLES OBLIGATOIRES (non négociables) :
+1. Ton résumé DOIT citer les chiffres précis comparés (ex: "abonnés passés de 1000 à 1250"), jamais une affirmation vague sans nombre.
+2. Distinction OBLIGATOIRE entre corrélation observée et causalité affirmée : si des données manquent pour attribuer un changement à une action précise (ex: pas de données par publication), dis-le explicitement — ne prétends jamais qu'une publication précise a causé un changement de métrique de compte.
+3. Si un champ est marqué "donnée_indisponible" dans l'un des deux relevés, ne fais aucune comparaison sur ce champ — dis que la comparaison n'est pas possible pour ce champ précis.
+
+Réponds uniquement dans le format JSON structuré demandé.`;
+
+export async function analyzePerformance(
+  accountHandle: string,
+  platform: string,
+  baselineText: string,
+  comparisonText: string,
+  deltasText: string,
+): Promise<AnalysisResult> {
+  const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
+  if (!apiKey) {
+    return { ok: false, error: "ANTHROPIC_API_KEY non configurée côté serveur." };
+  }
+
+  const client = new Anthropic({ apiKey });
+
+  try {
+    const response = await client.messages.create({
+      model: MODEL,
+      max_tokens: 4096,
+      thinking: { type: "adaptive" },
+      output_config: {
+        effort: "medium",
+        format: { type: "json_schema", schema: ANALYSIS_SCHEMA },
+      },
+      system: ANALYSIS_SYSTEM_PROMPT,
+      messages: [
+        {
+          role: "user",
+          content:
+            `Compte : ${accountHandle} (${platform})\n\n` +
+            `Relevé de référence (avant) :\n${baselineText}\n\n` +
+            `Relevé de comparaison (après) :\n${comparisonText}\n\n` +
+            `Écarts déjà calculés (ne recalcule rien) :\n${deltasText}`,
+        },
+      ],
+    });
+
+    if (response.stop_reason === "refusal") {
+      return { ok: false, error: "Requête refusée par les filtres de sécurité du modèle." };
+    }
+
+    const textBlock = response.content.find(
+      (b): b is Anthropic.TextBlock => b.type === "text",
+    );
+    if (!textBlock) {
+      return { ok: false, error: "Réponse du modèle sans contenu texte exploitable.", raw_response: response };
+    }
+
+    let payload: AnalysisPayload;
+    try {
+      payload = JSON.parse(textBlock.text);
+    } catch {
+      return { ok: false, error: "Réponse du modèle non conforme au JSON attendu.", raw_response: textBlock.text };
+    }
+
+    return { ok: true, payload, raw_response: response };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: message };
+  }
+}

@@ -93,6 +93,17 @@ import {
   fetchPublishTimeSuggestion,
   PublishTimeSuggestion,
 } from "@/lib/phase5PublishStore";
+import {
+  EngagementItem,
+  fetchEngagementItems,
+  triggerPhase6Check,
+  markEngagementItemHandled,
+} from "@/lib/phase6EngagementStore";
+import {
+  PerformanceAnalysis,
+  fetchPerformanceAnalyses,
+  triggerPhase7Analysis,
+} from "@/lib/phase7AnalysisStore";
 import { toast } from "sonner";
 
 const scrapePage = async (url: string, platform: 'facebook' | 'instagram' | 'tiktok' | 'youtube' | 'snapchat' | 'web') => {
@@ -2095,6 +2106,8 @@ function Phase1AuditAdmin({ queryClient }: { queryClient: any }) {
                   <Phase2DiagnosticPanel socialConnectionId={conn.id} />
                   <Phase3StrategyPanel socialConnectionId={conn.id} />
                   <Phase4aTextPanel socialConnectionId={conn.id} />
+                  <Phase6EngagementPanel socialConnectionId={conn.id} />
+                  <Phase7AnalysisPanel socialConnectionId={conn.id} />
                 </>
               )}
             </CardContent>
@@ -2933,6 +2946,178 @@ function Phase5ScheduleWidget({ socialConnectionId, draftId }: { socialConnectio
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Phase 6 Engagement Panel ───────────────────────────────────
+// Admin UI for the Phase 6 (Engagement) agent — see CLAUDE.md, sections 3
+// et 7. SCOPE: trigger comment/DM detection, show which ones need a reply,
+// and let an admin mark one "handled" once they've replied themselves
+// directly on the real platform. No reply box that sends anything from
+// here — CLAUDE.md forbids any automated or tool-assisted reply
+// publishing for this phase, "même partielle".
+function Phase6EngagementPanel({ socialConnectionId }: { socialConnectionId: string }) {
+  const queryClient = useQueryClient();
+  const [notes, setNotes] = useState<Record<string, string>>({});
+
+  const { data: items = [], isLoading } = useQuery({
+    queryKey: ["phase6-engagement-items", socialConnectionId],
+    queryFn: () => fetchEngagementItems(socialConnectionId),
+  });
+
+  const checkMutation = useMutation({
+    mutationFn: () => triggerPhase6Check(socialConnectionId),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["phase6-engagement-items", socialConnectionId] });
+      toast.success(
+        `${result.new_items_count} nouveau(x) élément(s) — ${result.needs_response_count} nécessite(nt) une réponse.`,
+      );
+    },
+    onError: (err: any) => toast.error(`Erreur : ${err.message}`),
+  });
+
+  const handledMutation = useMutation({
+    mutationFn: ({ id }: { id: string }) => markEngagementItemHandled(id, notes[id]),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["phase6-engagement-items", socialConnectionId] });
+      toast.success("Marqué comme traité.");
+    },
+    onError: (err: any) => toast.error(`Erreur : ${err.message}`),
+  });
+
+  const pending = (items as EngagementItem[]).filter((i) => i.needs_response && !i.handled);
+  const rest = (items as EngagementItem[]).filter((i) => !(i.needs_response && !i.handled));
+
+  return (
+    <div className="space-y-3 border-t border-border/40 pt-4">
+      <div className="flex items-center gap-2">
+        <p className="text-xs font-bold text-primary">Phase 6 — Engagement</p>
+        <Button size="sm" variant="outline" onClick={() => checkMutation.mutate()} disabled={checkMutation.isPending}>
+          Vérifier les commentaires
+        </Button>
+        {pending.length > 0 && <Badge variant="destructive">{pending.length} en attente de réponse</Badge>}
+      </div>
+      <p className="text-[11px] text-muted-foreground">
+        Détection uniquement — aucune réponse n'est rédigée ni envoyée par l'IA. Réponds directement sur
+        la vraie plateforme, puis marque comme traité ici.
+      </p>
+
+      {isLoading && <p className="text-xs text-muted-foreground">Chargement…</p>}
+
+      {pending.map((item) => (
+        <div key={item.id} className="rounded border border-destructive/40 bg-destructive/5 p-2 text-xs space-y-1.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="destructive">Réponse attendue</Badge>
+            <Badge variant="outline">{item.kind}</Badge>
+            {item.is_mock && <Badge variant="secondary">MOCK</Badge>}
+            <span className="text-muted-foreground">{item.author_handle}</span>
+          </div>
+          <p className="text-foreground">{item.content}</p>
+          {item.classification_rationale && (
+            <p className="text-[10px] text-muted-foreground">Raison : {item.classification_rationale}</p>
+          )}
+          <Textarea
+            placeholder="Notes (optionnel — pour ta référence, jamais envoyé)"
+            value={notes[item.id] || ""}
+            onChange={(e) => setNotes((n) => ({ ...n, [item.id]: e.target.value }))}
+            rows={2}
+            className="text-xs"
+          />
+          <Button size="sm" variant="outline" onClick={() => handledMutation.mutate({ id: item.id })}>
+            <CheckCircle className="w-3 h-3 mr-1" /> Marquer comme traité
+          </Button>
+        </div>
+      ))}
+
+      {rest.length > 0 && (
+        <details className="text-xs">
+          <summary className="text-muted-foreground cursor-pointer">
+            {rest.length} autre(s) élément(s) (pas de réponse nécessaire ou déjà traité)
+          </summary>
+          <div className="space-y-1.5 pt-2">
+            {rest.map((item) => (
+              <div key={item.id} className="rounded border border-border/30 bg-background/40 p-2 space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant={item.handled ? "default" : "outline"}>
+                    {item.handled ? "Traité" : "Pas de réponse nécessaire"}
+                  </Badge>
+                  {item.is_mock && <Badge variant="secondary">MOCK</Badge>}
+                </div>
+                <p className="text-foreground">{item.content}</p>
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
+    </div>
+  );
+}
+
+// ─── Phase 7 Analysis Panel ──────────────────────────────────────
+// Admin UI for the Phase 7 (Analyse) agent — see CLAUDE.md, sections 3 et
+// 7. SCOPE: compare the earliest vs. most recent Phase 1 audit_snapshots
+// for this account and show the AI's factual, sourced narrative — no
+// review gate (CLAUDE.md Phase 7: "Validation humaine requise : Non").
+function Phase7AnalysisPanel({ socialConnectionId }: { socialConnectionId: string }) {
+  const queryClient = useQueryClient();
+
+  const { data: analyses = [], isLoading } = useQuery({
+    queryKey: ["phase7-analyses", socialConnectionId],
+    queryFn: () => fetchPerformanceAnalyses(socialConnectionId),
+  });
+
+  const analyzeMutation = useMutation({
+    mutationFn: () => triggerPhase7Analysis(socialConnectionId),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["phase7-analyses", socialConnectionId] });
+      toast[result.ok ? "success" : "error"](result.ok ? "Analyse générée." : `Échec : ${result.error}`);
+    },
+    onError: (err: any) => toast.error(`Erreur : ${err.message}`),
+  });
+
+  return (
+    <div className="space-y-3 border-t border-border/40 pt-4">
+      <div className="flex items-center gap-2">
+        <p className="text-xs font-bold text-primary">Phase 7 — Analyse</p>
+        <Button size="sm" variant="outline" onClick={() => analyzeMutation.mutate()} disabled={analyzeMutation.isPending}>
+          Analyser (1er vs dernier audit)
+        </Button>
+      </div>
+      <p className="text-[11px] text-muted-foreground">
+        Compare deux relevés Phase 1 réels de ce compte — jamais une "performance prévue" inventée
+        (aucune source de prédiction n'existe encore dans le système).
+      </p>
+
+      {isLoading && <p className="text-xs text-muted-foreground">Chargement…</p>}
+      {!isLoading && analyses.length === 0 && (
+        <p className="text-xs text-muted-foreground">Aucune analyse générée pour ce compte.</p>
+      )}
+
+      {(analyses as PerformanceAnalysis[]).map((a) => (
+        <div key={a.id} className="rounded border border-border/30 bg-background/40 p-2 text-xs space-y-1.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-semibold">{new Date(a.created_at).toLocaleString("fr-FR")}</span>
+            {a.is_mock && <Badge variant="destructive">MOCK — données factices</Badge>}
+            {a.error && <Badge variant="destructive">Erreur</Badge>}
+          </div>
+          {a.error && <p className="text-destructive">{a.error}</p>}
+          {a.analysis_summary && <p className="text-foreground">{a.analysis_summary}</p>}
+          {a.correlation_note && (
+            <p className="text-muted-foreground italic">{a.correlation_note}</p>
+          )}
+          {a.metrics_delta && Object.keys(a.metrics_delta).length > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5 pt-1">
+              {Object.entries(a.metrics_delta).map(([key, d]) => (
+                <div key={key} className="text-[10px] text-muted-foreground">
+                  {key} : {d.before} → {d.after} ({d.delta >= 0 ? "+" : ""}
+                  {d.delta})
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
