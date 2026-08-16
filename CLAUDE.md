@@ -355,9 +355,27 @@ mais reste séparé de ce qui suit.
     publications planifiées/publiées avec badge MOCK et bouton "Publier maintenant" pour celles en
     attente.
   - Vérifié : `npx tsc --noEmit`, `npx eslint`, `npm run test` : 0 erreur.
-  - **Pas encore fait** : vrai planificateur automatique (pg_cron ou équivalent), source de données
-    d'heures optimales d'audience, tests end-to-end réels (dépend toujours des crédits Anthropic +
-    Zernio), Phase 4b, Phase 6, Phase 7.
+  - **Extension le même jour, en réponse à une précision de Russel** : "l'heure de publication peut être
+    basée sur l'analyse de chaque réseau, l'audience, et les objectifs définis" + "programmation future
+    modifiable/annulable" + "approbation par l'admin ou le compte ayant le droit". Trois ajouts :
+    1. **Reprogrammer / Annuler** une `scheduled_publications` encore `scheduled` — nouveaux modes
+       `action: "reschedule"` / `action: "cancel"` dans `phase5-publish/index.ts` (le contenu figé,
+       `content_snapshot`, n'est jamais modifié par ces actions — seule l'heure change).
+    2. **Suggestion d'horaire par l'IA** (`supabase/functions/phase5-suggest-time/index.ts` +
+       `suggestPublishTime()` dans `claudeClient.ts`) — **purement consultative, n'écrit rien en base** :
+       combine les données factuelles Phase 1 du compte + l'objectif/pilier Phase 3 de la publication +
+       une vraie recherche web (`web_search_20260209`, même exigence de source horodatée qu'en Phase 3)
+       sur les meilleures pratiques d'horaire par plateforme. Jamais d'heure "optimale" inventée : si les
+       données/sources sont insuffisantes, la réponse marque `inconclusive=true` plutôt que de deviner.
+       L'admin voit la suggestion à côté du sélecteur date/heure mais reste seul à décider — rien n'est
+       pré-rempli automatiquement.
+    - **"Approbation par le compte ayant le droit"** : pas construit — actuellement tout est admin-only
+      (`is_admin()`), aucun rôle client/partenaire ne peut approuver quoi que ce soit dans ce panneau.
+      Étendre les droits d'approbation à d'autres rôles (ex: partner) serait un chantier de permissions
+      multi-tenant à part entière, pas supposé ici — à confirmer avec Russel si vraiment souhaité.
+  - **Pas encore fait** : vrai planificateur automatique (pg_cron ou équivalent), approbation par rôle
+    non-admin (si souhaitée), tests end-to-end réels (dépend toujours des crédits Anthropic + Zernio),
+    Phase 4b, Phase 6, Phase 7.
 - **Phase 4b, 6, 7** : non commencées.
 
 ### 1. Contexte du projet

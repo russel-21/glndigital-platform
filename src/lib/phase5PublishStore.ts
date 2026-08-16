@@ -89,3 +89,57 @@ export const schedulePublication = async (
 export const executeScheduledPublication = async (
   scheduledPublicationId: string,
 ): Promise<PublishResult> => invokePhase5({ scheduled_publication_id: scheduledPublicationId });
+
+/** Changes a pending row's scheduled time — only the time, never the
+ * frozen content_snapshot. Executes immediately if the new time is due. */
+export const rescheduleScheduledPublication = async (
+  scheduledPublicationId: string,
+  newScheduledAt: string,
+): Promise<PublishResult> =>
+  invokePhase5({
+    scheduled_publication_id: scheduledPublicationId,
+    action: "reschedule",
+    scheduled_at: newScheduledAt,
+  });
+
+/** Cancels a pending row — only ever available while still 'scheduled'. */
+export const cancelScheduledPublication = async (
+  scheduledPublicationId: string,
+): Promise<PublishResult> =>
+  invokePhase5({ scheduled_publication_id: scheduledPublicationId, action: "cancel" });
+
+export interface PublishTimeSuggestion {
+  suggested_day_and_time: string;
+  rationale: string;
+  based_on: string[];
+  sources: { claim: string; source_url: string; source_title: string; retrieved_at: string }[];
+  inconclusive: boolean;
+}
+
+export interface SuggestTimeResult {
+  ok: boolean;
+  suggestion?: PublishTimeSuggestion;
+  error?: string;
+}
+
+/** Purely advisory — never writes anything to the database. The admin
+ * decides whether/how to use the suggestion when they actually schedule
+ * via schedulePublication() above. */
+export const fetchPublishTimeSuggestion = async (contentDraftId: string): Promise<SuggestTimeResult> => {
+  const { data, error } = await supabase.functions.invoke("phase5-suggest-time", {
+    body: { content_draft_id: contentDraftId },
+  });
+  if (error) {
+    const context = (error as { context?: Response }).context;
+    let detail: string | undefined;
+    if (context && typeof context.json === "function") {
+      try {
+        detail = (await context.json())?.error;
+      } catch {
+        // no JSON body to read — fall back to the generic message below
+      }
+    }
+    throw new Error(detail || error.message);
+  }
+  return data as SuggestTimeResult;
+};

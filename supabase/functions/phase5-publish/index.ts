@@ -2,24 +2,33 @@
 // : automatisation reseaux sociaux par agents IA", sections 3 et 4).
 //
 // SCOPE (strict — do not extend without explicit validation from Russel):
-//   - Two entry modes in this one function (still one agent, one
+//   - Four modes in this one function (still one agent, one
 //     responsibility: "Programmation et diffusion multi-plateforme"):
 //     (1) `content_draft_id` + `scheduled_at` → create a new
 //         scheduled_publications row from an APPROVED content_drafts row,
 //         freezing its exact content. If `scheduled_at` is now-or-past,
 //         also executes the publish immediately.
-//     (2) `scheduled_publication_id` alone → execute an existing
-//         'scheduled' row's publish now (manual trigger standing in for a
-//         real cron scheduler, which is NOT built yet — see CLAUDE.md
-//         État d'avancement for why).
+//     (2) `scheduled_publication_id` (+ no action, or action: "execute")
+//         → execute an existing 'scheduled' row's publish now (manual
+//         trigger standing in for a real cron scheduler, which is NOT
+//         built yet — see CLAUDE.md État d'avancement for why).
+//     (3) `scheduled_publication_id` + `action: "reschedule"` +
+//         `scheduled_at` → change a pending row's scheduled time. Only
+//         `scheduled_at` changes — the frozen content_snapshot never does
+//         (see rule below). Executes immediately if the new time is due.
+//     (4) `scheduled_publication_id` + `action: "cancel"` → mark a
+//         pending row 'cancelled'. Only ever available while still
+//         'scheduled' — a published/failed row can't be un-published from
+//         here.
 //   - No human validation gate here (per CLAUDE.md's Phase 5 table): the
 //     content was already approved upstream in Phase 4a. This function
 //     only checks that upstream approval happened — it never introduces a
 //     new review step.
 //   - The exact content that gets published is always the frozen
 //     `content_snapshot` captured at scheduling time — never a live
-//     re-read of content_drafts — per CLAUDE.md: "aucune modification
-//     silencieuse entre validation et publication".
+//     re-read of content_drafts, and reschedule/cancel never touch it
+//     either — per CLAUDE.md: "aucune modification silencieuse entre
+//     validation et publication".
 //   - Every state transition is appended to `publication_log`
 //     (append-only) — CLAUDE.md: "Log horodaté de traçabilité".
 //   - Admin-only: internal GLN-staff tool, not client-facing.
@@ -33,10 +42,13 @@ import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { publishPost, type Platform } from "../_shared/zernioClient.ts";
 
+type LogEventType = "scheduled" | "publish_attempted" | "published" | "failed" | "cancelled";
+
 interface RequestBody {
   content_draft_id?: string;
   scheduled_at?: string;
   scheduled_publication_id?: string;
+  action?: "execute" | "cancel" | "reschedule";
 }
 
 interface ContentSnapshot {
@@ -92,11 +104,7 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(400, { error: "Corps de requête JSON invalide." });
   }
 
-  const logEvent = async (
-    scheduledPublicationId: string,
-    event: "scheduled" | "publish_attempted" | "published" | "failed" | "cancelled",
-    detail?: string,
-  ) => {
+  const logEvent = async (scheduledPublicationId: string, event: LogEventType, detail?: string) => {
     await supabase.from("publication_log").insert({
       scheduled_publication_id: scheduledPublicationId,
       event,
@@ -104,7 +112,7 @@ Deno.serve(async (req: Request) => {
     });
   };
 
-  // ── Mode 2: execute an already-scheduled row now ──
+  // ── Modes 2-4: act on an already-scheduled row ──
   if (body.scheduled_publication_id && !body.content_draft_id) {
     const { data: existing, error: fetchError } = await supabase
       .from("scheduled_publications")
@@ -117,16 +125,76 @@ Deno.serve(async (req: Request) => {
     if (!existing) {
       return jsonResponse(404, { error: "Publication planifiée introuvable." });
     }
+
+    // ── Mode 4: cancel ──
+    if (body.action === "cancel") {
+      if (existing.status !== "scheduled") {
+        return jsonResponse(400, { error: `Impossible d'annuler : statut actuel "${existing.status}", pas "scheduled".` });
+      }
+      const { data: updated, error: updateError } = await supabase
+        .from("scheduled_publications")
+        .update({ status: "cancelled" })
+        .eq("id", existing.id)
+        .select()
+        .single();
+      if (updateError) {
+        return jsonResponse(500, { error: `Annulation impossible : ${updateError.message}` });
+      }
+      await logEvent(existing.id, "cancelled");
+      return jsonResponse(200, { ok: true, scheduled_publication: updated, executed: false });
+    }
+
+    // ── Mode 3: reschedule ──
+    if (body.action === "reschedule") {
+      if (existing.status !== "scheduled") {
+        return jsonResponse(400, { error: `Impossible de reprogrammer : statut actuel "${existing.status}", pas "scheduled".` });
+      }
+      if (!body.scheduled_at) {
+        return jsonResponse(400, { error: "scheduled_at est requis pour reprogrammer." });
+      }
+      const { data: rescheduled, error: rescheduleError } = await supabase
+        .from("scheduled_publications")
+        .update({ scheduled_at: body.scheduled_at })
+        .eq("id", existing.id)
+        .select()
+        .single();
+      if (rescheduleError) {
+        return jsonResponse(500, { error: `Reprogrammation impossible : ${rescheduleError.message}` });
+      }
+      await logEvent(existing.id, "scheduled", `Reprogrammé pour ${body.scheduled_at}`);
+
+      const newTimeMs = new Date(body.scheduled_at).getTime();
+      if (!Number.isNaN(newTimeMs) && newTimeMs <= Date.now()) {
+        return await executePublish(
+          supabase,
+          existing.id,
+          existing.social_connection_id,
+          existing.content_snapshot as ContentSnapshot,
+          logEvent,
+          jsonResponse,
+        );
+      }
+      return jsonResponse(200, { ok: true, scheduled_publication: rescheduled, executed: false });
+    }
+
+    // ── Mode 2: execute now (default action) ──
     if (existing.status !== "scheduled") {
       return jsonResponse(400, { error: `Cette publication n'est plus en attente (statut : ${existing.status}).` });
     }
-    return await executePublish(supabase, existing.id, existing.social_connection_id, existing.content_snapshot as ContentSnapshot, logEvent, jsonResponse);
+    return await executePublish(
+      supabase,
+      existing.id,
+      existing.social_connection_id,
+      existing.content_snapshot as ContentSnapshot,
+      logEvent,
+      jsonResponse,
+    );
   }
 
   // ── Mode 1: create a new scheduled_publications row from an approved draft ──
   const contentDraftId = body.content_draft_id;
   if (!contentDraftId || !body.scheduled_at) {
-    return jsonResponse(400, { error: "content_draft_id et scheduled_at sont requis (ou scheduled_publication_id seul)." });
+    return jsonResponse(400, { error: "content_draft_id et scheduled_at sont requis (ou scheduled_publication_id + action)." });
   }
 
   const { data: draft, error: draftError } = await supabase
@@ -189,7 +257,7 @@ async function executePublish(
   scheduledPublicationId: string,
   socialConnectionId: string,
   content: ContentSnapshot,
-  logEvent: (id: string, event: "scheduled" | "publish_attempted" | "published" | "failed" | "cancelled", detail?: string) => Promise<void>,
+  logEvent: (id: string, event: LogEventType, detail?: string) => Promise<void>,
   jsonResponse: (status: number, body: unknown) => Response,
 ): Promise<Response> {
   const { data: connection, error: connectionError } = await supabase
