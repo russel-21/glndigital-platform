@@ -88,6 +88,10 @@ import {
   fetchScheduledPublications,
   schedulePublication,
   executeScheduledPublication,
+  rescheduleScheduledPublication,
+  cancelScheduledPublication,
+  fetchPublishTimeSuggestion,
+  PublishTimeSuggestion,
 } from "@/lib/phase5PublishStore";
 import { toast } from "sonner";
 
@@ -2765,6 +2769,8 @@ function Phase4aStrategyCalendar({
 function Phase5ScheduleWidget({ socialConnectionId, draftId }: { socialConnectionId: string; draftId: string }) {
   const queryClient = useQueryClient();
   const [scheduledAt, setScheduledAt] = useState("");
+  const [rescheduleDrafts, setRescheduleDrafts] = useState<Record<string, string>>({});
+  const [suggestion, setSuggestion] = useState<PublishTimeSuggestion | null>(null);
 
   const { data: publications = [] } = useQuery({
     queryKey: ["phase5-publications", socialConnectionId],
@@ -2797,6 +2803,43 @@ function Phase5ScheduleWidget({ socialConnectionId, draftId }: { socialConnectio
     onError: (err: any) => toast.error(`Erreur : ${err.message}`),
   });
 
+  const rescheduleMutation = useMutation({
+    mutationFn: ({ id, newAt }: { id: string; newAt: string }) =>
+      rescheduleScheduledPublication(id, new Date(newAt).toISOString()),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["phase5-publications", socialConnectionId] });
+      toast[result.ok ? "success" : "error"](
+        result.executed
+          ? result.ok
+            ? "Reprogrammé et publié immédiatement (date déjà passée)."
+            : `Échec : ${result.error}`
+          : "Reprogrammé.",
+      );
+    },
+    onError: (err: any) => toast.error(`Erreur : ${err.message}`),
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: (id: string) => cancelScheduledPublication(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["phase5-publications", socialConnectionId] });
+      toast.success("Publication planifiée annulée.");
+    },
+    onError: (err: any) => toast.error(`Erreur : ${err.message}`),
+  });
+
+  const suggestMutation = useMutation({
+    mutationFn: () => fetchPublishTimeSuggestion(draftId),
+    onSuccess: (result) => {
+      if (result.ok && result.suggestion) {
+        setSuggestion(result.suggestion);
+      } else {
+        toast.error(`Échec de la suggestion : ${result.error}`);
+      }
+    },
+    onError: (err: any) => toast.error(`Erreur : ${err.message}`),
+  });
+
   return (
     <div className="space-y-1.5 pt-1.5 border-t border-border/20">
       <p className="text-[10px] font-semibold text-primary">Phase 5 — Publication</p>
@@ -2815,12 +2858,32 @@ function Phase5ScheduleWidget({ socialConnectionId, draftId }: { socialConnectio
           </span>
           {pub.error && <span className="text-destructive">{pub.error}</span>}
           {pub.status === "scheduled" && (
-            <Button size="sm" variant="outline" onClick={() => executeMutation.mutate(pub.id)}>
-              Publier maintenant
-            </Button>
+            <>
+              <Button size="sm" variant="outline" onClick={() => executeMutation.mutate(pub.id)}>
+                Publier maintenant
+              </Button>
+              <Input
+                type="datetime-local"
+                value={rescheduleDrafts[pub.id] || ""}
+                onChange={(e) => setRescheduleDrafts((d) => ({ ...d, [pub.id]: e.target.value }))}
+                className="w-auto text-[10px] h-7"
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!rescheduleDrafts[pub.id] || rescheduleMutation.isPending}
+                onClick={() => rescheduleMutation.mutate({ id: pub.id, newAt: rescheduleDrafts[pub.id] })}
+              >
+                Reprogrammer
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => cancelMutation.mutate(pub.id)}>
+                Annuler
+              </Button>
+            </>
           )}
         </div>
       ))}
+
       <div className="flex flex-wrap items-center gap-2">
         <Input
           type="datetime-local"
@@ -2836,7 +2899,40 @@ function Phase5ScheduleWidget({ socialConnectionId, draftId }: { socialConnectio
         >
           Planifier
         </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={suggestMutation.isPending}
+          onClick={() => suggestMutation.mutate()}
+        >
+          Suggérer une heure (IA)
+        </Button>
       </div>
+
+      {suggestion && (
+        <div className="rounded border border-border/30 bg-background/40 p-2 text-[10px] space-y-1">
+          <p className="font-semibold text-foreground">
+            Suggestion (consultative — ne remplace pas ton choix) :{" "}
+            {suggestion.inconclusive ? "non concluante" : suggestion.suggested_day_and_time}
+          </p>
+          <p className="text-muted-foreground">{suggestion.rationale}</p>
+          {suggestion.based_on.length > 0 && (
+            <p className="text-muted-foreground">Basé sur : {suggestion.based_on.join(", ")}</p>
+          )}
+          {suggestion.sources.length > 0 && (
+            <ul className="space-y-0.5">
+              {suggestion.sources.map((s, i) => (
+                <li key={i}>
+                  <a href={s.source_url} target="_blank" rel="noopener noreferrer" className="text-primary underline">
+                    {s.source_title}
+                  </a>{" "}
+                  ({s.retrieved_at})
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -501,3 +501,156 @@ export async function generateContentDraft(
     return { ok: false, error: message };
   }
 }
+
+// ─── Phase 5 (Publication) — suggestPublishTime() SCOPE ─────────
+//   - Input: Phase 1 factual metrics for the account + the Phase 3
+//     objective/pillar this specific post serves + platform.
+//   - Output: an ADVISORY suggested day/time with an explicit rationale
+//     and real, timestamped web sources — never auto-applied to a
+//     schedule. The admin always makes the final call (CLAUDE.md: "Non"
+//     on Phase 5's own validation row means no NEW gate is added here
+//     beyond the upstream Phase 4a approval, but that's about publishing
+//     approved content — this suggestion is a separate, purely advisory
+//     input to the admin's own scheduling decision, not a publish action).
+//   - No fabricated "audience is most active at 6pm" claim without a real
+//     source: this account's own Phase 1 data (posting cadence, whatever
+//     is available) plus real web-searched general platform guidance,
+//     each cited — same discipline as generateContentStrategy(). If
+//     neither yields anything concrete, the agent must say so plainly
+//     rather than invent a time.
+//   - Nothing here is persisted by this function — the caller (edge
+//     function) returns the suggestion directly; only the admin's actual
+//     scheduling choice becomes a scheduled_publications row.
+
+export interface PublishTimeSuggestion {
+  suggested_day_and_time: string;
+  rationale: string;
+  based_on: string[];
+  sources: TrendSource[];
+  /** true when there wasn't enough real data/sources to ground a specific suggestion. */
+  inconclusive: boolean;
+}
+
+export interface SuggestTimeResult {
+  ok: boolean;
+  payload?: PublishTimeSuggestion;
+  raw_response?: unknown;
+  error?: string;
+}
+
+const SUGGEST_TIME_SCHEMA = {
+  type: "object",
+  properties: {
+    suggested_day_and_time: {
+      type: "string",
+      description:
+        "e.g. 'Mardi ou jeudi, 12h-13h heure locale de l'audience' — a day/time window, not a precise timestamp",
+    },
+    rationale: { type: "string" },
+    based_on: {
+      type: "array",
+      items: { type: "string" },
+      description: "Specific Phase 1 metric fields or Phase 3 objective/pillar this leans on",
+    },
+    sources: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          claim: { type: "string" },
+          source_url: { type: "string" },
+          source_title: { type: "string" },
+          retrieved_at: { type: "string" },
+        },
+        required: ["claim", "source_url", "source_title", "retrieved_at"],
+        additionalProperties: false,
+      },
+    },
+    inconclusive: {
+      type: "boolean",
+      description: "true if there isn't enough real data/sources to ground a specific suggestion",
+    },
+  },
+  required: ["suggested_day_and_time", "rationale", "based_on", "sources", "inconclusive"],
+  additionalProperties: false,
+} as const;
+
+const SUGGEST_TIME_SYSTEM_PROMPT = `Tu es l'agent Phase 5 (Publication) de la plateforme GLN Digital, dans son rôle consultatif de suggestion d'horaire de publication.
+
+SCOPE STRICT : tu suggères une fenêtre jour/heure indicative pour publier UN contenu déjà approuvé, à partir (1) des données factuelles Phase 1 du compte et (2) de l'objectif/pilier Phase 3 auquel ce contenu répond. Cette suggestion est purement consultative — l'admin décide toujours de l'heure réelle.
+
+RÈGLES OBLIGATOIRES (anti-hallucination, non négociables) :
+1. INTERDICTION ABSOLUE d'inventer une heure "optimale" sans base réelle. Utilise l'outil de recherche web fourni pour trouver de vraies recommandations générales sur les meilleurs horaires de publication pour cette plateforme (secteur si mentionné) — chaque source doit apparaître dans "sources" avec URL réelle et date de récupération.
+2. Si les données Phase 1 disponibles sont insuffisantes ET qu'aucune source web pertinente n'est trouvée, marque inconclusive=true et explique pourquoi dans "rationale" plutôt que de deviner une heure.
+3. La suggestion est une fenêtre indicative (ex: "mardi ou jeudi, milieu de journée"), jamais une heure précise à la minute présentée comme certaine.
+4. Ne fais jamais de comparaison avec un concurrent — aucune donnée concurrentielle n'existe dans ce système.
+
+Réponds uniquement dans le format JSON structuré demandé.`;
+
+export async function suggestPublishTime(
+  metricsSummaryText: string,
+  platform: string,
+  objectiveContext: string,
+): Promise<SuggestTimeResult> {
+  const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
+  if (!apiKey) {
+    return { ok: false, error: "ANTHROPIC_API_KEY non configurée côté serveur." };
+  }
+
+  const client = new Anthropic({ apiKey });
+
+  try {
+    const response = await client.messages.create({
+      model: MODEL,
+      max_tokens: 8000,
+      thinking: { type: "adaptive" },
+      tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 3 }],
+      output_config: {
+        effort: "medium",
+        format: { type: "json_schema", schema: SUGGEST_TIME_SCHEMA },
+      },
+      system: SUGGEST_TIME_SYSTEM_PROMPT,
+      messages: [
+        {
+          role: "user",
+          content:
+            `Plateforme : ${platform}\n\n` +
+            `Données factuelles Phase 1 :\n${metricsSummaryText}\n\n` +
+            `Objectif / pilier Phase 3 de cette publication :\n${objectiveContext}\n\n` +
+            `Recherche de vraies recommandations sur les meilleurs horaires de publication pour cette plateforme avant de répondre.`,
+        },
+      ],
+    });
+
+    if (response.stop_reason === "refusal") {
+      return { ok: false, error: "Requête refusée par les filtres de sécurité du modèle." };
+    }
+    if (response.stop_reason === "pause_turn") {
+      return {
+        ok: false,
+        error: "La recherche web a dépassé la limite d'itérations du modèle — réessaie.",
+        raw_response: response,
+      };
+    }
+
+    const textBlocks = response.content.filter(
+      (b): b is Anthropic.TextBlock => b.type === "text",
+    );
+    const textBlock = textBlocks[textBlocks.length - 1];
+    if (!textBlock) {
+      return { ok: false, error: "Réponse du modèle sans contenu texte exploitable.", raw_response: response };
+    }
+
+    let payload: PublishTimeSuggestion;
+    try {
+      payload = JSON.parse(textBlock.text);
+    } catch {
+      return { ok: false, error: "Réponse du modèle non conforme au JSON attendu.", raw_response: textBlock.text };
+    }
+
+    return { ok: true, payload, raw_response: response };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: message };
+  }
+}
