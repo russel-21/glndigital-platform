@@ -83,6 +83,12 @@ import {
   triggerPhase4aDraft,
   reviewContentDraft,
 } from "@/lib/phase4aTextStore";
+import {
+  ScheduledPublication,
+  fetchScheduledPublications,
+  schedulePublication,
+  executeScheduledPublication,
+} from "@/lib/phase5PublishStore";
 import { toast } from "sonner";
 
 const scrapePage = async (url: string, platform: 'facebook' | 'instagram' | 'tiktok' | 'youtube' | 'snapchat' | 'web') => {
@@ -2736,11 +2742,101 @@ function Phase4aStrategyCalendar({
                     </div>
                   </div>
                 )}
+                {draft.review_status === "approved" && (
+                  <Phase5ScheduleWidget socialConnectionId={socialConnectionId} draftId={draft.id} />
+                )}
               </div>
             )}
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ─── Phase 5 Schedule Widget ────────────────────────────────────
+// Admin UI for the Phase 5 (Publication) agent — see CLAUDE.md, sections 3
+// et 7. SCOPE: schedule/publish one already-approved content_drafts row.
+// No new validation gate here — CLAUDE.md's Phase 5 row says "Validation
+// humaine requise : Non", the upstream Phase 4a approval already covers
+// it. "Publier maintenant" on a future-dated row stands in for a real cron
+// trigger, which isn't built yet — flagged in code and to Russel, not
+// hidden.
+function Phase5ScheduleWidget({ socialConnectionId, draftId }: { socialConnectionId: string; draftId: string }) {
+  const queryClient = useQueryClient();
+  const [scheduledAt, setScheduledAt] = useState("");
+
+  const { data: publications = [] } = useQuery({
+    queryKey: ["phase5-publications", socialConnectionId],
+    queryFn: () => fetchScheduledPublications(socialConnectionId),
+  });
+  const draftPublications = (publications as ScheduledPublication[]).filter((p) => p.content_draft_id === draftId);
+
+  const scheduleMutation = useMutation({
+    mutationFn: () => schedulePublication(draftId, new Date(scheduledAt).toISOString()),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["phase5-publications", socialConnectionId] });
+      toast[result.ok ? "success" : "error"](
+        result.executed
+          ? result.ok
+            ? "Publié (voir badge MOCK si aucune vraie clé Zernio)."
+            : `Échec de publication : ${result.error}`
+          : "Planifié — sera publié automatiquement une fois l'exécution planifiée disponible (voir note).",
+      );
+      setScheduledAt("");
+    },
+    onError: (err: any) => toast.error(`Erreur : ${err.message}`),
+  });
+
+  const executeMutation = useMutation({
+    mutationFn: (id: string) => executeScheduledPublication(id),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["phase5-publications", socialConnectionId] });
+      toast[result.ok ? "success" : "error"](result.ok ? "Publié." : `Échec : ${result.error}`);
+    },
+    onError: (err: any) => toast.error(`Erreur : ${err.message}`),
+  });
+
+  return (
+    <div className="space-y-1.5 pt-1.5 border-t border-border/20">
+      <p className="text-[10px] font-semibold text-primary">Phase 5 — Publication</p>
+      {draftPublications.map((pub) => (
+        <div key={pub.id} className="flex flex-wrap items-center gap-2 text-[10px]">
+          <Badge
+            variant={
+              pub.status === "published" ? "default" : pub.status === "failed" ? "destructive" : "outline"
+            }
+          >
+            {pub.status}
+          </Badge>
+          {pub.is_mock && <Badge variant="destructive">MOCK</Badge>}
+          <span className="text-muted-foreground">
+            {pub.status === "published" ? pub.published_at : pub.scheduled_at}
+          </span>
+          {pub.error && <span className="text-destructive">{pub.error}</span>}
+          {pub.status === "scheduled" && (
+            <Button size="sm" variant="outline" onClick={() => executeMutation.mutate(pub.id)}>
+              Publier maintenant
+            </Button>
+          )}
+        </div>
+      ))}
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          type="datetime-local"
+          value={scheduledAt}
+          onChange={(e) => setScheduledAt(e.target.value)}
+          className="w-auto text-[10px] h-7"
+        />
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={!scheduledAt || scheduleMutation.isPending}
+          onClick={() => scheduleMutation.mutate()}
+        >
+          Planifier
+        </Button>
+      </div>
     </div>
   );
 }
