@@ -137,6 +137,39 @@ export type Database = {
           },
         ]
       }
+      competitive_briefs: {
+        Row: {
+          admin_notes: string | null
+          brief_content: string | null
+          competitor_name: string
+          created_at: string
+          error: string | null
+          id: string
+          is_mock: boolean
+          sources: Json | null
+        }
+        Insert: {
+          admin_notes?: string | null
+          brief_content?: string | null
+          competitor_name: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          is_mock?: boolean
+          sources?: Json | null
+        }
+        Update: {
+          admin_notes?: string | null
+          brief_content?: string | null
+          competitor_name?: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          is_mock?: boolean
+          sources?: Json | null
+        }
+        Relationships: []
+      }
       content_drafts: {
         Row: {
           calendar_day_offset: number

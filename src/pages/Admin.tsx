@@ -104,6 +104,15 @@ import {
   fetchPerformanceAnalyses,
   triggerPhase7Analysis,
 } from "@/lib/phase7AnalysisStore";
+import {
+  CompetitiveBrief,
+  fetchCompetitiveBriefs,
+  generateCompetitiveBrief,
+} from "@/lib/competitiveBriefStore";
+import {
+  KeywordIdea,
+  researchKeywords,
+} from "@/lib/keywordResearchStore";
 import { toast } from "sonner";
 
 const scrapePage = async (url: string, platform: 'facebook' | 'instagram' | 'tiktok' | 'youtube' | 'snapchat' | 'web') => {
@@ -342,6 +351,7 @@ const Admin = () => {
             <TabsTrigger value="audits">Audits & Prospects</TabsTrigger>
             <TabsTrigger value="phase1-audit">Audit IA (Phase 1)</TabsTrigger>
             <TabsTrigger value="competitive-intel">Veille IA</TabsTrigger>
+            <TabsTrigger value="competitive-brief">Brief concurrentiel</TabsTrigger>
             <TabsTrigger value="site-settings">Configuration Site (Header/Footer)</TabsTrigger>
             <TabsTrigger value="site-content">Contenu du site</TabsTrigger>
           </TabsList>
@@ -376,6 +386,9 @@ const Admin = () => {
           </TabsContent>
           <TabsContent value="competitive-intel">
             <CompetitiveIntelAdmin />
+          </TabsContent>
+          <TabsContent value="competitive-brief">
+            <CompetitiveBriefAdmin />
           </TabsContent>
         </Tabs>
       </div>
@@ -1939,6 +1952,223 @@ function CompetitiveIntelAdmin() {
         ))}
       </CardContent>
     </Card>
+  );
+}
+
+// ─── Brief concurrentiel & recherche de mots-clés ──────────────
+// Admin UI for the "veille concurrentielle publicitaire" feature — see
+// DECISIONS-VEILLE-CONCURRENTIELLE.md for full context. NOT one of the 7
+// phases. Two independent sections:
+//   1. Brief concurrentiel — takes a competitor name + the admin's own
+//      research notes (e.g. gathered manually via AdWhispr), generates an
+//      exportable brief via Claude + real web search. Never claims direct
+//      Meta/TikTok Ad Library access, never presents a budget/performance
+//      figure as verified fact (see competitiveBriefClient.ts).
+//   2. Recherche de mots-clés — thin UI over the Google Ads Keyword Planner
+//      API. Language/geo targets are plain text resource-name inputs
+//      (e.g. "languageConstants/1002", "geoTargetConstants/2120") —
+//      deliberately never guessed or defaulted by this UI or the code
+//      behind it (see googleAdsClient.ts).
+function CompetitiveBriefAdmin() {
+  const queryClient = useQueryClient();
+
+  const { data: briefs = [], isLoading: briefsLoading } = useQuery({
+    queryKey: ["competitive-briefs"],
+    queryFn: fetchCompetitiveBriefs,
+  });
+
+  const [competitorName, setCompetitorName] = useState("");
+  const [adminNotes, setAdminNotes] = useState("");
+
+  const briefMutation = useMutation({
+    mutationFn: () => generateCompetitiveBrief(competitorName, adminNotes),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["competitive-briefs"] });
+      toast[result.ok ? "success" : "error"](result.ok ? "Brief généré." : `Échec : ${result.error}`);
+      if (result.ok) {
+        setCompetitorName("");
+        setAdminNotes("");
+      }
+    },
+    onError: (err: any) => toast.error(`Erreur : ${err.message}`),
+  });
+
+  const [kwKeywords, setKwKeywords] = useState("");
+  const [kwPageUrl, setKwPageUrl] = useState("");
+  const [kwLanguage, setKwLanguage] = useState("");
+  const [kwGeoTargets, setKwGeoTargets] = useState("");
+  const [kwResult, setKwResult] = useState<{ ok: boolean; ideas?: KeywordIdea[]; error?: string } | null>(null);
+
+  const keywordMutation = useMutation({
+    mutationFn: () =>
+      researchKeywords({
+        keywords: kwKeywords.split(",").map((k) => k.trim()).filter(Boolean),
+        pageUrl: kwPageUrl.trim() || undefined,
+        languageResourceName: kwLanguage.trim(),
+        geoTargetConstantResourceNames: kwGeoTargets.split(",").map((g) => g.trim()).filter(Boolean),
+      }),
+    onSuccess: (result) => {
+      setKwResult(result);
+      if (!result.ok) toast.error(`Échec : ${result.error}`);
+    },
+    onError: (err: any) => {
+      setKwResult({ ok: false, error: err.message });
+      toast.error(`Erreur : ${err.message}`);
+    },
+  });
+
+  return (
+    <div className="space-y-6">
+      <Card className="glass border-border/40">
+        <CardHeader className="border-b border-border/40">
+          <CardTitle>Brief concurrentiel</CardTitle>
+          <p className="text-xs text-muted-foreground mt-1">
+            Génère un brief exportable à partir de tes propres notes de recherche (ex. relevées
+            manuellement via AdWhispr) + une vraie recherche web horodatée. Ne consulte jamais
+            directement une bibliothèque de pubs Meta/TikTok, n'affiche jamais un budget ou une
+            performance comme un fait vérifié — voir DECISIONS-VEILLE-CONCURRENTIELLE.md.
+            Positionnement à respecter : "notre équipe réalise cette analyse pour vous", jamais
+            "notre plateforme le fait automatiquement".
+          </p>
+        </CardHeader>
+        <CardContent className="pt-6 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Nom du concurrent</Label>
+              <Input value={competitorName} onChange={(e) => setCompetitorName(e.target.value)} placeholder="Ex. Nom de la marque" />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Notes de recherche (facultatif)</Label>
+            <Textarea
+              value={adminNotes}
+              onChange={(e) => setAdminNotes(e.target.value)}
+              placeholder="Observations déjà collectées manuellement (ex. via AdWhispr) : positionnement, pubs vues, budget mentionné, etc."
+              rows={4}
+            />
+          </div>
+          <Button
+            size="sm"
+            onClick={() => briefMutation.mutate()}
+            disabled={briefMutation.isPending || !competitorName.trim()}
+          >
+            {briefMutation.isPending ? "Génération…" : "Générer le brief"}
+          </Button>
+
+          <div className="space-y-3 pt-2 border-t border-border/40">
+            {briefsLoading && <p className="text-xs text-muted-foreground">Chargement…</p>}
+            {!briefsLoading && briefs.length === 0 && (
+              <p className="text-xs text-muted-foreground">Aucun brief généré pour l'instant.</p>
+            )}
+            {(briefs as CompetitiveBrief[]).map((b) => (
+              <div key={b.id} className="rounded border border-border/30 bg-background/40 p-3 text-xs space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-semibold">{b.competitor_name}</span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {new Date(b.created_at).toLocaleString("fr-FR")}
+                  </span>
+                  {b.error && <Badge variant="destructive">Erreur</Badge>}
+                </div>
+                {b.error && <p className="text-destructive">{b.error}</p>}
+                {b.brief_content && (
+                  <p className="whitespace-pre-wrap text-foreground leading-relaxed">{b.brief_content}</p>
+                )}
+                {b.sources && b.sources.length > 0 && (
+                  <div className="pt-1 space-y-1">
+                    <p className="text-[10px] font-bold text-primary">Sources</p>
+                    {b.sources.map((s, idx) => (
+                      <a
+                        key={idx}
+                        href={s.source_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block text-[10px] text-primary underline break-all"
+                      >
+                        {s.source_title || s.source_url} ({s.retrieved_at})
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="glass border-border/40">
+        <CardHeader className="border-b border-border/40">
+          <CardTitle>Recherche de mots-clés (Google Ads)</CardTitle>
+          <p className="text-xs text-muted-foreground mt-1">
+            Mots-clés suggérés via l'API officielle Google Ads (Keyword Planner). L'URL de page
+            peut être celle d'un concurrent — ce sont des suggestions générales liées au contenu de
+            la page, jamais le ciblage publicitaire réel de ce concurrent (donnée jamais exposée
+            par Google). Langue et zone géographique doivent être saisies explicitement (ex.
+            "languageConstants/1002", "geoTargetConstants/2120") — jamais devinées automatiquement.
+          </p>
+        </CardHeader>
+        <CardContent className="pt-6 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Mots-clés de départ (séparés par des virgules)</Label>
+              <Input value={kwKeywords} onChange={(e) => setKwKeywords(e.target.value)} placeholder="Ex. marketing digital, publicité facebook" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">URL de page (facultatif)</Label>
+              <Input value={kwPageUrl} onChange={(e) => setKwPageUrl(e.target.value)} placeholder="https://exemple.com" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Langue (resource name)</Label>
+              <Input value={kwLanguage} onChange={(e) => setKwLanguage(e.target.value)} placeholder="languageConstants/1002" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Zones géographiques (resource names, séparées par des virgules)</Label>
+              <Input value={kwGeoTargets} onChange={(e) => setKwGeoTargets(e.target.value)} placeholder="geoTargetConstants/2120" />
+            </div>
+          </div>
+          <Button
+            size="sm"
+            onClick={() => keywordMutation.mutate()}
+            disabled={
+              keywordMutation.isPending ||
+              (!kwKeywords.trim() && !kwPageUrl.trim()) ||
+              !kwLanguage.trim() ||
+              !kwGeoTargets.trim()
+            }
+          >
+            {keywordMutation.isPending ? "Recherche…" : "Rechercher"}
+          </Button>
+
+          {kwResult && !kwResult.ok && <p className="text-xs text-destructive">{kwResult.error}</p>}
+          {kwResult?.ok && kwResult.ideas && (
+            <div className="overflow-x-auto pt-2 border-t border-border/40">
+              <table className="w-full text-[11px]">
+                <thead>
+                  <tr className="text-left text-muted-foreground">
+                    <th className="pr-3 py-1">Mot-clé</th>
+                    <th className="pr-3 py-1">Recherches/mois (moy.)</th>
+                    <th className="pr-3 py-1">Concurrence</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {kwResult.ideas.map((idea, idx) => (
+                    <tr key={idx} className="border-t border-border/20">
+                      <td className="pr-3 py-1">{idea.text}</td>
+                      <td className="pr-3 py-1">{idea.avg_monthly_searches}</td>
+                      <td className="pr-3 py-1">{idea.competition}</td>
+                    </tr>
+                  ))}
+                  {kwResult.ideas.length === 0 && (
+                    <tr>
+                      <td colSpan={3} className="py-2 text-muted-foreground">Aucun résultat.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 

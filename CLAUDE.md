@@ -558,3 +558,6 @@ différenciante et l'engagement sensible restent supervisés par un humain.
 - Documenter chaque agent avec son scope strict en commentaire en tête de fichier.
 - Ne pas supposer une architecture de dossiers ou de base de données non confirmée — demander avant de
   créer une structure qui n'existe pas déjà dans le repo.
+
+Une brique séparée de veille concurrentielle publicitaire (hors des 7 phases ci-dessus) est documentée
+dans `DECISIONS-VEILLE-CONCURRENTIELLE.md`.
