@@ -61,6 +61,8 @@ import {
   CompetitiveProfile,
   getCompetitiveIntel,
   resetCompetitiveIntel,
+  DATA_CONFIDENCE_LABELS,
+  FEATURE_CATEGORY_LABELS,
 } from "@/lib/competitiveIntel";
 import {
   Platform as Phase1Platform,
@@ -1911,7 +1913,7 @@ function CompetitiveIntelAdmin() {
               </div>
               <div className="text-[10px] text-muted-foreground md:text-right">
                 <p>Scrape: {profile.scrapedAt}</p>
-                <p>Confiance: {profile.dataConfidence}</p>
+                <p>Confiance: {DATA_CONFIDENCE_LABELS[profile.dataConfidence]}</p>
               </div>
             </div>
 
@@ -1954,7 +1956,7 @@ function CompetitiveIntelAdmin() {
                     <div key={feature.name} className="rounded-lg border border-border/40 bg-background/40 p-3">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-xs font-bold text-primary">{feature.name}</span>
-                        <span className="text-[9px] uppercase text-muted-foreground">{feature.category}</span>
+                        <span className="text-[9px] uppercase text-muted-foreground">{FEATURE_CATEGORY_LABELS[feature.category]}</span>
                       </div>
                       <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">{feature.description}</p>
                       <p className="text-[11px] text-foreground mt-2 leading-relaxed">
@@ -1967,7 +1969,7 @@ function CompetitiveIntelAdmin() {
 
               <div className="space-y-4">
                 <div className="rounded-xl bg-secondary/30 border border-border/40 p-3 space-y-2">
-                  <h4 className="text-xs font-bold text-foreground">Angles pour depasser Soro</h4>
+                  <h4 className="text-xs font-bold text-foreground">Angles pour dépasser {profile.productName}</h4>
                   <ul className="space-y-1.5 text-[11px] text-muted-foreground">
                     {profile.gapsForGLN.map((item, idx) => (
                       <li key={idx} className="leading-relaxed">- {item}</li>

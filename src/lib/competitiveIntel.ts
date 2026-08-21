@@ -31,30 +31,50 @@ export interface CompetitiveProfile {
   dataConfidence: "low" | "medium" | "high";
 }
 
+// Libellés d'affichage FR pour les valeurs d'enum (types conservés en
+// anglais côté code — ce sont des identifiants techniques internes — mais
+// jamais affichés tels quels dans l'admin ; voir CompetitiveIntelAdmin
+// dans src/pages/Admin.tsx).
+export const DATA_CONFIDENCE_LABELS: Record<CompetitiveProfile["dataConfidence"], string> = {
+  low: "Faible",
+  medium: "Moyenne",
+  high: "Élevée",
+};
+
+export const FEATURE_CATEGORY_LABELS: Record<CompetitiveFeature["category"], string> = {
+  seo: "SEO",
+  content: "Contenu",
+  publishing: "Publication",
+  ai: "IA",
+  analytics: "Analytique",
+  conversion: "Conversion",
+  support: "Support",
+};
+
 export const defaultCompetitiveIntel: CompetitiveProfile[] = [
   {
     id: "soro-2026-06-12",
     productName: "Soro",
     companyName: "DIGIMERI OU",
     website: "https://trysoro.com",
-    category: "SEO autopilot and AI content publishing",
+    category: "Pilote automatique SEO et publication de contenu par IA",
     scrapedAt: "2026-06-12",
     sourceUrls: [
       "https://trysoro.com/",
       "https://trysoro.com/pricing"
     ],
-    positioning: "SEO autopilot that researches keywords, writes optimized articles, and publishes content automatically for Google and AI discovery.",
+    positioning: "Pilote automatique SEO qui recherche des mots-clés, rédige des articles optimisés et publie du contenu automatiquement pour la découverte via Google et les IA.",
     funnelSummary: [
-      "Paid traffic sends visitors to a quiz/landing page with an automation promise.",
-      "The offer reduces friction by asking for a website URL and promising setup in minutes.",
-      "The product value is framed around daily publishing, buyer keywords, Google visibility, and ChatGPT visibility.",
-      "The pricing page reinforces risk reversal with support, secure checkout, and a money-back guarantee."
+      "Le trafic payant envoie les visiteurs vers une page de destination/quiz avec une promesse d'automatisation.",
+      "L'offre réduit la friction en demandant simplement l'URL du site et en promettant une mise en place en quelques minutes.",
+      "La valeur du produit est présentée autour de la publication quotidienne, des mots-clés acheteurs, de la visibilité Google et de la visibilité ChatGPT.",
+      "La page de tarification renforce la réduction du risque perçu avec le support, un paiement sécurisé et une garantie de remboursement."
     ],
     pricingSignals: [
-      "Public pricing page starts from 39 USD per month.",
-      "Plans indicate 30 to unlimited articles per month depending on subscription.",
-      "The page promotes flexible monthly plans with no minimum commitment.",
-      "A 14-day money-back guarantee is presented as risk reversal."
+      "La page de tarification publique démarre à 39 USD par mois.",
+      "Les formules indiquent de 30 à un nombre illimité d'articles par mois selon l'abonnement.",
+      "La page met en avant des formules mensuelles flexibles sans engagement minimum.",
+      "Une garantie de remboursement de 14 jours est présentée pour réduire le risque perçu."
     ],
     integrations: [
       "WordPress",
@@ -65,86 +85,86 @@ export const defaultCompetitiveIntel: CompetitiveProfile[] = [
       "HubSpot",
       "Ghost",
       "Next.js",
-      "Webhooks / custom integrations"
+      "Webhooks / intégrations personnalisées"
     ],
-    languageSupport: "50+ languages according to the public pricing page.",
+    languageSupport: "50+ langues selon la page de tarification publique.",
     metricClaims: [
       {
-        label: "Published content",
+        label: "Contenu publié",
         value: "200k+ articles",
-        context: "Homepage performance/social proof claim."
+        context: "Affirmation de preuve sociale/performance sur la page d'accueil."
       },
       {
-        label: "Search impressions",
-        value: "1.6B impressions",
-        context: "Homepage performance/social proof claim."
+        label: "Impressions de recherche",
+        value: "1,6 Md d'impressions",
+        context: "Affirmation de preuve sociale/performance sur la page d'accueil."
       },
       {
-        label: "Search clicks",
-        value: "30M clicks",
-        context: "Homepage performance/social proof claim."
+        label: "Clics de recherche",
+        value: "30 M de clics",
+        context: "Affirmation de preuve sociale/performance sur la page d'accueil."
       },
       {
-        label: "Trust signal",
-        value: "4.9 Trustpilot rating",
-        context: "Footer/pricing trust signal."
+        label: "Signal de confiance",
+        value: "Note Trustpilot de 4,9",
+        context: "Signal de confiance en pied de page/tarification."
       }
     ],
     features: [
       {
-        name: "Keyword research",
+        name: "Recherche de mots-clés",
         category: "seo",
-        description: "Identifies search topics likely to attract buyers.",
-        glnOpportunity: "Add buyer-intent keywords plus WhatsApp intent, local city terms, and campaign angles."
+        description: "Identifie des sujets de recherche susceptibles d'attirer des acheteurs.",
+        glnOpportunity: "Ajouter des mots-clés à intention d'achat, une intention WhatsApp, des termes de villes locales et des angles de campagne."
       },
       {
-        name: "Daily article generation",
+        name: "Génération quotidienne d'articles",
         category: "content",
-        description: "Creates long-form SEO articles on a recurring schedule.",
-        glnOpportunity: "Generate articles, Reels scripts, WhatsApp scripts, ad angles, and landing-page copy together."
+        description: "Crée des articles SEO longs selon un calendrier récurrent.",
+        glnOpportunity: "Générer ensemble des articles, des scripts de Reels, des scripts WhatsApp, des angles publicitaires et des textes de pages de destination."
       },
       {
-        name: "Auto publishing",
+        name: "Publication automatique",
         category: "publishing",
-        description: "Publishes content directly to connected CMS platforms.",
-        glnOpportunity: "Add approval workflows for GLN experts, then publish to site and social channels."
+        description: "Publie le contenu directement sur les plateformes CMS connectées.",
+        glnOpportunity: "Ajouter des circuits de validation pour les experts GLN, puis publier sur le site et les réseaux sociaux."
       },
       {
-        name: "Google + AI optimization",
+        name: "Optimisation Google + IA",
         category: "ai",
-        description: "Frames content for Google ranking and AI-answer visibility.",
-        glnOpportunity: "Optimize for Google, ChatGPT, WhatsApp conversion, Meta Ads, and local proof signals."
+        description: "Structure le contenu pour le classement Google et la visibilité dans les réponses IA.",
+        glnOpportunity: "Optimiser pour Google, ChatGPT, la conversion WhatsApp, Meta Ads et les signaux de preuve locaux."
       },
       {
-        name: "Brand voice learning",
+        name: "Apprentissage du ton de marque",
         category: "ai",
-        description: "Learns tone and style from the connected website.",
-        glnOpportunity: "Learn brand voice from website, social pages, testimonials, WhatsApp conversations, and offer details."
+        description: "Apprend le ton et le style à partir du site connecté.",
+        glnOpportunity: "Apprendre le ton de marque à partir du site, des pages sociales, des témoignages, des conversations WhatsApp et des détails de l'offre."
       },
       {
-        name: "Internal/external linking",
+        name: "Maillage interne/externe",
         category: "seo",
-        description: "Adds links to strengthen topical relevance.",
-        glnOpportunity: "Add links plus conversion routes: audit, service pages, proforma, WhatsApp CTA, and retargeting pages."
+        description: "Ajoute des liens pour renforcer la pertinence thématique.",
+        glnOpportunity: "Ajouter des liens ainsi que des parcours de conversion : audit, pages de services, proforma, appel à l'action WhatsApp et pages de reciblage."
       },
       {
-        name: "AI image generation",
+        name: "Génération d'images par IA",
         category: "content",
-        description: "Creates visuals for articles.",
-        glnOpportunity: "Generate campaign visual briefs and creative directions for designers, not only blog images."
+        description: "Crée des visuels pour les articles.",
+        glnOpportunity: "Générer des briefs visuels de campagne et des directions créatives pour les designers, pas seulement des images de blog."
       }
     ],
     gapsForGLN: [
-      "Soro is centered on SEO articles; GLN can combine SEO, social media, Meta Ads, WhatsApp closing, proforma, and CRM follow-up.",
-      "Soro's public funnel is global and self-serve; GLN can localize for Cameroon, Douala, Yaounde, and Central Africa.",
-      "Soro optimizes visibility; GLN should optimize visibility plus lead qualification and sales conversion.",
-      "Soro appears content-first; GLN can be diagnosis-first with audit scores, competitor benchmark, and a commercial action plan."
+      "Soro se concentre sur les articles SEO ; GLN peut combiner SEO, réseaux sociaux, Meta Ads, closing WhatsApp, proforma et suivi CRM.",
+      "Le tunnel public de Soro est global et en libre-service ; GLN peut se localiser pour le Cameroun, Douala, Yaoundé et l'Afrique Centrale.",
+      "Soro optimise la visibilité ; GLN devrait optimiser la visibilité ainsi que la qualification des leads et la conversion commerciale.",
+      "Soro semble privilégier le contenu en premier ; GLN peut privilégier le diagnostic en premier avec des scores d'audit, un benchmark concurrentiel et un plan d'action commercial."
     ],
     glnCounterPositioning: [
-      "From SEO autopilot to acquisition autopilot.",
-      "From daily articles to daily content, ads, WhatsApp scripts, and conversion assets.",
-      "From traffic growth to qualified leads and signed clients.",
-      "From generic global SEO to local market execution for Cameroon and Africa."
+      "Du pilote automatique SEO au pilote automatique d'acquisition.",
+      "Des articles quotidiens au contenu quotidien, aux publicités, aux scripts WhatsApp et aux supports de conversion.",
+      "De la croissance du trafic aux leads qualifiés et clients signés.",
+      "D'un SEO global générique à une exécution locale pour le marché du Cameroun et de l'Afrique."
     ],
     dataConfidence: "high"
   },
@@ -153,25 +173,25 @@ export const defaultCompetitiveIntel: CompetitiveProfile[] = [
     productName: "Nuelink",
     companyName: "Nuelink",
     website: "https://nuelink.com",
-    category: "Social media scheduling, automation, and analytics",
+    category: "Planification, automatisation et analytique des réseaux sociaux",
     scrapedAt: "2026-06-12",
     sourceUrls: [
       "https://nuelink.com/",
       "https://nuelink.com/pricing",
       "https://nuelink.com/features"
     ],
-    positioning: "Social media automation platform that schedules, crossposts, recycles, analyzes, and auto-publishes content across major social channels.",
+    positioning: "Plateforme d'automatisation des réseaux sociaux qui planifie, republie en croisé, recycle, analyse et publie automatiquement du contenu sur les principaux réseaux sociaux.",
     funnelSummary: [
-      "Paid traffic promotes a time-saving automation promise for creators, ecommerce sellers, agencies, and small businesses.",
-      "The homepage frames the product as a set-and-forget social media engine connected to blogs, stores, podcasts, reviews, and RSS sources.",
-      "The conversion path emphasizes a 7-day free trial, fast setup, multiple social channels, and an anniversary yearly discount.",
-      "The product story competes against schedulers by presenting automation, crossposting, evergreen recycling, comments, analytics, and AI assistance together."
+      "Le trafic payant met en avant une promesse d'automatisation faisant gagner du temps pour les créateurs, vendeurs e-commerce, agences et petites entreprises.",
+      "La page d'accueil présente le produit comme un moteur de réseaux sociaux « configurez et oubliez », connecté aux blogs, boutiques, podcasts, avis et flux RSS.",
+      "Le parcours de conversion met en avant un essai gratuit de 7 jours, une mise en place rapide, de multiples réseaux sociaux et une remise annuelle d'anniversaire.",
+      "Le discours produit se positionne face aux outils de planification en réunissant automatisation, republication croisée, recyclage de contenu evergreen, commentaires, analytique et assistance IA."
     ],
     pricingSignals: [
-      "Public yearly anniversary pricing starts at 12 USD/month for Standard with 144 USD paid yearly.",
-      "Premium is shown at 32 USD/month yearly, Business at 52 USD/month yearly, Agency at 85.3 USD/month yearly, and Agency-Plus at 152 USD/month yearly.",
-      "Plans scale by brands, members, social channels, automations, collections, AI credits, link-in-bio slots, and queue size.",
-      "Pricing page indicates 0 USD due today for the free trial and a 4-months-free yearly offer active around the June 2026 campaign."
+      "La tarification annuelle publique d'anniversaire démarre à 12 USD/mois pour l'offre Standard, soit 144 USD payés annuellement.",
+      "Premium est affiché à 32 USD/mois en annuel, Business à 52 USD/mois en annuel, Agency à 85,3 USD/mois en annuel, et Agency-Plus à 152 USD/mois en annuel.",
+      "Les formules évoluent selon le nombre de marques, membres, réseaux sociaux, automatisations, collections, crédits IA, emplacements de lien en bio et taille de la file d'attente.",
+      "La page de tarification indique 0 USD à payer aujourd'hui pour l'essai gratuit, ainsi qu'une offre annuelle « 4 mois offerts » active autour de la campagne de juin 2026."
     ],
     integrations: [
       "Facebook",
@@ -201,106 +221,106 @@ export const defaultCompetitiveIntel: CompetitiveProfile[] = [
       "Make",
       "Pabbly",
       "Canva",
-      "Public API",
-      "MCP Access"
+      "API publique",
+      "Accès MCP"
     ],
-    languageSupport: "Not positioned primarily around language coverage; positioned around multi-platform publishing and automation.",
+    languageSupport: "Ne met pas l'accent en premier lieu sur la couverture linguistique ; se positionne plutôt sur la publication multiplateforme et l'automatisation.",
     metricClaims: [
       {
-        label: "Users",
-        value: "60,000+ creators and businesses",
-        context: "Homepage social proof claim."
+        label: "Utilisateurs",
+        value: "60 000+ créateurs et entreprises",
+        context: "Affirmation de preuve sociale sur la page d'accueil."
       },
       {
-        label: "Posts published",
-        value: "15M+ posts",
-        context: "Homepage social proof claim."
+        label: "Publications publiées",
+        value: "15 M+ publications",
+        context: "Affirmation de preuve sociale sur la page d'accueil."
       },
       {
-        label: "Countries",
-        value: "90+ countries",
-        context: "Homepage social proof claim."
+        label: "Pays",
+        value: "90+ pays",
+        context: "Affirmation de preuve sociale sur la page d'accueil."
       },
       {
-        label: "Review score",
-        value: "4.9/5 from 600+ reviews",
-        context: "Homepage and pricing trust signal."
+        label: "Note des avis",
+        value: "4,9/5 sur plus de 600 avis",
+        context: "Signal de confiance sur la page d'accueil et de tarification."
       },
       {
-        label: "Automations",
-        value: "45 native automations",
-        context: "Homepage differentiator claim."
+        label: "Automatisations",
+        value: "45 automatisations natives",
+        context: "Argument différenciateur mis en avant sur la page d'accueil."
       }
     ],
     features: [
       {
-        name: "Multi-platform scheduling",
+        name: "Planification multiplateforme",
         category: "publishing",
-        description: "Schedules and publishes content across 12 major social platforms from one dashboard.",
-        glnOpportunity: "Build GLN scheduling around campaigns, offers, audits, WhatsApp CTA, and local posting calendars."
+        description: "Planifie et publie du contenu sur 12 grandes plateformes sociales depuis un seul tableau de bord.",
+        glnOpportunity: "Construire la planification GLN autour des campagnes, offres, audits, appels à l'action WhatsApp et calendriers de publication locaux."
       },
       {
-        name: "Automations",
+        name: "Automatisations",
         category: "publishing",
-        description: "Turns new blog posts, products, podcasts, reviews, and RSS items into social posts automatically.",
-        glnOpportunity: "Generate acquisition assets from audits, services, testimonials, proformas, and product offers, not only source feeds."
+        description: "Transforme automatiquement les nouveaux articles de blog, produits, podcasts, avis et éléments RSS en publications sociales.",
+        glnOpportunity: "Générer des supports d'acquisition à partir des audits, services, témoignages, proformas et offres produits, pas seulement des flux sources."
       },
       {
-        name: "Crossposting routes",
+        name: "Parcours de republication croisée",
         category: "content",
-        description: "Repurposes posts between platforms such as Instagram Reels, TikTok, YouTube Shorts, Facebook, Threads, Bluesky, and LinkedIn.",
-        glnOpportunity: "Add local format rules, hooks, subtitles, and platform-specific CTA variants for Cameroon audiences."
+        description: "Recycle les publications entre plateformes comme Instagram Reels, TikTok, YouTube Shorts, Facebook, Threads, Bluesky et LinkedIn.",
+        glnOpportunity: "Ajouter des règles de format locales, des accroches, des sous-titres et des variantes d'appel à l'action propres à chaque plateforme pour les audiences camerounaises."
       },
       {
-        name: "Collections and queue",
+        name: "Collections et file d'attente",
         category: "content",
-        description: "Organizes posts by theme/campaign and drips them through scheduled queues and calendars.",
-        glnOpportunity: "Create GLN campaign collections: awareness, proof, offer, objection handling, retargeting, and WhatsApp follow-up."
+        description: "Organise les publications par thème/campagne et les diffuse progressivement via des files d'attente et calendriers programmés.",
+        glnOpportunity: "Créer des collections de campagnes GLN : notoriété, preuve, offre, traitement des objections, reciblage et suivi WhatsApp."
       },
       {
-        name: "Comment inbox",
+        name: "Boîte de réception des commentaires",
         category: "conversion",
-        description: "Centralizes social comments and mentions for faster engagement.",
-        glnOpportunity: "Turn comments into leads with qualification tags, WhatsApp handoff, closer assignment, and CRM status."
+        description: "Centralise les commentaires et mentions des réseaux sociaux pour un engagement plus rapide.",
+        glnOpportunity: "Transformer les commentaires en leads avec des étiquettes de qualification, un transfert vers WhatsApp, une attribution à un closer et un statut CRM."
       },
       {
-        name: "Analytics and top posts",
+        name: "Analytique et publications les plus performantes",
         category: "analytics",
-        description: "Tracks followers, views, engagement, impressions, clicks, top posts, link insights, and hashtag insights.",
-        glnOpportunity: "Connect social analytics to revenue metrics: WhatsApp leads, cost per lead, appointments, proformas, and closed deals."
+        description: "Suit les abonnés, vues, engagement, impressions, clics, publications les plus performantes, statistiques de liens et de hashtags.",
+        glnOpportunity: "Relier l'analytique sociale aux indicateurs de revenu : leads WhatsApp, coût par lead, rendez-vous, proformas et affaires conclues."
       },
       {
-        name: "Nue AI Assistant",
+        name: "Assistant IA Nue",
         category: "ai",
-        description: "Assists with ideas, captions, hashtags, rewrites, and post drafts.",
-        glnOpportunity: "Make GLN AI strategy-first: audit diagnosis, campaign strategy, ad copy, WhatsApp scripts, landing pages, and sales follow-up."
+        description: "Aide pour les idées, légendes, hashtags, reformulations et brouillons de publications.",
+        glnOpportunity: "Faire de l'IA GLN un outil axé stratégie en premier : diagnostic d'audit, stratégie de campagne, textes publicitaires, scripts WhatsApp, pages de destination et suivi commercial."
       },
       {
-        name: "Public API and MCP access",
+        name: "Accès API publique et MCP",
         category: "ai",
-        description: "Offers programmatic publishing and workflow integration for tools and AI agents.",
-        glnOpportunity: "Expose GLN workflow APIs later for audit ingestion, content generation, publication approval, and CRM sync."
+        description: "Propose une publication programmatique et une intégration de workflow pour les outils et agents IA.",
+        glnOpportunity: "Exposer plus tard des API de workflow GLN pour l'ingestion d'audits, la génération de contenu, la validation de publication et la synchronisation CRM."
       },
       {
-        name: "Link in bio and short links",
+        name: "Lien en bio et liens courts",
         category: "conversion",
-        description: "Provides mini landing pages and trackable short links.",
-        glnOpportunity: "Create GLN bio pages that prioritize audit, WhatsApp, offers, testimonials, and campaign retargeting pixels."
+        description: "Fournit des mini pages de destination et des liens courts traçables.",
+        glnOpportunity: "Créer des pages bio GLN qui priorisent l'audit, WhatsApp, les offres, les témoignages et les pixels de reciblage de campagne."
       }
     ],
     gapsForGLN: [
-      "Nuelink is automation-first; GLN can be acquisition-first by connecting social activity to audits, proformas, WhatsApp conversion, and CRM outcomes.",
-      "Nuelink optimizes content operations; GLN should optimize business diagnosis, offer quality, campaign profitability, and closer workflow.",
-      "Nuelink supports many channels; GLN can win with local market intelligence, French/English Cameroon copy, and WhatsApp-first conversion.",
-      "Nuelink centralizes comments; GLN can classify comments as hot leads, objections, support issues, or upsell opportunities.",
-      "Nuelink has public API/MCP positioning; GLN can prepare future agent workflows for audit-to-campaign execution."
+      "Nuelink privilégie l'automatisation en premier ; GLN peut privilégier l'acquisition en premier en reliant l'activité sociale aux audits, proformas, conversion WhatsApp et résultats CRM.",
+      "Nuelink optimise les opérations de contenu ; GLN devrait optimiser le diagnostic business, la qualité de l'offre, la rentabilité des campagnes et le workflow des closers.",
+      "Nuelink prend en charge de nombreux canaux ; GLN peut se démarquer grâce à la connaissance du marché local, des textes en français/anglais adaptés au Cameroun et une conversion axée WhatsApp en priorité.",
+      "Nuelink centralise les commentaires ; GLN peut classer les commentaires en leads chauds, objections, problèmes de support ou opportunités de vente additionnelle.",
+      "Nuelink se positionne sur l'API publique/MCP ; GLN peut préparer de futurs workflows d'agents pour l'exécution audit-vers-campagne."
     ],
     glnCounterPositioning: [
-      "From social media scheduling to sales acquisition orchestration.",
-      "From crossposting to channel-specific conversion campaigns.",
-      "From AI captions to AI diagnosis, strategy, scripts, landing pages, and proformas.",
-      "From engagement analytics to revenue and WhatsApp lead analytics.",
-      "From generic automation to localized execution for Cameroon and African businesses."
+      "De la planification des réseaux sociaux à l'orchestration de l'acquisition commerciale.",
+      "De la republication croisée à des campagnes de conversion spécifiques à chaque canal.",
+      "Des légendes générées par IA au diagnostic, à la stratégie, aux scripts, pages de destination et proformas générés par IA.",
+      "De l'analytique d'engagement à l'analytique du revenu et des leads WhatsApp.",
+      "D'une automatisation générique à une exécution localisée pour les entreprises du Cameroun et d'Afrique."
     ],
     dataConfidence: "high"
   }
