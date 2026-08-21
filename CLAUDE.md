@@ -498,10 +498,26 @@ mais reste séparé de ce qui suit.
   littéralement "Lovable App" — visible dans l'onglet du navigateur et dans l'aperçu de partage
   WhatsApp/Facebook/X du site. Corrigé en `lang="fr"` + "GLN Digital" partout ; `twitter:site` passé de
   `@Lovable` à `@glndigital` (vérifié comme le vrai handle X du site via `src/components/
-  SocialLinks.tsx`, pas une invention). Les images `og:image`/`twitter:image` restent hébergées sur le
-  bucket de stockage Lovable (`storage.googleapis.com/gpt-engineer-file-uploads/...`) — dépendance
-  externe non résolue, à héberger sur le domaine GLN si Russel veut supprimer cette dépendance un jour.
-  Vérifié : `npm run test` : 0 erreur (fichier HTML statique, pas de build TS concerné).
+  SocialLinks.tsx`, pas une invention).
+  - **Découverte plus grave en creusant l'image `og:image`/`twitter:image`, corrigée le même jour** :
+    l'image alors utilisée (hébergée sur le bucket Lovable `storage.googleapis.com/gpt-engineer-file-
+    uploads/...`) n'était pas du tout une image GLN Digital — une bannière "VIVEZ L'EXPÉRIENCE DU LUXE"
+    avec appartements/piscine/événementiel, visiblement un reliquat d'un tout autre projet (client
+    immobilier/hôtelier ?) resté dans le scaffold Lovable. Concrètement : tout partage du site sur
+    WhatsApp/Facebook/X affichait un aperçu totalement hors-sujet, sans rapport avec l'agence. Pas
+    re-hébergée telle quelle (aurait figé le problème) — question posée à Russel, qui a choisi le logo
+    GLN Digital comme image de partage. `src/assets/logo.png` copié vers `public/og-image.png` (les
+    balises `og:image` ont besoin d'une URL statique servie telle quelle, pas d'un import JS/Vite comme
+    `src/assets/`) ; `og:image`/`twitter:image` pointent maintenant vers `https://glndigital.com/og-
+    image.png`. **Hypothèse à vérifier par Russel** : ce domaine est celui déjà utilisé en dur dans
+    `src/components/ShareButtons.tsx` (`shareUrl`) donc probablement le domaine de prod visé, mais le
+    site vitrine actuellement en ligne (section "Contexte du projet" plus bas) est documenté comme
+    `glndigital-platform.vercel.app` — si `glndigital.com` n'est pas (encore) réellement pointé vers ce
+    déploiement, l'image de partage sera cassée (404) pour les crawlers Facebook/X tant que ce domaine
+    n'est pas branché. Logo carré (1080×1080) utilisé tel quel plutôt que retaillé en bannière 1200×630
+    — accepté comme compromis rapide, pas une vraie bannière de partage conçue pour ce format.
+  - Vérifié : `npm run test` et `npm run build` (build de prod complet) : 0 erreur, `dist/og-image.png`
+    confirmé présent après build.
 
 ### 1. Contexte du projet
 
