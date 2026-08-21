@@ -422,6 +422,38 @@ mais reste séparé de ce qui suit.
     validation de l'interprétation Phase 7 par Russel.
 - **Phase 4b** : non commencée — en attente d'une décision d'outil de traitement image/vidéo avec
   Russel (Claude seul ne le fait pas).
+- **Refonte de la navigation admin en sidebar — 2026-08-21.** Sans lien direct avec les 7 phases :
+  Russel a partagé une capture d'écran d'un tableau de bord admin (incident.io — sidebar sombre à
+  gauche avec icônes + libellés, zone de contenu blanche) comme référence, puis a explicitement choisi
+  (via question à choix) de remplacer les onglets horizontaux existants de `src/pages/Admin.tsx` par
+  cette disposition en sidebar plutôt que de garder les `Tabs`.
+  - `src/components/ui/sidebar.tsx` (primitive shadcn déjà présente mais jusqu'ici inutilisée nulle
+    part dans le code) a été légèrement modifié : le bloc desktop `fixed inset-y-0 ... md:flex` partait
+    du tout haut de l'écran, ce qui l'aurait fait passer sous la `Navbar` globale fixe (`md:h-20`,
+    montée par `App.tsx` autour de toutes les routes) et l'aurait rendu partiellement caché par son
+    fond translucide. Corrigé en décalant ce bloc sous la navbar (`md:top-20` +
+    `md:h-[calc(100svh-5rem)]`) — n'affecte que la variante desktop fixe ; le tiroir mobile (`Sheet`)
+    n'est pas concerné. Aucun autre composant de ce fichier n'a été modifié.
+  - `src/pages/Admin.tsx` : les 11 sections existantes (Mon compte, Témoignages, Médias/Portfolio,
+    Gestion des Cours, Rôles & Utilisateurs, Audits & Prospects, Audit IA (Phase 1), Veille IA, Brief
+    concurrentiel, Configuration Site, Contenu du site) sont conservées telles quelles, chacune avec le
+    même composant/props qu'avant — seul le mécanisme de navigation change : un `useState<AdminSectionId>`
+    remplace `<Tabs defaultValue>`, un tableau `ADMIN_SECTIONS` (id + libellé + icône lucide) pilote à la
+    fois le rendu du menu (`SidebarMenu`/`SidebarMenuButton`, état actif surligné) et le rendu
+    conditionnel du contenu (`{activeSection === "x" && <XAdmin/>}`, remplaçant `<TabsContent>` —
+    comportement de montage/démontage identique à Radix `Tabs` par défaut, donc pas de régression sur
+    les états locaux des sous-composants). Sidebar en mode `collapsible="icon"` (repliable en rail
+    d'icônes via le bouton `SidebarTrigger`, toujours visible en haut du contenu) ; import `Tabs` retiré
+    (devenu inutilisé).
+  - Aucune nouvelle valeur de couleur nécessaire : les tokens `--sidebar-*` (fond sombre, accent orange
+    de la marque) étaient déjà définis dans `src/index.css` et mappés dans `tailwind.config.ts` — probable
+    reliquat du scaffold shadcn/Lovable initial, jamais utilisé jusqu'ici.
+  - Vérifié : `npx tsc --noEmit -p tsconfig.app.json` et `npm run test` : 0 erreur. `npx eslint` ne
+    signale que des erreurs `any`/`prefer-const` déjà présentes avant cette session, sur des lignes en
+    dehors de tout ce qui a été touché ici (aucune régression introduite).
+  - **Pas encore fait** : pas de vérification visuelle par Russel dans le navigateur à ce stade de la
+    session (structure/build/tests vérifiés uniquement) ; pas de retouche du contenu interne de chaque
+    section, seule la coquille de navigation a changé.
 
 ### 1. Contexte du projet
 

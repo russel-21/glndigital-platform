@@ -6,15 +6,29 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { 
-  Trash2, Plus, Eye, EyeOff, Video, FileText, Edit2, ShieldAlert, CheckCircle, 
-  Clock, AlertTriangle, Lightbulb, Sparkles, Share2, Globe, BarChart2, Star, 
-  Target, Camera, Database, Users, Laptop, Smartphone, HelpCircle, PlusCircle, ArrowRight, Upload, Info
+import {
+  SidebarProvider,
+  Sidebar,
+  SidebarContent,
+  SidebarHeader,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarInset,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
+import {
+  Trash2, Plus, Eye, EyeOff, Video, FileText, Edit2, ShieldAlert, CheckCircle,
+  Clock, AlertTriangle, Lightbulb, Sparkles, Share2, Globe, BarChart2, Star,
+  Target, Camera, Database, Users, Laptop, Smartphone, HelpCircle, PlusCircle, ArrowRight, Upload, Info,
+  UserCircle, GraduationCap, Settings, type LucideIcon
 } from "lucide-react";
 import { getCourses, saveCourses, Course, CourseModule, Lesson, generateDefaultQuiz } from "@/lib/coursesStore";
 import { 
@@ -258,9 +272,41 @@ const scrapePage = async (url: string, platform: 'facebook' | 'instagram' | 'tik
   }
 };
 
+type AdminSectionId =
+  | "my-account"
+  | "testimonials"
+  | "media"
+  | "courses"
+  | "roles"
+  | "audits"
+  | "phase1-audit"
+  | "competitive-intel"
+  | "competitive-brief"
+  | "site-settings"
+  | "site-content";
+
+// Sidebar nav, replacing the old horizontal <Tabs>/<TabsList> — same 11
+// sections, same order, just rendered as icon+label sidebar items instead
+// of tabs. Kept as a plain array (not JSX) so both the menu and the active
+// checks below stay driven by one source of truth.
+const ADMIN_SECTIONS: { id: AdminSectionId; label: string; icon: LucideIcon }[] = [
+  { id: "my-account", label: "Mon compte", icon: UserCircle },
+  { id: "testimonials", label: "Témoignages", icon: Star },
+  { id: "media", label: "Médias / Portfolio", icon: Video },
+  { id: "courses", label: "Gestion des Cours", icon: GraduationCap },
+  { id: "roles", label: "Rôles & Utilisateurs", icon: Users },
+  { id: "audits", label: "Audits & Prospects", icon: Target },
+  { id: "phase1-audit", label: "Audit IA (Phase 1)", icon: Sparkles },
+  { id: "competitive-intel", label: "Veille IA", icon: BarChart2 },
+  { id: "competitive-brief", label: "Brief concurrentiel", icon: FileText },
+  { id: "site-settings", label: "Configuration Site", icon: Settings },
+  { id: "site-content", label: "Contenu du site", icon: Globe },
+];
+
 const Admin = () => {
   const [authenticated, setAuthenticated] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
+  const [activeSection, setActiveSection] = useState<AdminSectionId>("testimonials");
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -337,61 +383,67 @@ const Admin = () => {
   }
 
   return (
-    <div className="min-h-screen pt-24 pb-16 overflow-x-hidden">
-      <div className="container mx-auto px-4 md:px-8 min-w-0">
-        <h1 className="font-heading text-3xl font-bold mb-8">Panneau d'administration</h1>
-        <Tabs defaultValue="testimonials">
-          <div className="mobile-scroll-x mb-6">
-          <TabsList className="flex w-max min-w-full flex-nowrap gap-2">
-            <TabsTrigger value="my-account">Mon compte</TabsTrigger>
-            <TabsTrigger value="testimonials">Témoignages</TabsTrigger>
-            <TabsTrigger value="media">Médias / Portfolio</TabsTrigger>
-            <TabsTrigger value="courses">Gestion des Cours</TabsTrigger>
-            <TabsTrigger value="roles">Rôles & Utilisateurs</TabsTrigger>
-            <TabsTrigger value="audits">Audits & Prospects</TabsTrigger>
-            <TabsTrigger value="phase1-audit">Audit IA (Phase 1)</TabsTrigger>
-            <TabsTrigger value="competitive-intel">Veille IA</TabsTrigger>
-            <TabsTrigger value="competitive-brief">Brief concurrentiel</TabsTrigger>
-            <TabsTrigger value="site-settings">Configuration Site (Header/Footer)</TabsTrigger>
-            <TabsTrigger value="site-content">Contenu du site</TabsTrigger>
-          </TabsList>
-          </div>
+    <div className="min-h-screen pb-16 overflow-x-hidden">
+      <SidebarProvider>
+        <Sidebar collapsible="icon">
+          <SidebarHeader className="px-3 py-4">
+            <div className="flex items-center gap-2 px-1 group-data-[collapsible=icon]:justify-center">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-primary font-heading text-sm font-bold text-white">
+                G
+              </div>
+              <div className="flex flex-col group-data-[collapsible=icon]:hidden">
+                <span className="text-sm font-semibold leading-tight text-sidebar-foreground">GLN Digital</span>
+                <span className="text-xs text-sidebar-foreground/60">Panneau admin</span>
+              </div>
+            </div>
+          </SidebarHeader>
+          <SidebarContent>
+            <SidebarGroup>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {ADMIN_SECTIONS.map((section) => (
+                    <SidebarMenuItem key={section.id}>
+                      <SidebarMenuButton
+                        isActive={activeSection === section.id}
+                        tooltip={section.label}
+                        onClick={() => setActiveSection(section.id)}
+                      >
+                        <section.icon />
+                        <span>{section.label}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </SidebarContent>
+          <SidebarFooter className="px-3 py-3 group-data-[collapsible=icon]:hidden">
+            <Link to="/" className="text-xs text-sidebar-foreground/60 transition-colors hover:text-sidebar-foreground">
+              ← Retour au site
+            </Link>
+          </SidebarFooter>
+        </Sidebar>
+        <SidebarInset className="pt-24">
+          <div className="container mx-auto px-4 md:px-8 min-w-0">
+            <div className="mb-8 flex items-center gap-3">
+              <SidebarTrigger />
+              <h1 className="font-heading text-3xl font-bold">Panneau d'administration</h1>
+            </div>
 
-          <TabsContent value="my-account">
-            <MyAccountAdmin />
-          </TabsContent>
-          <TabsContent value="testimonials">
-            <TestimonialsAdmin queryClient={queryClient} />
-          </TabsContent>
-          <TabsContent value="media">
-            <MediaAdmin queryClient={queryClient} />
-          </TabsContent>
-          <TabsContent value="courses">
-            <CoursesAdmin />
-          </TabsContent>
-          <TabsContent value="roles">
-            <RolesAdmin />
-          </TabsContent>
-          <TabsContent value="site-settings">
-            <SiteSettingsAdmin />
-          </TabsContent>
-          <TabsContent value="site-content">
-            <SiteContentAdmin />
-          </TabsContent>
-          <TabsContent value="audits">
-            <AuditsAdmin />
-          </TabsContent>
-          <TabsContent value="phase1-audit">
-            <Phase1AuditAdmin queryClient={queryClient} />
-          </TabsContent>
-          <TabsContent value="competitive-intel">
-            <CompetitiveIntelAdmin />
-          </TabsContent>
-          <TabsContent value="competitive-brief">
-            <CompetitiveBriefAdmin />
-          </TabsContent>
-        </Tabs>
-      </div>
+            {activeSection === "my-account" && <MyAccountAdmin />}
+            {activeSection === "testimonials" && <TestimonialsAdmin queryClient={queryClient} />}
+            {activeSection === "media" && <MediaAdmin queryClient={queryClient} />}
+            {activeSection === "courses" && <CoursesAdmin />}
+            {activeSection === "roles" && <RolesAdmin />}
+            {activeSection === "audits" && <AuditsAdmin />}
+            {activeSection === "phase1-audit" && <Phase1AuditAdmin queryClient={queryClient} />}
+            {activeSection === "competitive-intel" && <CompetitiveIntelAdmin />}
+            {activeSection === "competitive-brief" && <CompetitiveBriefAdmin />}
+            {activeSection === "site-settings" && <SiteSettingsAdmin />}
+            {activeSection === "site-content" && <SiteContentAdmin />}
+          </div>
+        </SidebarInset>
+      </SidebarProvider>
     </div>
   );
 };

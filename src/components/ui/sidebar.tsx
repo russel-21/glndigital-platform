@@ -192,7 +192,13 @@ const Sidebar = React.forwardRef<
       />
       <div
         className={cn(
-          "fixed inset-y-0 z-10 hidden h-svh w-[--sidebar-width] transition-[left,right,width] duration-200 ease-linear md:flex",
+          // GLN: the app mounts a fixed global Navbar (h-16 / md:h-20) above
+          // every route, including this one — offset the desktop sidebar
+          // below it (md:top-20, matching Navbar's md:h-20) instead of the
+          // default full-viewport fixed positioning, so it never renders
+          // under the translucent navbar. No effect on the offcanvas/mobile
+          // Sheet branch above, which is unaffected by this block.
+          "fixed inset-y-0 z-10 hidden h-svh w-[--sidebar-width] transition-[left,right,width] duration-200 ease-linear md:top-20 md:flex md:h-[calc(100svh-5rem)]",
           side === "left"
             ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
             : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
