@@ -454,6 +454,17 @@ mais reste séparé de ce qui suit.
   - **Pas encore fait** : pas de vérification visuelle par Russel dans le navigateur à ce stade de la
     session (structure/build/tests vérifiés uniquement) ; pas de retouche du contenu interne de chaque
     section, seule la coquille de navigation a changé.
+- **Bug corrigé — langue du site basculait en anglais tout seul, 2026-08-21.** Russel a signalé que le
+  site passait en anglais alors qu'il navigue en français. Cause réelle trouvée dans
+  `src/hooks/useLanguage.tsx` : en l'absence de préférence enregistrée (`gln_pref_lang` en
+  localStorage), un effet au montage détectait `navigator.language` (langue du navigateur/Windows) et
+  basculait silencieusement tout le site public en anglais si celle-ci n'était pas française —
+  contrairement au comportement documenté ("French default, English toggle"). Résultat côté
+  utilisateur : incohérence visible, puisque `src/pages/Admin.tsx` (texte français codé en dur, pas de
+  `t()`) restait toujours en français pendant que le reste du site basculait tout seul. Corrigé en
+  supprimant ce fallback : la langue ne bouge plus que via un choix explicite de l'utilisateur (le
+  toggle FR/EN, qui écrit dans `gln_pref_lang`) — sinon le français reste la valeur par défaut, sans
+  exception. Vérifié : `npx tsc --noEmit -p tsconfig.app.json`, `npx eslint`, `npm run test` : 0 erreur.
 
 ### 1. Contexte du projet
 
