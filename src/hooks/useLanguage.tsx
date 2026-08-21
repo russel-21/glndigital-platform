@@ -147,15 +147,17 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [language, setLanguageState] = useState<Language>("fr");
 
   useEffect(() => {
-    // 1. Check local storage preference
+    // GLN: French is the hard default for every visitor (agence camerounaise
+    // francophone) — only an explicit toggle via setLanguage() should ever
+    // switch to English. There used to be a browser-language auto-detect
+    // fallback here (navigator.language) that silently flipped the whole
+    // public site to English for any visitor whose OS/browser wasn't set to
+    // French, while the admin panel (hardcoded French, no t()) never moved —
+    // an inconsistent, half-translated feel across the platform. Removed:
+    // only localStorage's own saved choice can move the language off "fr".
     const savedLang = localStorage.getItem("gln_pref_lang") as Language;
     if (savedLang === "fr" || savedLang === "en") {
       setLanguageState(savedLang);
-    } else {
-      // 2. Fallback to browser language
-      const browserLang = navigator.language || (navigator as any).userLanguage || "fr";
-      const detected = browserLang.toLowerCase().startsWith("en") ? "en" : "fr";
-      setLanguageState(detected);
     }
   }, []);
 
