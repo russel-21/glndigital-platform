@@ -491,6 +491,17 @@ mais reste séparé de ce qui suit.
     cache et la reverra tant que tu n'auras pas cliqué sur **"Recharger la veille"** (bouton déjà présent
     en haut de l'onglet, qui réécrit le cache avec les nouvelles données par défaut).
   - Vérifié : `npx tsc --noEmit -p tsconfig.app.json`, `npx eslint`, `npm run test` : 0 erreur.
+- **`index.html` — coquille par défaut Lovable jamais nettoyée, corrigée le 2026-08-22.** Trouvé via
+  `/graphify` (une connexion "surprenante" `Lovable ↔ TODO: document title placeholder` remontée par le
+  graphe de connaissance). `<html lang="en">` contredisait le défaut français du site (voir le bug de
+  langue plus haut) ; `<title>`, `og:title`, `twitter:title`, `meta[name=author]` affichaient encore
+  littéralement "Lovable App" — visible dans l'onglet du navigateur et dans l'aperçu de partage
+  WhatsApp/Facebook/X du site. Corrigé en `lang="fr"` + "GLN Digital" partout ; `twitter:site` passé de
+  `@Lovable` à `@glndigital` (vérifié comme le vrai handle X du site via `src/components/
+  SocialLinks.tsx`, pas une invention). Les images `og:image`/`twitter:image` restent hébergées sur le
+  bucket de stockage Lovable (`storage.googleapis.com/gpt-engineer-file-uploads/...`) — dépendance
+  externe non résolue, à héberger sur le domaine GLN si Russel veut supprimer cette dépendance un jour.
+  Vérifié : `npm run test` : 0 erreur (fichier HTML statique, pas de build TS concerné).
 
 ### 1. Contexte du projet
 

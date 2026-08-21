@@ -27,3 +27,6 @@ dist-ssr
 # machine-specific, not meant to be shared/committed)
 supabase/.temp
 supabase/.branches
+
+# graphify knowledge-graph output (generated artifact, rebuildable via /graphify)
+graphify-out
