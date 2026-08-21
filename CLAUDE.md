@@ -465,6 +465,32 @@ mais reste séparé de ce qui suit.
   supprimant ce fallback : la langue ne bouge plus que via un choix explicite de l'utilisateur (le
   toggle FR/EN, qui écrit dans `gln_pref_lang`) — sinon le français reste la valeur par défaut, sans
   exception. Vérifié : `npx tsc --noEmit -p tsconfig.app.json`, `npx eslint`, `npm run test` : 0 erreur.
+- **Contenu anglais dans l'onglet "Veille IA" traduit, 2026-08-21.** Suite à une capture de Russel :
+  l'onglet Veille IA (`CompetitiveIntelAdmin` dans `Admin.tsx`) affichait les fiches concurrentes
+  (`src/lib/competitiveIntel.ts`, `defaultCompetitiveIntel` — fiches "Soro" et "Nuelink") entièrement en
+  anglais, alors que tout le reste de l'admin (chrome de l'UI) est en français — incohérence distincte
+  du bug de langue ci-dessus, cette fois c'est de la donnée, pas un bug de détection de langue.
+  - Tout le texte narratif des deux fiches (`positioning`, `funnelSummary`, `pricingSignals`,
+    `languageSupport`, `metricClaims`, `features[].name/description/glnOpportunity`, `gapsForGLN`,
+    `glnCounterPositioning`, `category`) traduit en français, en préservant tous les chiffres/montants
+    exactement (aucune donnée inventée — traduction fidèle uniquement). `id`, `productName`,
+    `companyName`, `website`, `sourceUrls`, `scrapedAt`, et les noms de produits/plateformes dans
+    `integrations` restent inchangés (identifiants/URLs/noms propres).
+  - Deux enums techniques (`dataConfidence: "low"|"medium"|"high"` et `CompetitiveFeature["category"]:
+    "seo"|"content"|...`) étaient affichés tels quels dans l'UI (ex : "Confiance: high"). Types
+    inchangés (identifiants internes, pas utilisés ailleurs pour de la logique conditionnelle) ; ajout de
+    deux tables de libellés FR exportées (`DATA_CONFIDENCE_LABELS`, `FEATURE_CATEGORY_LABELS`, même
+    convention que `PLATFORM_LABELS` dans `phase1AuditStore.ts`), utilisées uniquement à l'affichage
+    dans `Admin.tsx`.
+  - Bug distinct corrigé au passage : le titre de bloc "Angles pour dépasser Soro" était codé en dur et
+    s'affichait donc aussi sur la fiche Nuelink ; rendu dynamique (`Angles pour dépasser
+    {profile.productName}`).
+  - **Point d'attention pour Russel** : ces données par défaut sont mises en cache dans le
+    `localStorage` du navigateur (`gln_competitive_intel_db`) dès le premier chargement de cet onglet —
+    si tu l'as déjà ouvert avant cette session, ton navigateur a encore l'ancienne version anglaise en
+    cache et la reverra tant que tu n'auras pas cliqué sur **"Recharger la veille"** (bouton déjà présent
+    en haut de l'onglet, qui réécrit le cache avec les nouvelles données par défaut).
+  - Vérifié : `npx tsc --noEmit -p tsconfig.app.json`, `npx eslint`, `npm run test` : 0 erreur.
 
 ### 1. Contexte du projet
 
