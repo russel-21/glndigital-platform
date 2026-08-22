@@ -508,16 +508,20 @@ mais reste séparé de ce qui suit.
     re-hébergée telle quelle (aurait figé le problème) — question posée à Russel, qui a choisi le logo
     GLN Digital comme image de partage. `src/assets/logo.png` copié vers `public/og-image.png` (les
     balises `og:image` ont besoin d'une URL statique servie telle quelle, pas d'un import JS/Vite comme
-    `src/assets/`) ; `og:image`/`twitter:image` pointent maintenant vers `https://glndigital.com/og-
-    image.png`. **Hypothèse à vérifier par Russel** : ce domaine est celui déjà utilisé en dur dans
-    `src/components/ShareButtons.tsx` (`shareUrl`) donc probablement le domaine de prod visé, mais le
-    site vitrine actuellement en ligne (section "Contexte du projet" plus bas) est documenté comme
-    `glndigital-platform.vercel.app` — si `glndigital.com` n'est pas (encore) réellement pointé vers ce
-    déploiement, l'image de partage sera cassée (404) pour les crawlers Facebook/X tant que ce domaine
-    n'est pas branché. Logo carré (1080×1080) utilisé tel quel plutôt que retaillé en bannière 1200×630
-    — accepté comme compromis rapide, pas une vraie bannière de partage conçue pour ce format.
+    `src/assets/`). Logo carré (1080×1080) utilisé tel quel plutôt que retaillé en bannière 1200×630 —
+    accepté comme compromis rapide, pas une vraie bannière de partage conçue pour ce format.
   - Vérifié : `npm run test` et `npm run build` (build de prod complet) : 0 erreur, `dist/og-image.png`
     confirmé présent après build.
+  - **Domaine `glndigital.com` — pas encore acheté, corrigé le 2026-08-22.** En creusant cette histoire
+    d'image de partage, découvert que `src/components/ShareButtons.tsx` pointait en dur vers
+    `https://glndigital.com` alors que ce domaine ne résout vers rien du tout (`nslookup` : domaine
+    inexistant) — Russel a confirmé ne pas encore l'avoir acheté. Le site réellement en ligne aujourd'hui
+    reste `glndigital-platform.vercel.app` (Vercel héberge le site ; Supabase n'a aucun rôle dans les
+    noms de domaine — clarifié auprès de Russel, qui confondait les deux). `og:image`/`twitter:image`
+    dans `index.html` et `shareUrl` dans `ShareButtons.tsx` pointent maintenant tous vers
+    `https://glndigital-platform.vercel.app` en attendant l'achat du domaine. **À refaire une fois
+    `glndigital.com` acheté et branché sur Vercel** : remettre ces deux références sur `glndigital.com`
+    (Russel a été informé de la procédure : achat chez un registrar, puis Vercel → Settings → Domains).
 
 ### 1. Contexte du projet
 

@@ -1,4 +1,4 @@
-const shareUrl = encodeURIComponent("https://glndigital.com");
+const shareUrl = encodeURIComponent("https://glndigital-platform.vercel.app");
 const shareText = encodeURIComponent("Découvrez GLN DIGITAL – Accélérez votre croissance digitale !");
 
 const shareLinks = [
