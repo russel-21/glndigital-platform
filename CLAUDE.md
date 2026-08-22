@@ -522,6 +522,23 @@ mais reste séparé de ce qui suit.
     `https://glndigital-platform.vercel.app` en attendant l'achat du domaine. **À refaire une fois
     `glndigital.com` acheté et branché sur Vercel** : remettre ces deux références sur `glndigital.com`
     (Russel a été informé de la procédure : achat chez un registrar, puis Vercel → Settings → Domains).
+- **Compte admin reconnecté + bug de navigation admin corrigé, 2026-08-22.** Russel avait oublié le mot
+  de passe du compte `nonamecrewf7@gmail.com` — réinitialisé directement en SQL via
+  `supabase db query --linked` (même méthode pgcrypto que la première fois ; confirmé au passage que ce
+  compte reste le seul avec les rôles `admin`/`super_admin` en base). Nouveau mot de passe temporaire
+  communiqué à Russel, à changer par lui via "Mon compte" dans l'admin.
+  - **Bug réel découvert en le guidant vers "Mon compte"** : capture d'écran de Russel montrant qu'après
+    connexion, le menu déroulant du compte (Navbar) ne propose **aucun lien vers `/admin`** — seulement
+    "Mon Tableau de bord" (qui pointe toujours vers `/eleve-dashboard`, sauf si `current_role ===
+    'partner'`) et les bascules Élève/Partenaire. Un compte `admin`/`super_admin` connecté atterrissait
+    donc sur le dashboard élève ("Espace Connecté") sans aucun moyen, depuis la Navbar, de rejoindre le
+    panneau admin — `current_role` n'était tout simplement pas géré dans ce ternaire.
+  - Corrigé dans `src/components/Navbar.tsx` (menu desktop ET menu mobile, les deux dupliquaient le même
+    bug) : ajout d'un lien distinct **"Panneau d'administration"** (icône `ShieldAlert`) vers `/admin`,
+    affiché uniquement si `profile.roles` contient `admin` ou `super_admin` — sans toucher au lien
+    existant "Mon Tableau de bord" (toujours utile pour basculer vers l'espace élève/partenaire).
+  - Vérifié : `npx tsc --noEmit -p tsconfig.app.json`, `npx eslint`, `npm run test` : 0 erreur (les
+    erreurs `any` restantes dans `Navbar.tsx` sont préexistantes, mêmes lignes qu'avant).
 
 ### 1. Contexte du projet
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, X, User, LogOut, ChevronDown, RefreshCw, PlusCircle, Shield, Globe } from "lucide-react";
+import { Menu, X, User, LogOut, ChevronDown, RefreshCw, PlusCircle, Shield, ShieldAlert, Globe } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/hooks/useLanguage";
@@ -358,6 +358,22 @@ const Navbar = () => {
                     </div>
 
                     <div className="py-1.5 space-y-1">
+                      {/* Admin panel link — separate from "Mon Tableau de bord" below, which
+                          only ever targets the student/partner dashboards. Without this, an
+                          admin/super_admin account had no way to reach /admin from the navbar
+                          at all (bug found 2026-08-22: current_role="admin" silently fell
+                          through to the student dashboard). */}
+                      {(profile.roles?.includes('admin') || profile.roles?.includes('super_admin')) && (
+                        <Link
+                          to="/admin"
+                          onClick={() => setDropdownOpen(false)}
+                          className="flex items-center gap-2.5 w-full text-left px-3 py-2 rounded-xl text-xs hover:bg-secondary transition-colors font-semibold"
+                        >
+                          <ShieldAlert className="w-4 h-4 text-primary" />
+                          Panneau d'administration
+                        </Link>
+                      )}
+
                       {/* Dashboard Link based on active role */}
                       <Link
                         to={profile.current_role === 'partner' ? '/partenaires-dashboard' : '/eleve-dashboard'}
@@ -486,13 +502,25 @@ const Navbar = () => {
                     Connecté : <span className="text-foreground font-bold">{profile.full_name}</span>
                   </div>
                   
+                  {/* Admin panel link — see desktop dropdown above for why this is separate
+                      from "Mon Tableau de bord" (that link never reached /admin). */}
+                  {(profile.roles?.includes('admin') || profile.roles?.includes('super_admin')) && (
+                    <Link
+                      to="/admin"
+                      onClick={() => setOpen(false)}
+                      className="block text-sm py-2 text-primary font-semibold"
+                    >
+                      Panneau d'administration
+                    </Link>
+                  )}
+
                   {/* Dashboard link */}
                   <Link
                     to={profile.current_role === 'partner' ? '/partenaires-dashboard' : '/eleve-dashboard'}
                     onClick={() => setOpen(false)}
                     className="block text-sm py-2 text-primary font-semibold"
                   >
-                    Mon Tableau de bord ({profile.current_role === 'student' ? 'Élève' : 'Partenaire'})
+                    Mon Tableau de bord ({profile.current_role === 'student' ? 'Élève' : profile.current_role === 'partner' ? 'Partenaire' : profile.current_role})
                   </Link>
 
                   {/* Switch roles mobile */}
