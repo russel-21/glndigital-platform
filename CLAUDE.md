@@ -539,6 +539,47 @@ mais reste séparé de ce qui suit.
     existant "Mon Tableau de bord" (toujours utile pour basculer vers l'espace élève/partenaire).
   - Vérifié : `npx tsc --noEmit -p tsconfig.app.json`, `npx eslint`, `npm run test` : 0 erreur (les
     erreurs `any` restantes dans `Navbar.tsx` sont préexistantes, mêmes lignes qu'avant).
+- **Découverte majeure — `main` avait 19 commits de retard, jamais déployé en prod, corrigé le
+  2026-08-22.** En cherchant pourquoi Russel ne voyait aucun des changements de ce soir sur
+  `glndigital-platform.vercel.app`, découvert via `git log main..phase1-audit-admin-ui` que tout le
+  travail de cette session (et probablement des précédentes) vivait uniquement sur la branche
+  `phase1-audit-admin-ui`, jamais fusionné dans `main`. Russel a confirmé sur son dashboard Vercel que
+  **`main` est la "Production Branch"** configurée — donc le site public tournait sur du code vieux de
+  plusieurs jours, sans aucune des 7 phases, sans la sidebar, sans les correctifs récents. Fusion
+  fast-forward (`git merge phase1-audit-admin-ui --ff-only`, aucun commit divergent sur `main`) puis
+  `git push origin main` — nouveau déploiement Vercel confirmé réussi (`lang="fr"` et `<title>GLN
+  Digital</title>` vérifiés en direct sur le site après déploiement). **À partir de maintenant, continuer
+  à pousser sur `phase1-audit-admin-ui` ET fusionner régulièrement dans `main`** (ou directement
+  travailler sur `main`) pour que la production reste à jour — ne pas répéter cet écart.
+- **`ZERNIO_API_KEY` configurée, vrai connecteur Phase 1 implémenté, 2026-08-22.** Russel a créé un
+  compte Zernio (palier gratuit "usage-based pricing", $12 de crédit offert), configuré la clé dans les
+  secrets Supabase, et connecté sa page Facebook "GLN Digital" via OAuth (0 → 1 compte connecté).
+  - **Doc officielle Zernio enfin en main** : `docs.zernio.com/api/openapi` (spec OpenAPI complète,
+    2,2 Mo, lue en entier via `WebFetch` puis grep/Read direct sur le fichier brut plutôt que le résumé
+    tronqué du modèle rapide de `WebFetch`) — confirme base URL `https://zernio.com/api`, auth
+    `Authorization: Bearer <clé>`, et les endpoints d'analytics par plateforme
+    (`/v1/analytics/{facebook|instagram|tiktok|youtube}/...`) + `/v1/accounts/follower-stats`.
+  - `supabase/functions/_shared/zernioClient.ts` : `callRealZernioApi()` (utilisé par
+    `fetchAccountMetrics()`, Phase 1) implémenté pour de vrai — combine `follower-stats` (abonnés,
+    following, posts selon la plateforme) et l'endpoint d'analytics propre à chaque plateforme (mappé
+    dans `platform_specific`, jamais transformé en ratio/moyenne — ni `engagement_rate` ni
+    `avg_likes_per_post` ne sont calculés, l'API Zernio ne renvoie que des compteurs agrégés, pas de
+    quoi calculer ça honnêtement). Champs que Zernio n'expose tout simplement pas pour ces 4 plateformes
+    (`bio_text`, `verified`, `account_created_at`, `last_post_at`) restent `donnée_indisponible` — vérifié
+    dans la spec, pas une lacune du code. Nouvelle classe `ZernioApiError` (distincte de
+    `ZernioNotConfiguredError`) pour différencier "Zernio a répondu une erreur réelle" de "cette fonction
+    n'est pas codée".
+  - **`publishPost()` (Phase 5) et `fetchComments()` (Phase 6) restent NON implémentées** — leurs
+    endpoints n'ont pas encore été vérifiés dans la spec, même règle anti-hallucination que pour Phase 1
+    avant aujourd'hui. À faire au fur et à mesure, même méthode (lire la spec, jamais deviner).
+  - Les 3 edge functions qui importent `zernioClient.ts` (`phase1-audit`, `phase5-publish`,
+    `phase6-engagement`) redéployées (`supabase functions deploy`, `db push` seul ne suffit jamais pour
+    du code d'edge function).
+  - Vérifié : `npx eslint supabase/functions/_shared/zernioClient.ts` : 0 erreur.
+  - **Pas encore fait** : test réel d'un audit Phase 1 avec le compte Facebook GLN Digital connecté (à
+    faire par Russel juste après) ; `zernio_account_id` à renseigner dans la fiche `social_connections`
+    correspondante dans l'admin GLN (ID à récupérer depuis Zernio → Connections) — sans ça,
+    `callRealZernioApi()` refuse explicitement de deviner quel compte interroger.
 
 ### 1. Contexte du projet
 

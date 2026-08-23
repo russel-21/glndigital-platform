@@ -13,26 +13,40 @@
 // were extracted. Must never estimate, score, or interpret — that's the
 // Diagnostic agent's job (Phase 2), not this one.
 //
-// STATUS (2026-08-09): Russel does not have a Zernio account/API key yet, so
-// the real HTTP integration below is intentionally NOT implemented — the
-// exact endpoints, auth header format and response shape have not been
-// verified against Zernio's official docs, and guessing them would violate
-// this project's own anti-hallucination rule (never present fabricated data
-// as real). Until a Zernio account exists:
-//   - fetchAccountMetrics() always returns mock data (isMock: true) when
-//     ZERNIO_API_KEY is unset, so the rest of the Phase 1 pipeline (DB,
-//     RLS, edge function, "donnée_indisponible" handling) can be built and
-//     tested end-to-end.
-//   - if ZERNIO_API_KEY IS set, callFakeZernioApi() throws instead of
-//     silently mocking, so a half-wired "real" call never gets mistaken for
-//     one that actually talks to Zernio.
+// STATUS (2026-08-22): fetchAccountMetrics() is now REAL — Russel created a
+// Zernio account and connected a first Facebook Page, and this file was
+// implemented directly against Zernio's official OpenAPI spec
+// (docs.zernio.com/api/openapi, read in full on 2026-08-22 — base URL,
+// bearer-token auth, endpoint paths, default metrics and response envelope
+// all confirmed from that spec, none guessed). Base URL is
+// https://zernio.com/api, auth is `Authorization: Bearer <ZERNIO_API_KEY>`.
 //
-// TODO (once Zernio API access exists): implement callRealZernioApi() below
-// using the official Zernio API docs — base URL, auth header, and the
-// per-platform response shape all need to come from those docs, not from
-// guessing. Keep the NormalizedAuditMetrics contract as the target shape and
-// map Zernio's real response into it; nothing else in this codebase should
-// need to change.
+// publishPost() and fetchComments() below are STILL NOT implemented — their
+// endpoints/request shapes have not been verified yet, and guessing them
+// would violate this project's own anti-hallucination rule (never present
+// fabricated data/behavior as real). Same pattern as before for those two:
+// mock (isMock: true) when ZERNIO_API_KEY is unset, explicit throw if it IS
+// set. Verify each against the same OpenAPI spec before implementing, same
+// way fetchAccountMetrics() was done.
+//
+// What Zernio's API does NOT expose for fetchAccountMetrics(), confirmed
+// from the spec (not a bug here — there is nothing to fetch):
+//   - bio_text, verified, account_created_at, last_post_at: not present on
+//     any of facebook/instagram/tiktok/youtube's account or insights
+//     schemas.
+//   - following_count / posts_count: only present for some platforms
+//     (Instagram: mediaCount; TikTok/YouTube: videoCount; Facebook Pages:
+//     neither — Facebook Pages have no "following" concept and Zernio's
+//     Page insights don't include a post count).
+//   - engagement_rate / avg_likes_per_post / avg_comments_per_post: Zernio's
+//     insights endpoints return aggregate counters (e.g. page_post_
+//     engagements, accounts_engaged) over a date range, not a per-post
+//     average or a ratio against a comparable base — computing one here
+//     would be exactly the kind of invented interpretation CLAUDE.md's
+//     Phase 1 rule forbids ("pas de ratio si une valeur manque / pas
+//     d'interprétation"). The raw counters are kept in platform_specific
+//     instead, for the Phase 2 Diagnostic agent to reason about explicitly.
+// All of the above are sentineled DONNEE_INDISPONIBLE rather than omitted.
 
 export type Platform = "meta_facebook" | "meta_instagram" | "tiktok" | "youtube";
 
@@ -75,6 +89,151 @@ export interface ZernioFetchResult {
 
 export class ZernioNotConfiguredError extends Error {}
 
+/** A real call to Zernio's API was made and Zernio returned an error (bad
+ * auth, missing scope, account not found, analytics add-on required, …).
+ * Distinct from ZernioNotConfiguredError, which means "this codebase never
+ * implemented the call" — this means "the call was made and Zernio said
+ * no". Kept separate so the two failure modes are never confused in logs
+ * or error messages surfaced to the admin. */
+export class ZernioApiError extends Error {}
+
+const ZERNIO_BASE_URL = "https://zernio.com/api/v1";
+
+/** Analytics endpoint path per platform, verified against Zernio's OpenAPI
+ * spec (docs.zernio.com/api/openapi) on 2026-08-22. All four share the same
+ * response envelope (the spec itself notes this — historically named
+ * InstagramAccountInsightsResponse, reused by every platform), so one
+ * normalizer below handles all of them. */
+const PLATFORM_ANALYTICS_PATH: Record<Platform, string> = {
+  meta_facebook: "/analytics/facebook/page-insights",
+  meta_instagram: "/analytics/instagram/account-insights",
+  tiktok: "/analytics/tiktok/account-insights",
+  youtube: "/analytics/youtube/channel-insights",
+};
+
+/** GET against Zernio's API with bearer auth. Throws ZernioApiError with
+ * Zernio's own error message on any non-2xx response, rather than a
+ * generic "request failed" — the exact wording (e.g. "Analytics add-on
+ * required") is what tells an admin what to actually go do about it. */
+async function zernioGet(
+  apiKey: string,
+  path: string,
+  params: Record<string, string>,
+): Promise<unknown> {
+  const url = new URL(`${ZERNIO_BASE_URL}${path}`);
+  for (const [key, value] of Object.entries(params)) {
+    url.searchParams.set(key, value);
+  }
+
+  const res = await fetch(url.toString(), {
+    headers: { Authorization: `Bearer ${apiKey}` },
+  });
+
+  let body: unknown = null;
+  try {
+    body = await res.json();
+  } catch {
+    // No JSON body — fall back to a plain status-based message below.
+  }
+
+  if (!res.ok) {
+    const bodyObj = body && typeof body === "object" ? (body as Record<string, unknown>) : null;
+    const detail =
+      (bodyObj && typeof bodyObj.message === "string" && bodyObj.message) ||
+      (bodyObj && typeof bodyObj.error === "string" && bodyObj.error) ||
+      `HTTP ${res.status}`;
+    throw new ZernioApiError(`Zernio (${path}) a répondu une erreur : ${detail}`);
+  }
+
+  return body;
+}
+
+/** Pulls this account's entry out of GET /v1/accounts/follower-stats's
+ * `accounts` array (AccountWithFollowerStats[], keyed by Zernio's own _id —
+ * there is no single-account "get by id" endpoint in the spec, so the list
+ * response is filtered client-side here). */
+function extractFollowerStatsEntry(raw: unknown, zernioAccountId: string): Record<string, unknown> | null {
+  if (!raw || typeof raw !== "object") return null;
+  const accounts = (raw as Record<string, unknown>).accounts;
+  if (!Array.isArray(accounts)) return null;
+  const match = accounts.find(
+    (a) => a && typeof a === "object" && (a as Record<string, unknown>)._id === zernioAccountId,
+  );
+  return match && typeof match === "object" ? (match as Record<string, unknown>) : null;
+}
+
+/** Maps Zernio's follower-stats entry + platform-insights response into our
+ * own NormalizedAuditMetrics contract. Every field not actually present in
+ * Zernio's response stays DONNEE_INDISPONIBLE — see the file header for
+ * exactly which fields that applies to and why. */
+function normalizeZernioMetrics(
+  platform: Platform,
+  followerStatsRaw: unknown,
+  insightsRaw: unknown,
+  zernioAccountId: string,
+): NormalizedAuditMetrics {
+  const platform_specific: Record<string, MaybeUnavailable<number | string>> = {};
+
+  let followers_count: MaybeUnavailable<number> = DONNEE_INDISPONIBLE;
+  let following_count: MaybeUnavailable<number> = DONNEE_INDISPONIBLE;
+  let posts_count: MaybeUnavailable<number> = DONNEE_INDISPONIBLE;
+
+  const entry = extractFollowerStatsEntry(followerStatsRaw, zernioAccountId);
+  if (entry) {
+    if (typeof entry.currentFollowers === "number") {
+      followers_count = entry.currentFollowers;
+    }
+    const stats = entry.accountStats;
+    if (stats && typeof stats === "object") {
+      const statsObj = stats as Record<string, unknown>;
+      if (typeof statsObj.followingCount === "number") {
+        following_count = statsObj.followingCount;
+      }
+      // Which counter means "posts" varies by platform (see file header) —
+      // Facebook Pages have none of these fields at all.
+      const postsField =
+        platform === "meta_instagram" ? "mediaCount" : platform === "tiktok" || platform === "youtube" ? "videoCount" : null;
+      if (postsField && typeof statsObj[postsField] === "number") {
+        posts_count = statsObj[postsField] as number;
+      }
+    }
+  }
+
+  if (insightsRaw && typeof insightsRaw === "object") {
+    const insightsObj = insightsRaw as Record<string, unknown>;
+    const metricsObj = insightsObj.metrics;
+    if (metricsObj && typeof metricsObj === "object") {
+      for (const [key, val] of Object.entries(metricsObj as Record<string, unknown>)) {
+        if (val && typeof val === "object" && typeof (val as Record<string, unknown>).total === "number") {
+          platform_specific[key] = (val as Record<string, unknown>).total as number;
+        }
+      }
+    }
+    const unavailable = insightsObj.unavailableMetrics;
+    if (Array.isArray(unavailable)) {
+      for (const item of unavailable) {
+        if (item && typeof item === "object" && typeof (item as Record<string, unknown>).metric === "string") {
+          platform_specific[(item as Record<string, unknown>).metric as string] = DONNEE_INDISPONIBLE;
+        }
+      }
+    }
+  }
+
+  return {
+    followers_count,
+    following_count,
+    posts_count,
+    engagement_rate: DONNEE_INDISPONIBLE,
+    avg_likes_per_post: DONNEE_INDISPONIBLE,
+    avg_comments_per_post: DONNEE_INDISPONIBLE,
+    last_post_at: DONNEE_INDISPONIBLE,
+    account_created_at: DONNEE_INDISPONIBLE,
+    verified: DONNEE_INDISPONIBLE,
+    bio_text: DONNEE_INDISPONIBLE,
+    platform_specific,
+  };
+}
+
 export async function fetchAccountMetrics(
   platform: Platform,
   accountHandle: string,
@@ -114,21 +273,33 @@ export async function fetchAccountMetrics(
   }
 }
 
-// deno-lint-ignore require-await
 async function callRealZernioApi(
-  _apiKey: string,
-  _platform: Platform,
+  apiKey: string,
+  platform: Platform,
   _accountHandle: string,
-  _zernioAccountId: string | null,
+  zernioAccountId: string | null,
 ): Promise<{ metrics: NormalizedAuditMetrics; rawResponse: unknown }> {
-  throw new ZernioNotConfiguredError(
-    "ZERNIO_API_KEY est défini mais l'appel réel à l'API Zernio n'est pas " +
-      "implémenté : les endpoints et le format de réponse n'ont pas été " +
-      "vérifiés contre la documentation officielle Zernio. Complète " +
-      "callRealZernioApi() dans supabase/functions/_shared/zernioClient.ts " +
-      "une fois cette documentation en main, plutôt que de deviner le " +
-      "contrat de l'API.",
-  );
+  if (!zernioAccountId) {
+    throw new ZernioApiError(
+      "Aucun identifiant de compte Zernio (zernio_account_id) n'est renseigné pour ce compte social — " +
+        "va dans Zernio → Connections pour récupérer l'ID du compte connecté, puis renseigne-le dans la " +
+        "fiche du compte dans l'admin GLN avant de relancer un audit.",
+    );
+  }
+
+  const analyticsPath = PLATFORM_ANALYTICS_PATH[platform];
+
+  const [followerStatsRaw, insightsRaw] = await Promise.all([
+    zernioGet(apiKey, "/accounts/follower-stats", { accountIds: zernioAccountId }),
+    zernioGet(apiKey, analyticsPath, { accountId: zernioAccountId }),
+  ]);
+
+  const metrics = normalizeZernioMetrics(platform, followerStatsRaw, insightsRaw, zernioAccountId);
+
+  return {
+    metrics,
+    rawResponse: { followerStats: followerStatsRaw, insights: insightsRaw },
+  };
 }
 
 function buildMockResult(
