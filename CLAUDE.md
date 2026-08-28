@@ -617,6 +617,60 @@ mais reste séparé de ce qui suit.
     besoin de recréer le projet, l'API, l'écran de consentement, ni le client OAuth), scope
     `https://www.googleapis.com/auth/adwords`, et gérer l'étape de vérification différemment (mot de
     passe si proposé, ou réessayer après quelques heures si l'erreur serveur Google persiste).
+- **Phase 4b (Production visuelle/vidéo) — fondation posée, 2026-08-28.** Après Canva (Autofill limité
+  à Enterprise, pas d'API pour l'amélioration image/vidéo) et CapCut (pas d'API officielle, seulement
+  des libs communautaires rétro-ingénierées — écartées explicitement, contraires à la règle "pas de
+  contournement" de ce projet) écartés en creusant leurs vraies capacités API, décision prise avec
+  Russel : **RunPod** (location de GPU à la demande, facturation à la seconde) comme backend de calcul,
+  après diagnostic confirmant l'absence de GPU dédié sur sa machine (Intel Iris Xe intégré uniquement).
+  RTX 4090 (0,69$/h) choisi. **Pas d'essai gratuit réel chez RunPod** — vérifié sur leur page tarifs
+  officielle, aucun crédit offert sans dépôt réel d'au moins 10$ au préalable (contrairement à
+  Zernio/Anthropic).
+  - **Architecture** : RunPod Serverless (scale-to-zero natif — pas de mécanisme d'extinction à coder,
+    c'est structurel à RunPod, seul un `policy.executionTimeout` est réglé par ce code pour tuer un
+    worker bloqué). Flux asynchrone confirmé avec Russel : soumission → statut "en traitement" → la
+    fiche du job poll `phase4b-process` (mode `check_status`) toutes les 4s côté admin (aucun webhook/
+    cron — même choix que pour Phase 5, pas d'infrastructure de planification inventée sans validation).
+  - **Décision technique documentée, pas devinée** : le worker RunPod ne fait *pas* d'upload direct vers
+    Supabase Storage (le contrat HTTP brut des "signed upload URLs" Supabase n'est pas assez documenté
+    publiquement pour l'implémenter sans deviner — aurait violé la règle anti-hallucination). À la
+    place, le worker renvoie le fichier traité en base64 dans sa propre réponse RunPod, et c'est
+    `phase4b-process` (avec son client Supabase déjà authentifié) qui fait l'upload final — évite aussi
+    d'envoyer des identifiants Supabase à un service tiers. Limite connue : moins efficace pour de gros
+    fichiers vidéo (base64 = +33% de volume) — à revoir plus tard si ça pose problème en pratique.
+  - **Substitution documentée** : le cahier des charges nommait "Video2X" pour l'amélioration vidéo —
+    son contrat CLI/Python exact n'a pas pu être vérifié contre une source faisant autorité. Remplacé
+    par extraction d'images (ffmpeg) + Real-ESRGAN image par image + réencodage — une des stratégies
+    réelles de Video2X en interne, donc une substitution raisonnée, pas un raccourci silencieux. `Real-
+    ESRGAN` lui-même est le vrai paquet officiel (`xinntao/Real-ESRGAN`), poids `RealESRGAN_x4plus.pth`
+    téléchargés depuis leur release GitHub officielle au build de l'image Docker.
+  - **`video_highlights` refuse explicitement de deviner quels moments garder** — nécessite des plages
+    de temps explicites (JSON) dans `instructions`, pas de logique de "meilleur moment" inventée dans ce
+    worker (cette décision revient à l'agent Claude côté Phase 2/4a de la pipeline, pas à ce worker GPU,
+    conforme au découpage strict des 7 phases).
+  - Créés : migration `20260828120000_create_phase4b_visual_tables.sql` (table `phase4b_visual_jobs`,
+    bucket Storage privé `phase4b-media`, RLS admin-only, vraie porte de validation humaine
+    `review_status` — conforme CLAUDE.md "Validation humaine requise : Oui" pour Phase 4b) ; `supabase/
+    functions/_shared/runpodClient.ts` (contrat RunPod vérifié le jour même contre leur doc officielle,
+    mode mock identique au reste du projet quand `RUNPOD_API_KEY`/`RUNPOD_ENDPOINT_ID` absents) ;
+    edge function `phase4b-process` (mode création+soumission et mode vérification de statut) ; `src/
+    lib/phase4bVisualStore.ts` + panneau `Phase4bVisualPanel` dans `Admin.tsx` (polling client toutes
+    les 4s pendant qu'un job est "processing"). Migration poussée, types régénérés, edge function
+    déployée. `runpod-worker/` (nouveau dossier racine, hors `supabase/` — ce n'est pas une edge
+    function mais une image Docker autonome à déployer sur RunPod) : `handler.py`, `realesrgan_infer.py`,
+    `Dockerfile`, `requirements.txt`, `README.md` (procédure de déploiement complète pour Russel).
+  - Vérifié : `npx tsc --noEmit -p tsconfig.app.json`, `npm run test` : 0 erreur. `npx eslint` : les
+    erreurs `any` déjà présentes partout ailleurs dans `Admin.tsx` restent, plus deux nouvelles sur les
+    mêmes lignes `onError: (err: any) =>` que suit tout le reste du fichier (pas une régression, une
+    convention déjà tolérée dans ce fichier, honnêtement pas "zéro nouvelle ligne" cette fois).
+  - **Pas encore fait / risques connus, documentés explicitement (pas cachés)** : l'image Docker du
+    worker n'a **jamais été construite ni testée réellement** (pas de compte RunPod ni de GPU disponible
+    dans cette session) — un risque de compatibilité connu entre `basicsr` et `torchvision` est
+    documenté en commentaire dans le `Dockerfile`, à vérifier au premier vrai build. Russel doit encore :
+    créer son compte RunPod, construire et publier l'image Docker (voir `runpod-worker/README.md`),
+    créer le Serverless Endpoint, configurer `RUNPOD_API_KEY`/`RUNPOD_ENDPOINT_ID` dans Supabase. Tant
+    que ça n'est pas fait, Phase 4b tourne entièrement en mode mock (aucun fichier de sortie produit,
+    badge MOCK affiché).
 
 ### 1. Contexte du projet
 
