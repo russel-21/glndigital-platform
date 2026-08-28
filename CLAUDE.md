@@ -576,10 +576,47 @@ mais reste séparé de ce qui suit.
     `phase6-engagement`) redéployées (`supabase functions deploy`, `db push` seul ne suffit jamais pour
     du code d'edge function).
   - Vérifié : `npx eslint supabase/functions/_shared/zernioClient.ts` : 0 erreur.
-  - **Pas encore fait** : test réel d'un audit Phase 1 avec le compte Facebook GLN Digital connecté (à
-    faire par Russel juste après) ; `zernio_account_id` à renseigner dans la fiche `social_connections`
-    correspondante dans l'admin GLN (ID à récupérer depuis Zernio → Connections) — sans ça,
-    `callRealZernioApi()` refuse explicitement de deviner quel compte interroger.
+  - **Test réel effectué le jour même** : `zernio_account_id` récupéré depuis l'URL du dashboard Zernio
+    (paramètre `accountId`, à ne pas confondre avec `profileId` — erreur faite une première fois, cause
+    exacte du premier échec "Account not found", corrigée directement en base). Audit Phase 1 relancé
+    avec succès : source `zernio:meta_facebook` (plus de badge MOCK), `followers_count: 0` — vérifié
+    honnête, pas un bug : le dashboard Zernio lui-même affiche encore `Total followers: 0` / `No posts
+    yet` pour ce compte tout juste connecté (`Last sync: 24m ago`, sync quotidienne pas encore passée).
+    `posts_count`/`engagement_rate`/`last_post_at` à `donnée_indisponible` confirmés conformes (Zernio
+    n'expose vraiment pas ces champs pour Facebook, pas un mapping manquant).
+- **Google Ads API — configuration partielle, bloquée sur le Refresh Token, 2026-08-28.** Décision prise
+  avec Russel : Zernio suffit pour l'instant (Phases 1/5/6), Google Ads (recherche de mots-clés, hors des
+  7 phases) mis de côté en attendant une session ultérieure.
+  - **Acquis et sauvegardé, ne pas refaire** :
+    - Projet Google Cloud `gln-digital-marketing-01` créé (le projet auto-généré initial,
+      `river-woodland-433622-u6`, était inutilisable — sa Console web renvoyait systématiquement
+      "Échec du chargement : projet non valide" sur toute page, y compris sur un projet flambant neuf ;
+      cause isolée à une des deux connexions réseau de Russel, jamais identifiée précisément —
+      contournée en travaillant via le partage de connexion 4G de son téléphone).
+    - API Google Ads activée sur `gln-digital-marketing-01` (`gcloud services enable
+      googleads.googleapis.com`, exécuté avec succès via Cloud Shell — contourne la Console web cassée).
+    - Écran de consentement OAuth configuré (type "External", app "GLN Digital").
+    - Client OAuth créé — **doit être de type "Application Web"**, pas "Application de bureau" (le
+      premier essai, en "bureau", a échoué avec `Error 400: redirect_uri_mismatch` : OAuth Playground a
+      besoin d'une URI de redirection personnalisée, impossible à définir sur un client "bureau").
+      Redirection autorisée : `https://developers.google.com/oauthplayground`. `GOOGLE_ADS_CLIENT_ID` /
+      `GOOGLE_ADS_CLIENT_SECRET` (les valeurs du client Web, pas celles du client bureau abandonné) déjà
+      sauvegardés dans les secrets Supabase.
+  - **Bloqué sur** : la récupération du `GOOGLE_ADS_REFRESH_TOKEN` via OAuth Playground. Le compte
+    Google de Russel déclenche une vérification de sécurité renforcée ("reauth") à cette étape,
+    systématiquement via une clé d'accès (passkey) qui échoue — testé sans succès depuis son téléphone
+    (Galaxy S9, passkey auto-créée par Android introuvable au moment de l'authentification) et depuis
+    son PC (Windows Hello via PIN, existant, mais la création de clé d'accès elle-même a fini sur une
+    erreur serveur Google brute : `400` sur l'endpoint interne `bless-authentication-factor`, avec le
+    message Google "Nous vous recommandons de ne pas réessayer" — probablement transitoire côté Google,
+    pas quelque chose à corriger ici). Piste non essayée : cliquer "Autres méthodes de validation" sur
+    l'écran de vérification lui-même pour choisir explicitement "mot de passe" plutôt que de suivre la
+    proposition de clé d'accès — à tenter en premier à la prochaine reprise, avant de recréer quoi que
+    ce soit.
+  - **Pour reprendre plus tard** : relancer OAuth Playground avec le Client Web déjà sauvegardé (pas
+    besoin de recréer le projet, l'API, l'écran de consentement, ni le client OAuth), scope
+    `https://www.googleapis.com/auth/adwords`, et gérer l'étape de vérification différemment (mot de
+    passe si proposé, ou réessayer après quelques heures si l'erreur serveur Google persiste).
 
 ### 1. Contexte du projet
 
