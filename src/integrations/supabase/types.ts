@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.17"
   }
   graphql_public: {
     Tables: {
@@ -569,6 +569,91 @@ export type Database = {
           },
           {
             foreignKeyName: "performance_analyses_social_connection_id_fkey"
+            columns: ["social_connection_id"]
+            isOneToOne: false
+            referencedRelation: "social_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      phase4b_visual_jobs: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          error: string | null
+          id: string
+          input_storage_path: string
+          instructions: string | null
+          is_mock: boolean
+          operation_type: string
+          output_storage_path: string | null
+          requested_by: string | null
+          review_notes: string | null
+          review_status: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          runpod_job_id: string | null
+          runpod_status: string | null
+          social_connection_id: string
+          status: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          input_storage_path: string
+          instructions?: string | null
+          is_mock?: boolean
+          operation_type: string
+          output_storage_path?: string | null
+          requested_by?: string | null
+          review_notes?: string | null
+          review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          runpod_job_id?: string | null
+          runpod_status?: string | null
+          social_connection_id: string
+          status?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          input_storage_path?: string
+          instructions?: string | null
+          is_mock?: boolean
+          operation_type?: string
+          output_storage_path?: string | null
+          requested_by?: string | null
+          review_notes?: string | null
+          review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          runpod_job_id?: string | null
+          runpod_status?: string | null
+          social_connection_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "phase4b_visual_jobs_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "phase4b_visual_jobs_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "phase4b_visual_jobs_social_connection_id_fkey"
             columns: ["social_connection_id"]
             isOneToOne: false
             referencedRelation: "social_connections"

@@ -129,6 +129,18 @@ import {
   KeywordIdea,
   researchKeywords,
 } from "@/lib/keywordResearchStore";
+import {
+  Phase4bOperation,
+  Phase4bVisualJob,
+  PHASE4B_OPERATION_LABELS,
+  PHASE4B_STATUS_LABELS,
+  uploadPhase4bMedia,
+  triggerPhase4bJob,
+  checkPhase4bJobStatus,
+  fetchPhase4bJobs,
+  getPhase4bMediaUrl,
+  reviewPhase4bJob,
+} from "@/lib/phase4bVisualStore";
 import { toast } from "sonner";
 
 const scrapePage = async (url: string, platform: 'facebook' | 'instagram' | 'tiktok' | 'youtube' | 'snapchat' | 'web') => {
@@ -2390,6 +2402,7 @@ function Phase1AuditAdmin({ queryClient }: { queryClient: any }) {
                   <Phase2DiagnosticPanel socialConnectionId={conn.id} />
                   <Phase3StrategyPanel socialConnectionId={conn.id} />
                   <Phase4aTextPanel socialConnectionId={conn.id} />
+                  <Phase4bVisualPanel socialConnectionId={conn.id} />
                   <Phase6EngagementPanel socialConnectionId={conn.id} />
                   <Phase7AnalysisPanel socialConnectionId={conn.id} />
                 </>
@@ -3402,6 +3415,201 @@ function Phase7AnalysisPanel({ socialConnectionId }: { socialConnectionId: strin
           )}
         </div>
       ))}
+    </div>
+  );
+}
+
+// ─── Phase 4b Visual Panel ──────────────────────────────────────
+// Admin UI for the Phase 4b (Production visuelle/vidéo) agent — see
+// CLAUDE.md, sections 3 et 7. SCOPE: submit an already-selected media file
+// for exactly one of four operations, poll the async RunPod job until it
+// finishes (no cron/webhook — a client-side interval, same "no scheduler
+// built yet" stance as Phase 5), and gate the result behind a real human
+// quality-validation step before offering the download link. Every job
+// starts from a submitted file — this panel never lets an operation run
+// without one.
+function Phase4bVisualPanel({ socialConnectionId }: { socialConnectionId: string }) {
+  const queryClient = useQueryClient();
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [operation, setOperation] = useState<Phase4bOperation>("image_enhance");
+  const [instructions, setInstructions] = useState("");
+  const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
+
+  const jobsQueryKey = ["phase4b-jobs", socialConnectionId];
+
+  const { data: jobs = [], isLoading } = useQuery({
+    queryKey: jobsQueryKey,
+    queryFn: () => fetchPhase4bJobs(socialConnectionId),
+    // Poll every 4s only while at least one job is still processing —
+    // stops on its own once nothing is in flight, no separate cleanup
+    // needed beyond react-query's own lifecycle.
+    refetchInterval: (query) => {
+      const data = query.state.data as Phase4bVisualJob[] | undefined;
+      return data?.some((j) => j.status === "processing" || j.status === "pending") ? 4000 : false;
+    },
+  });
+
+  // Advances every in-flight job one tick by asking the edge function to
+  // re-check RunPod — the query above only re-reads our own DB, it never
+  // by itself talks to RunPod. Runs on the same interval as the query
+  // refetch above so the two stay in lockstep.
+  useEffect(() => {
+    const inFlight = (jobs as Phase4bVisualJob[]).filter((j) => j.status === "processing");
+    if (inFlight.length === 0) return;
+    const timer = setInterval(() => {
+      inFlight.forEach((j) => {
+        checkPhase4bJobStatus(j.id)
+          .then(() => queryClient.invalidateQueries({ queryKey: jobsQueryKey }))
+          .catch(() => {
+            // Transient poll failure — the next tick tries again, no need
+            // to surface a toast for every missed poll.
+          });
+      });
+    }, 4000);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobs, socialConnectionId]);
+
+  const submitMutation = useMutation({
+    mutationFn: async () => {
+      if (!pendingFile) throw new Error("Sélectionne un fichier.");
+      const storagePath = await uploadPhase4bMedia(socialConnectionId, pendingFile);
+      return triggerPhase4bJob(socialConnectionId, operation, storagePath, instructions);
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: jobsQueryKey });
+      setPendingFile(null);
+      setInstructions("");
+      toast[result.ok ? "success" : "error"](
+        result.ok ? "Traitement lancé — en attente du GPU." : `Échec : ${result.error}`,
+      );
+    },
+    onError: (err: any) => toast.error(`Erreur : ${err.message}`),
+  });
+
+  const previewMutation = useMutation({
+    mutationFn: (path: string) => getPhase4bMediaUrl(path),
+    onSuccess: (url) => window.open(url, "_blank", "noopener,noreferrer"),
+    onError: () => toast.error("Impossible de générer le lien."),
+  });
+
+  const reviewMutation = useMutation({
+    mutationFn: ({ id, decision }: { id: string; decision: "approved" | "rejected" }) =>
+      reviewPhase4bJob(id, decision, reviewNotes[id]),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: jobsQueryKey });
+      toast.success("Validation enregistrée.");
+    },
+    onError: (err: any) => toast.error(`Erreur : ${err.message}`),
+  });
+
+  return (
+    <div className="space-y-4 border-t border-border/40 pt-4">
+      <p className="text-xs font-bold text-primary">Phase 4b — Production visuelle/vidéo</p>
+      <p className="text-[11px] text-muted-foreground">
+        Traite uniquement un média soumis ici — jamais de génération à partir de rien. Chaque résultat
+        reste marqué "en attente de validation" tant qu'un humain ne l'a pas approuvé.
+      </p>
+
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={operation} onValueChange={(v) => setOperation(v as Phase4bOperation)}>
+            <SelectTrigger className="w-56 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {(Object.keys(PHASE4B_OPERATION_LABELS) as Phase4bOperation[]).map((op) => (
+                <SelectItem key={op} value={op}>{PHASE4B_OPERATION_LABELS[op]}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Input
+            type="file"
+            accept="image/*,video/*"
+            className="w-auto text-xs"
+            onChange={(e) => setPendingFile(e.target.files?.[0] ?? null)}
+          />
+        </div>
+        <Input
+          placeholder="Instructions (optionnel — ex: plages à garder pour 'Meilleurs moments')"
+          value={instructions}
+          onChange={(e) => setInstructions(e.target.value)}
+          className="text-xs"
+        />
+        <Button
+          size="sm"
+          onClick={() => submitMutation.mutate()}
+          disabled={!pendingFile || submitMutation.isPending}
+          className="bg-gradient-primary"
+        >
+          Lancer le traitement
+        </Button>
+      </div>
+
+      <div className="space-y-2">
+        {isLoading && <p className="text-xs text-muted-foreground">Chargement…</p>}
+        {!isLoading && jobs.length === 0 && (
+          <p className="text-xs text-muted-foreground">Aucun traitement lancé pour ce compte.</p>
+        )}
+        {(jobs as Phase4bVisualJob[]).map((j) => (
+          <div key={j.id} className="rounded-lg border border-border/40 bg-secondary/20 p-3 text-xs space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-semibold">{PHASE4B_OPERATION_LABELS[j.operation_type]}</span>
+              <Badge variant={j.status === "completed" ? "default" : j.status === "failed" ? "destructive" : "outline"}>
+                {PHASE4B_STATUS_LABELS[j.status]}
+              </Badge>
+              {j.is_mock && <Badge variant="destructive">MOCK — aucun traitement réel</Badge>}
+              {j.review_status !== "pending_review" && (
+                <Badge variant={j.review_status === "approved" ? "default" : "destructive"}>
+                  {j.review_status === "approved" ? "Approuvé" : "Rejeté"}
+                </Badge>
+              )}
+              <span className="text-muted-foreground">{new Date(j.created_at).toLocaleString("fr-FR")}</span>
+            </div>
+
+            {j.error && <p className="text-destructive">{j.error}</p>}
+            {j.instructions && <p className="text-muted-foreground italic">Instructions : {j.instructions}</p>}
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                className="text-primary underline"
+                onClick={() => previewMutation.mutate(j.input_storage_path)}
+              >
+                Voir le média soumis
+              </button>
+              {j.output_storage_path && (
+                <button
+                  className="text-primary underline"
+                  onClick={() => previewMutation.mutate(j.output_storage_path as string)}
+                >
+                  Télécharger le résultat
+                </button>
+              )}
+            </div>
+
+            {j.status === "completed" && !j.is_mock && j.review_status === "pending_review" && (
+              <div className="space-y-2 pt-2 border-t border-border/30">
+                <Textarea
+                  placeholder="Notes de validation qualité (optionnel)"
+                  value={reviewNotes[j.id] || ""}
+                  onChange={(e) => setReviewNotes((n) => ({ ...n, [j.id]: e.target.value }))}
+                  rows={2}
+                  className="text-xs"
+                />
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => reviewMutation.mutate({ id: j.id, decision: "approved" })}>
+                    <CheckCircle className="w-3 h-3 mr-1" /> Approuver
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => reviewMutation.mutate({ id: j.id, decision: "rejected" })}>
+                    Rejeter
+                  </Button>
+                </div>
+              </div>
+            )}
+            {j.review_status !== "pending_review" && j.review_notes && (
+              <p className="text-[10px] text-muted-foreground">Note : {j.review_notes}</p>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

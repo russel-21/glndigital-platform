@@ -1,0 +1,8 @@
+runpod==1.7.9
+requests==2.32.3
+opencv-python-headless==4.10.0.84
+torch==2.4.1
+torchvision==0.19.1
+basicsr==1.4.2
+realesrgan==0.3.0
+numpy<2
