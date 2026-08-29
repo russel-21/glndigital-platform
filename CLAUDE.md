@@ -671,6 +671,34 @@ mais reste séparé de ce qui suit.
     créer le Serverless Endpoint, configurer `RUNPOD_API_KEY`/`RUNPOD_ENDPOINT_ID` dans Supabase. Tant
     que ça n'est pas fait, Phase 4b tourne entièrement en mode mock (aucun fichier de sortie produit,
     badge MOCK affiché).
+  - **Accès MCP RunPod direct pour Claude Code + tentative de déploiement, 2026-08-29.** Russel a
+    configuré un serveur MCP RunPod dans Claude Code (distinct du secret `RUNPOD_API_KEY` de
+    `phase4b-process` — les deux utilisent la même clé RunPod mais dans deux contextes séparés : l'un
+    laisse Claude Code gérer l'infra RunPod directement depuis les sessions, l'autre est lu par l'edge
+    function au runtime). Accès confirmé fonctionnel (`list-endpoints`/`get-billing` répondent sans
+    erreur d'auth).
+    - **Piste explorée pour éviter d'attendre le build Docker custom** : le RunPod Hub héberge déjà un
+      worker serverless prêt à l'emploi pour l'amélioration de qualité d'image —
+      [`ashleykleynhans/runpod-worker-real-esrgan`](https://github.com/ashleykleynhans/runpod-worker-real-esrgan)
+      (354 déploiements, image déjà construite/publiée). Contrat API vérifié contre son vrai
+      `README.md` (pas de résumé approximatif) : requête `{"input": {"source_image": "<base64>",
+      "model": "RealESRGAN_x4plus"|"RealESRGAN_x2plus"|"RealESRNet_x4plus"|"RealESRGAN_x4plus_anime_6B",
+      "scale": <int>, "face_enhance": <bool>}}`, réponse `{"output": {"status": "ok", "image":
+      "<base64>"}}`. Ne couvrirait que la fonction "amélioration d'image" des 4 prévues en Phase 4b (pas
+      synthèse vidéo/montage/création de visuels) — proposé à Russel comme complément du worker custom,
+      pas un remplacement, et **validé par lui** (question à choix, réponse "Oui, déploie-le").
+    - **Déploiement tenté et bloqué** : `deploy-hub-repo` (repo `ashleykleynhans/runpod-worker-real-esrgan`,
+      nommé `gln-phase4b-real-esrgan`, scale-to-zero) a échoué avec une erreur RunPod explicite : *"You
+      must have at least $0.01 in your account balance to create an endpoint"*. Confirme que **le compte
+      RunPod de Russel a un solde à 0$** — aucun endpoint (custom ou Hub) ne peut être créé avant un vrai
+      dépôt, quelle que soit la piste choisie. C'est donc la seule étape réellement bloquante restante.
+    - **Prix RTX 4090 serverless vérifié le jour même** : 1,10$/h (pas 0,69$/h comme noté au 28/08 — les
+      tarifs RunPod ont dû bouger depuis ; secure cloud 0,74$/h, community cloud 0,34$/h).
+    - **Pour reprendre** : dès que Russel a déposé des fonds sur RunPod, relancer le même appel
+      `deploy-hub-repo` (déjà validé, il ne manquait que le solde) pour avoir un Endpoint Real-ESRGAN
+      fonctionnel en un appel, puis lancer un job de test dessus avant de brancher `runpodClient.ts`
+      dessus. Le worker custom (`runpod-worker/`) reste nécessaire pour les 3 autres fonctions Phase 4b
+      et suit toujours son propre chemin (build Docker + publication par Russel, jamais tenté réellement).
 
 ### 1. Contexte du projet
 

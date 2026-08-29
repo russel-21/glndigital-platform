@@ -21,13 +21,34 @@
 // all confirmed from that spec, none guessed). Base URL is
 // https://zernio.com/api, auth is `Authorization: Bearer <ZERNIO_API_KEY>`.
 //
-// publishPost() and fetchComments() below are STILL NOT implemented — their
-// endpoints/request shapes have not been verified yet, and guessing them
-// would violate this project's own anti-hallucination rule (never present
-// fabricated data/behavior as real). Same pattern as before for those two:
-// mock (isMock: true) when ZERNIO_API_KEY is unset, explicit throw if it IS
-// set. Verify each against the same OpenAPI spec before implementing, same
-// way fetchAccountMetrics() was done.
+// STATUS (2026-08-29): publishPost() and fetchComments() are now REAL too —
+// verified against the same Zernio OpenAPI spec (docs.zernio.com/api/openapi,
+// re-fetched and re-read in full on 2026-08-29 — spec version 1.0.4).
+//   - publishPost(): POST /v1/posts, one platform target per call,
+//     publishNow: true. Confirmed synchronous (the "immediatePublish"
+//     example in the spec shows platformPostId/platformPostUrl already
+//     populated in the response), so a non-"published" per-platform status
+//     is treated as a real failure, not "still working on it".
+//   - fetchComments(): Zernio's Inbox Comments feature does NOT list tiktok
+//     in its platform enum (GET /v1/inbox/comments) — confirmed absent from
+//     the spec, not a mapping gap here. callRealZernioCommentsApi() throws
+//     an explicit ZernioApiError for platform "tiktok" rather than
+//     returning a silently-empty result. For the three platforms it does
+//     support (facebook/instagram/youtube), fetching is a two-step fan-out:
+//     GET /v1/inbox/comments lists POSTS that have comments, then GET
+//     /v1/inbox/comments/{postId} fetches that post's actual comment
+//     thread. Only the first page of each is walked in this pass (posts
+//     and comment threads beyond the first page are not fetched) — a
+//     deliberate scope simplification, not an oversight; dedup against
+//     already-seen comments happens in phase6-engagement/index.ts via
+//     platform_comment_id, so re-calling this on a schedule still surfaces
+//     new top-of-thread comments over time.
+//   - DMs are STILL NOT implemented for the real path (RawEngagementItem's
+//     "dm" kind is never produced by callRealZernioCommentsApi()) — Zernio
+//     exposes these via a materially different endpoint pair
+//     (/v1/inbox/conversations + .../messages) that hasn't been wired up
+//     yet. Same rule as everywhere else in this file: left unimplemented
+//     and undocumented-as-done rather than faked.
 //
 // What Zernio's API does NOT expose for fetchAccountMetrics(), confirmed
 // from the spec (not a bug here — there is nothing to fetch):
@@ -99,6 +120,18 @@ export class ZernioApiError extends Error {}
 
 const ZERNIO_BASE_URL = "https://zernio.com/api/v1";
 
+/** Zernio's own platform slugs, verified against its OpenAPI spec (the
+ * `platform` enum on PlatformTarget / GET /v1/inbox/comments), not guessed.
+ * Our internal Platform type prefixes Meta platforms with "meta_" to keep
+ * Facebook/Instagram unambiguous elsewhere in this codebase; Zernio itself
+ * just uses "facebook"/"instagram". */
+const PLATFORM_SLUG: Record<Platform, string> = {
+  meta_facebook: "facebook",
+  meta_instagram: "instagram",
+  tiktok: "tiktok",
+  youtube: "youtube",
+};
+
 /** Analytics endpoint path per platform, verified against Zernio's OpenAPI
  * spec (docs.zernio.com/api/openapi) on 2026-08-22. All four share the same
  * response envelope (the spec itself notes this — historically named
@@ -146,6 +179,37 @@ async function zernioGet(
   }
 
   return body;
+}
+
+/** POST against Zernio's API with bearer auth + JSON body. Unlike zernioGet,
+ * callers here need the raw status/body pair (not just a thrown error) to
+ * distinguish "Zernio rejected the whole request" from "Zernio accepted it
+ * but one target platform failed to publish" — both surface as 2xx/4xx at
+ * different levels in the /v1/posts response shape. */
+async function zernioPost(
+  apiKey: string,
+  path: string,
+  payload: unknown,
+  extraHeaders?: Record<string, string>,
+): Promise<{ status: number; body: unknown }> {
+  const res = await fetch(`${ZERNIO_BASE_URL}${path}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      ...extraHeaders,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  let body: unknown = null;
+  try {
+    body = await res.json();
+  } catch {
+    // No JSON body — fall back to a plain status-based message below.
+  }
+
+  return { status: res.status, body };
 }
 
 /** Pulls this account's entry out of GET /v1/accounts/follower-stats's
@@ -409,22 +473,84 @@ export async function publishPost(
   }
 }
 
-// deno-lint-ignore require-await
+/** Verified against POST /v1/posts in Zernio's OpenAPI spec (2026-08-29,
+ * spec version 1.0.4) — request shape, response shape (Post.platforms[] /
+ * PlatformTarget), and the immediate-publish contract (publishNow: true
+ * completes synchronously; platformPostId/platformPostUrl are already
+ * populated in the response, per the spec's own "immediatePublish"
+ * example) all come from that spec, none guessed. */
 async function callRealZernioPublishApi(
-  _apiKey: string,
-  _platform: Platform,
+  apiKey: string,
+  platform: Platform,
   _accountHandle: string,
-  _zernioAccountId: string | null,
-  _content: PublishContent,
-): Promise<{ platformPostId: string; rawResponse: unknown }> {
-  throw new ZernioNotConfiguredError(
-    "ZERNIO_API_KEY est défini mais l'appel réel de publication à l'API Zernio " +
-      "n'est pas implémenté : les endpoints et le format de requête/réponse " +
-      "n'ont pas été vérifiés contre la documentation officielle Zernio. " +
-      "Complète callRealZernioPublishApi() dans " +
-      "supabase/functions/_shared/zernioClient.ts une fois cette " +
-      "documentation en main, plutôt que de deviner le contrat de l'API.",
+  zernioAccountId: string | null,
+  content: PublishContent,
+): Promise<{ platformPostId?: string; rawResponse: unknown }> {
+  if (!zernioAccountId) {
+    throw new ZernioApiError(
+      "Aucun identifiant de compte Zernio (zernio_account_id) n'est renseigné pour ce compte social — " +
+        "va dans Zernio → Connections pour récupérer l'ID du compte connecté avant de publier.",
+    );
+  }
+
+  // Zernio's /v1/posts has a single "content" text field, no separate slot
+  // for a "hook" — so the hook (attention-grabbing opening line, from Phase
+  // 4a) leads the caption body. The shooting script is deliberately never
+  // included: it's Phase 4b production guidance, not on-platform copy.
+  const composedContent = content.hook.trim()
+    ? `${content.hook.trim()}\n\n${content.caption.trim()}`
+    : content.caption.trim();
+
+  const platformSlug = PLATFORM_SLUG[platform];
+  const requestId = crypto.randomUUID();
+  const { status, body } = await zernioPost(
+    apiKey,
+    "/posts",
+    {
+      content: composedContent,
+      platforms: [{ platform: platformSlug, accountId: zernioAccountId }],
+      publishNow: true,
+    },
+    // Per the spec's idempotency contract: a unique x-request-id per
+    // logical call prevents a network-retry from double-posting.
+    { "x-request-id": requestId },
   );
+
+  const bodyObj = body && typeof body === "object" ? (body as Record<string, unknown>) : null;
+
+  if (status < 200 || status >= 300) {
+    const detail = (bodyObj && typeof bodyObj.error === "string" && bodyObj.error) || `HTTP ${status}`;
+    throw new ZernioApiError(`Zernio (/posts) a répondu une erreur lors de la publication : ${detail}`);
+  }
+
+  const post = bodyObj && typeof bodyObj.post === "object" ? (bodyObj.post as Record<string, unknown>) : null;
+  const platformEntries =
+    post && Array.isArray(post.platforms) ? (post.platforms as Record<string, unknown>[]) : [];
+  // We only ever send one platform target, but find by slug rather than
+  // assume index 0 in case Zernio ever reorders/dedupes the array.
+  const target = platformEntries.find((p) => p.platform === platformSlug) ?? platformEntries[0];
+
+  if (!target) {
+    throw new ZernioApiError(
+      "Zernio a répondu avec succès à la publication mais sans entrée de plateforme dans post.platforms — " +
+        "réponse inattendue, à vérifier manuellement dans le tableau de bord Zernio.",
+    );
+  }
+
+  const targetStatus = typeof target.status === "string" ? target.status : "unknown";
+  // publishNow: true is documented as synchronous — a status other than
+  // "published" here means the publish genuinely did not succeed, not that
+  // it's still in progress.
+  if (targetStatus !== "published") {
+    const errorMessage =
+      typeof target.errorMessage === "string" ? target.errorMessage : `statut Zernio inattendu : "${targetStatus}"`;
+    throw new ZernioApiError(`Zernio n'a pas confirmé la publication (${platform}) : ${errorMessage}`);
+  }
+
+  return {
+    platformPostId: typeof target.platformPostId === "string" ? target.platformPostId : undefined,
+    rawResponse: body,
+  };
 }
 
 function buildMockPublishResult(
@@ -496,20 +622,93 @@ export async function fetchComments(
   }
 }
 
-// deno-lint-ignore require-await
+/** Zernio's Inbox Comments platform slugs, verified against the `platform`
+ * enum on GET /v1/inbox/comments (2026-08-29, spec version 1.0.4):
+ * facebook, instagram, twitter, bluesky, threads, youtube, linkedin,
+ * reddit, metaads. tiktok is deliberately absent from this map — it is NOT
+ * in that enum, so there is no Inbox Comments endpoint to call for it. */
+const INBOX_COMMENTS_PLATFORM: Partial<Record<Platform, string>> = {
+  meta_facebook: "facebook",
+  meta_instagram: "instagram",
+  youtube: "youtube",
+};
+
+/** Verified against GET /v1/inbox/comments and GET /v1/inbox/comments/{postId}
+ * in Zernio's OpenAPI spec (2026-08-29). Two-step fan-out: the first
+ * endpoint lists POSTS that have comments (not the comments themselves),
+ * the second fetches one post's actual comment thread. Only the first page
+ * of each is walked — see the file header for why that's an accepted
+ * scope simplification, not an oversight. */
 async function callRealZernioCommentsApi(
-  _apiKey: string,
-  _platform: Platform,
+  apiKey: string,
+  platform: Platform,
   _accountHandle: string,
-  _zernioAccountId: string | null,
+  zernioAccountId: string | null,
 ): Promise<{ items: RawEngagementItem[]; rawResponse: unknown }> {
-  throw new ZernioNotConfiguredError(
-    "ZERNIO_API_KEY est défini mais l'appel réel de récupération des commentaires à l'API Zernio " +
-      "n'est pas implémenté : les endpoints et le format de réponse n'ont pas été vérifiés contre la " +
-      "documentation officielle Zernio. Complète callRealZernioCommentsApi() dans " +
-      "supabase/functions/_shared/zernioClient.ts une fois cette documentation en main, plutôt que de " +
-      "deviner le contrat de l'API.",
-  );
+  if (!zernioAccountId) {
+    throw new ZernioApiError(
+      "Aucun identifiant de compte Zernio (zernio_account_id) n'est renseigné pour ce compte social.",
+    );
+  }
+
+  const inboxPlatform = INBOX_COMMENTS_PLATFORM[platform];
+  if (!inboxPlatform) {
+    throw new ZernioApiError(
+      `Zernio n'expose pas de fonctionnalité "Inbox Comments" pour ${platform} — confirmé dans sa spec ` +
+        "OpenAPI (l'enum platform de GET /v1/inbox/comments ne liste pas cette plateforme). Rien à " +
+        "récupérer ici, ce n'est pas un bug de ce connecteur.",
+    );
+  }
+
+  const postsRaw = await zernioGet(apiKey, "/inbox/comments", {
+    accountId: zernioAccountId,
+    platform: inboxPlatform,
+    minComments: "1",
+    limit: "25",
+  });
+  const postsObj = postsRaw && typeof postsRaw === "object" ? (postsRaw as Record<string, unknown>) : null;
+  const posts = postsObj && Array.isArray(postsObj.data) ? (postsObj.data as Record<string, unknown>[]) : [];
+
+  const items: RawEngagementItem[] = [];
+  const rawThreads: unknown[] = [];
+
+  for (const post of posts) {
+    const postId = typeof post.id === "string" ? post.id : null;
+    if (!postId) continue;
+
+    const threadRaw = await zernioGet(apiKey, `/inbox/comments/${encodeURIComponent(postId)}`, {
+      accountId: zernioAccountId,
+      limit: "25",
+    });
+    rawThreads.push(threadRaw);
+
+    const threadObj = threadRaw && typeof threadRaw === "object" ? (threadRaw as Record<string, unknown>) : null;
+    const comments =
+      threadObj && Array.isArray(threadObj.comments) ? (threadObj.comments as Record<string, unknown>[]) : [];
+
+    for (const c of comments) {
+      const id = typeof c.id === "string" ? c.id : null;
+      const message = typeof c.message === "string" ? c.message : null;
+      if (!id || message === null) continue;
+
+      const from = c.from && typeof c.from === "object" ? (c.from as Record<string, unknown>) : null;
+      const authorHandle =
+        (from && typeof from.username === "string" && from.username) ||
+        (from && typeof from.name === "string" && from.name) ||
+        "unknown";
+      const postedAt = typeof c.createdTime === "string" ? c.createdTime : new Date().toISOString();
+
+      items.push({
+        platformCommentId: id,
+        kind: "comment",
+        authorHandle,
+        content: message,
+        postedAt,
+      });
+    }
+  }
+
+  return { items, rawResponse: { posts: postsRaw, threads: rawThreads } };
 }
 
 function buildMockCommentsResult(
