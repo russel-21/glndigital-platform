@@ -699,6 +699,75 @@ mais reste séparé de ce qui suit.
       fonctionnel en un appel, puis lancer un job de test dessus avant de brancher `runpodClient.ts`
       dessus. Le worker custom (`runpod-worker/`) reste nécessaire pour les 3 autres fonctions Phase 4b
       et suit toujours son propre chemin (build Docker + publication par Russel, jamais tenté réellement).
+- **Revue complétude + sécurité complète, puis exécution point par point, 2026-08-31.** Sur demande de
+  Russel : audit de tout ce qui restait hors Zernio/RunPod, avec un vrai passage sur le code (RLS de
+  toutes les migrations, les 11 edge functions, `vercel.json`, `robots.txt`, `.env`, `npm audit`,
+  `AuthCallback.tsx`/`Auth.tsx`/`Navbar.tsx`), pas une simple relecture de ce fichier. Plan d'exécution
+  validé via Plan Mode (4 questions à choix posées à Russel avant de figer le plan), puis exécuté
+  intégralement dans la même session.
+  - **🚨 Découverte critique, corrigée** : `public/robots.txt` (`User-agent: * / Disallow: /`) et
+    `vercel.json` (en-tête `X-Robots-Tag: noindex` appliqué globalement à `/(.*)`, pas seulement aux
+    routes sensibles comme documenté) bloquaient **tous** les moteurs de recherche sur **tout** le site
+    public — vérifié en direct sur `glndigital-platform.vercel.app` avant et après correction
+    (`curl` sur `/robots.txt` et les en-têtes de `/`). Probablement un réglage jamais revu depuis une
+    phase "site pas encore prêt". Les blocs spécifiques aux bots d'IA (GPTBot, ClaudeBot, etc.) et le
+    `X-Robots-Tag` sur `/admin`, `/audit/rapport/*` restent inchangés (+ ajout de `/eleve-dashboard`,
+    `/partenaires-dashboard`, `/auth-callback`, qui en manquaient).
+  - **Suppression complète du système d'authentification "mock" par `localStorage`** (décision de
+    Russel via question à choix : suppression totale, pas juste le code mort) — reliquat du prototype
+    Lovable d'avant l'intégration Supabase réelle, présent dans 9 fichiers (`Navbar.tsx`, `Auth.tsx`,
+    `AuthCallback.tsx`, `Admin.tsx`, `DashboardEleve.tsx`, `DashboardPartenaire.tsx`, `Index.tsx`,
+    `Contact.tsx`, `AuditPage.tsx`). Incluait un bypass admin par email magique/`if (false && ...)`
+    déjà neutralisé mais toujours présent dans le code (`isSuperAdminEmail`, `__disabled_admin_mock__`),
+    un faux profil admin (`admin-mock-id-...`, email `russel@glndigital.com` en dur) affiché dans la
+    Navbar sans aucune vérification serveur, et un système de "custom users" `usr-*` entièrement
+    local dans `Admin.tsx` → Rôles & Utilisateurs (celui-ci volontairement **laissé en place**, hors du
+    périmètre explicitement approuvé — signalé à Russel comme découverte à trancher séparément).
+    Vérifié structurellement avant suppression : le vrai portail `Admin.tsx` (`checkAdminAccess`) n'a
+    jamais fait confiance à ce système mock — il interroge toujours réellement Supabase — donc aucune
+    régression de sécurité n'était en jeu, seulement de la dette/confusion.
+  - **Durcissement config** : `.env` retiré du suivi Git (`git rm --cached`, fichier local conservé —
+    n'était de toute façon jamais lu par l'app, `client.ts` code ses valeurs en dur) ; CORS des 11 edge
+    functions passé de `Access-Control-Allow-Origin: *` statique à une allowlist d'origine
+    (`_shared/cors.ts` → `getCorsHeaders(req)`, même motif répliqué dans chaque `index.ts`) ; ajout d'un
+    en-tête CSP dans `vercel.json` (`script-src`/`connect-src`/`frame-src` scopés à Supabase + Microlink/
+    AllOrigins + Cloudflare Turnstile, vérifiés comme les seules ressources externes réelles du site) ;
+    `npm audit fix` appliqué pour le sous-ensemble sûr (7 des 11 vulnérabilités, toutes dans des
+    dépendances de build) — les 4 restantes (bump majeur Vite 5→8, et React Router v6→v7 — pas juste un
+    patch comme le laissait supposer `npm audit`) demandent leur propre passage de tests dédié, pas
+    forcées ici.
+  - **Formulaire public "Audit gratuit" protégé par Cloudflare Turnstile** (décision de Russel :
+    Turnstile plutôt qu'une simple limite de fréquence). Nouvelle edge function
+    `submit-audit-request` : vérifie le token Turnstile côté serveur, puis insère via `service_role` —
+    **seule exception assumée et documentée** à la règle "jamais de service_role" de ce projet, parce
+    qu'un visiteur public anonyme n'a par définition aucun JWT pour que la RLS tranche à sa place.
+    Nouvelle migration `20260831140000` : suppression de la policy `"Anyone can submit audit requests"`
+    (l'insertion directe anonyme est fermée — sinon un bot aurait pu contourner Turnstile en appelant
+    l'API Supabase directement). `VITE_TURNSTILE_SITE_KEY`/`TURNSTILE_SECRET_KEY` non configurées —
+    même convention que Zernio/Anthropic/RunPod : vérification simplement sautée (jamais simulée comme
+    réussie) tant que Russel n'a pas créé de compte Cloudflare.
+  - **Rate limiting ajouté sur les 9 edge functions payantes** (Phase 1-7, hors Zernio publish/comments
+    déjà couverts) : nouvelle table partagée `edge_function_rate_limits` +
+    `_shared/rateLimit.ts` (`checkRateLimit()`), cooldown de 2 minutes par ressource (clé namespacée par
+    fonction, ex. `phase1-audit:<social_connection_id>`) — table unique partagée plutôt que réutiliser
+    9 tables aux schémas différents comme envisagé initialement dans le plan (plus simple, moins
+    d'erreurs). Pour `phase4b-process` (mode `check_status` exclu) et `phase5-publish` (limite posée
+    dans `executePublish()`, pas au niveau des 4 modes de la fonction — seul le mode qui appelle
+    vraiment Zernio compte).
+  - **Explicitement reporté** (décisions de Russel via questions à choix, pas des oublis) : planificateur
+    `pg_cron` pour la Phase 5, approbation par un rôle non-admin (`partner`) en Phase 5, refactor de
+    `Admin.tsx` (5.6k lignes — jugé trop risqué pour être bundlé dans cette session, proposé comme
+    session dédiée séparée).
+  - Vérifié à chaque étape : `npx tsc --noEmit -p tsconfig.app.json`, `npx eslint` (sur l'ensemble du
+    projet, pas seulement les fichiers touchés), `npm run test`, `npm run build` — 0 nouvelle erreur (les
+    `any`/`prefer-const` restants sont tous préexistants, vérifiés ligne par ligne). Les 2 migrations
+    poussées (`supabase db push`), les 12 edge functions touchées/nouvelles redéployées, types
+    régénérés, fusionné dans `main` et poussé sur GitHub — déploiement Vercel confirmé en observant le
+    changement réel de `robots.txt`/en-têtes en direct après coup (pas supposé).
+  - **Pas encore fait** : compte Cloudflare Turnstile (bloque Phase D en usage réel), upgrade Vite/React
+    Router (nécessite sa propre session de tests), décision sur le système `usr-*` de faux utilisateurs
+    dans `Admin.tsx`, vérification visuelle manuelle du rendu du site par Russel après l'ajout de la CSP
+    (build/déploiement vérifiés, mais pas un clic-par-clic humain dans le navigateur).
 
 ### 1. Contexte du projet
 
