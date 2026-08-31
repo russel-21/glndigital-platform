@@ -54,7 +54,6 @@ const Auth = () => {
   const [city, setCity] = useState("");
   const [country, setCountry] = useState("Cameroun");
   const [companyName, setCompanyName] = useState("");
-  const [userRole, setUserRole] = useState<"student" | "partner">("student");
   const [loginIdentifier, setLoginIdentifier] = useState(""); // Email or Phone for login
 
   // Check if user is already logged in only when this device is trusted.
@@ -214,7 +213,15 @@ const Auth = () => {
     }
 
     const fullPhone = `${countryCode} ${phoneLocal.trim()}`;
-    const userRole = "visiteur";
+    // Bug fixed 2026-08-31: this used to be the string "visiteur", which
+    // matches none of the roles redirectUser()/RLS/checkAdminAccess() ever
+    // check for (student/partner/admin/super_admin) — every new signup
+    // silently fell through to the homepage instead of the student
+    // dashboard. "student" matches this app's actual default role
+    // elsewhere (profiles.roles defaults to ["student"] everywhere else in
+    // this codebase); becoming a partner remains an explicit opt-in
+    // afterward via the Navbar's "Devenir Partenaire" switch.
+    const userRole = "student";
 
     try {
       setLoading(true);

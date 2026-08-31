@@ -831,7 +831,6 @@ function RolesAdmin() {
   const [loading, setLoading] = useState(true);
 
   // CRUD states
-  const [isAddingUser, setIsAddingUser] = useState(false);
   const [editingProfile, setEditingProfile] = useState<any | null>(null);
   const [viewingJourney, setViewingJourney] = useState<any | null>(null);
   const [formName, setFormName] = useState("");
@@ -840,41 +839,18 @@ function RolesAdmin() {
   const [formRoles, setFormRoles] = useState<string[]>(["student"]);
   const [formStatus, setFormStatus] = useState<"active" | "inactive">("active");
 
-  const getCustomUsers = (): any[] => {
-    const data = localStorage.getItem("gln_custom_users");
-    if (!data) return [];
-    try { return JSON.parse(data); } catch { return []; }
-  };
-
-  const saveCustomUsers = (users: any[]) => {
-    localStorage.setItem("gln_custom_users", JSON.stringify(users));
-  };
-
   const fetchAllProfiles = async () => {
     try {
       setLoading(true);
-      const { data: realProfiles } = await supabase
+      const { data: realProfiles, error } = await supabase
         .from("profiles")
         .select("*");
-      
-      let allProfiles = realProfiles || [];
 
-      // Filter out profiles deleted locally
-      const deletedList: string[] = JSON.parse(localStorage.getItem("gln_deleted_profiles") || "[]");
-      allProfiles = allProfiles.filter(p => !deletedList.includes(p.id));
-
-      // Combine with local custom users created by admin
-      const customUsers = getCustomUsers();
-
-      // Filter duplicates and combine all
-      allProfiles = [
-        ...customUsers,
-        ...allProfiles.filter(p => !customUsers.some(cu => cu.id === p.id))
-      ];
+      if (error) throw error;
 
       // Load status for everyone (real admin-facing "deactivate" state — see
       // gln_user_status_ usage elsewhere in this app)
-      allProfiles = allProfiles.map(p => {
+      const allProfiles = (realProfiles || []).map(p => {
         const status = localStorage.getItem(`gln_user_status_${p.id}`) || p.status || "active";
         return { ...p, status };
       });
@@ -892,33 +868,6 @@ function RolesAdmin() {
     fetchAllProfiles();
   }, []);
 
-  const handleCreateUser = () => {
-    if (!formName.trim() || !formEmail.trim()) {
-      toast.error("Veuillez saisir un nom et un e-mail.");
-      return;
-    }
-
-    const newUser = {
-      id: "usr-" + Math.random().toString(36).substring(2, 7),
-      full_name: formName.trim(),
-      email: formEmail.trim(),
-      phone: formPhone.trim(),
-      roles: formRoles,
-      status: formStatus,
-      active_sessions: []
-    };
-
-    const current = getCustomUsers();
-    current.push(newUser);
-    saveCustomUsers(current);
-    localStorage.setItem(`gln_user_status_${newUser.id}`, formStatus);
-
-    toast.success("Utilisateur créé avec succès !");
-    setIsAddingUser(false);
-    clearForm();
-    fetchAllProfiles();
-  };
-
   const handleSaveEditUser = async () => {
     if (!editingProfile) return;
     if (!formName.trim() || !formEmail.trim()) {
@@ -926,39 +875,19 @@ function RolesAdmin() {
       return;
     }
 
-    const isCustom = editingProfile.id.startsWith("usr-");
-    
-    if (isCustom) {
-      const current = getCustomUsers();
-      const updated = current.map(u => {
-        if (u.id === editingProfile.id) {
-          return {
-            ...u,
-            full_name: formName.trim(),
-            email: formEmail.trim(),
-            phone: formPhone.trim(),
-            roles: formRoles,
-            status: formStatus
-          };
-        }
-        return u;
-      });
-      saveCustomUsers(updated);
-    } else {
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          full_name: formName.trim(),
-          email: formEmail.trim(),
-          phone: formPhone.trim(),
-          roles: formRoles,
-        })
-        .eq("id", editingProfile.id);
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        full_name: formName.trim(),
+        email: formEmail.trim(),
+        phone: formPhone.trim(),
+        roles: formRoles,
+      })
+      .eq("id", editingProfile.id);
 
-      if (error) {
-        toast.error(`Échec de l'enregistrement : ${error.message}`);
-        return;
-      }
+    if (error) {
+      toast.error(`Échec de l'enregistrement : ${error.message}`);
+      return;
     }
 
     localStorage.setItem(`gln_user_status_${editingProfile.id}`, formStatus);
@@ -971,26 +900,16 @@ function RolesAdmin() {
 
   const handleToggleActiveState = async (profile: any) => {
     const newStatus = profile.status === "active" ? "inactive" : "active";
-    const isCustom = profile.id.startsWith("usr-");
 
-    if (isCustom) {
-      const current = getCustomUsers();
-      const updated = current.map(u => {
-        if (u.id === profile.id) return { ...u, status: newStatus };
-        return u;
-      });
-      saveCustomUsers(updated);
-    } else {
-      try {
-        await supabase
-          .from("profiles")
-          .update({ status: newStatus })
-          .eq("id", profile.id);
-      } catch (err) {
-        console.warn("Could not update state directly to Supabase server, local override used.", err);
-      }
+    try {
+      await supabase
+        .from("profiles")
+        .update({ status: newStatus })
+        .eq("id", profile.id);
+    } catch (err) {
+      console.warn("Could not update state directly to Supabase server, local override used.", err);
     }
-    
+
     localStorage.setItem(`gln_user_status_${profile.id}`, newStatus);
     toast.success(`Utilisateur ${newStatus === "active" ? "activé" : "désactivé"} !`);
     fetchAllProfiles();
@@ -998,30 +917,16 @@ function RolesAdmin() {
 
   const handleDeleteUser = async (profile: any) => {
     if (confirm(`Voulez-vous vraiment supprimer l'utilisateur ${profile.full_name} ?`)) {
-      const isCustom = profile.id.startsWith("usr-");
-      if (isCustom) {
-        const current = getCustomUsers();
-        const updated = current.filter(u => u.id !== profile.id);
-        saveCustomUsers(updated);
-      } else {
-        // Track deletion locally
-        const deletedList: string[] = JSON.parse(localStorage.getItem("gln_deleted_profiles") || "[]");
-        if (!deletedList.includes(profile.id)) {
-          deletedList.push(profile.id);
-          localStorage.setItem("gln_deleted_profiles", JSON.stringify(deletedList));
-        }
+      const { error } = await supabase
+        .from("profiles")
+        .delete()
+        .eq("id", profile.id);
 
-        try {
-          await supabase
-            .from("profiles")
-            .delete()
-            .eq("id", profile.id);
-        } catch (err) {
-          console.warn("Could not execute deletion directly on Supabase server, deleted state tracked locally.", err);
-        }
+      if (error) {
+        toast.error(`Échec de la suppression : ${error.message}`);
+        return;
       }
-      
-      // Clean up localStorage keys
+
       localStorage.removeItem(`gln_user_status_${profile.id}`);
 
       toast.success("Utilisateur supprimé !");
@@ -1047,7 +952,6 @@ function RolesAdmin() {
   };
 
   const handleToggleRole = async (profile: any, roleName: string) => {
-    const isCustom = profile.id.startsWith("usr-");
     const currentRoles = profile.roles || [];
     const hasRole = currentRoles.includes(roleName);
     
@@ -1064,27 +968,16 @@ function RolesAdmin() {
     }
 
     try {
-      if (isCustom) {
-        const current = getCustomUsers();
-        const updated = current.map(u => {
-          if (u.id === profile.id) return { ...u, roles: newRoles };
-          return u;
-        });
-        saveCustomUsers(updated);
-        toast.success("Rôles de l'utilisateur mis à jour.");
-        fetchAllProfiles();
-      } else {
-        const { error } = await supabase
-          .from("profiles")
-          .update({ roles: newRoles })
-          .eq("id", profile.id);
+      const { error } = await supabase
+        .from("profiles")
+        .update({ roles: newRoles })
+        .eq("id", profile.id);
 
-        if (error) {
-          toast.error(`Échec de la mise à jour des rôles : ${error.message}`);
-        } else {
-          toast.success("Rôles mis à jour avec succès dans Supabase !");
-          fetchAllProfiles();
-        }
+      if (error) {
+        toast.error(`Échec de la mise à jour des rôles : ${error.message}`);
+      } else {
+        toast.success("Rôles mis à jour avec succès dans Supabase !");
+        fetchAllProfiles();
       }
     } catch (err: any) {
       toast.error("Erreur lors de la modification des rôles.");
@@ -1092,23 +985,17 @@ function RolesAdmin() {
   };
 
   const handleClearSessions = async (profile: any) => {
-    const isCustom = profile.id.startsWith("usr-");
     try {
-      if (isCustom) {
-        toast.success("Sessions de l'utilisateur nettoyées.");
-        fetchAllProfiles();
-      } else {
-        const { error } = await supabase
-          .from("profiles")
-          .update({ active_sessions: [] })
-          .eq("id", profile.id);
+      const { error } = await supabase
+        .from("profiles")
+        .update({ active_sessions: [] })
+        .eq("id", profile.id);
 
-        if (error) {
-          toast.error("Accès refusé par les règles RLS Supabase.");
-        } else {
-          toast.success("Toutes les sessions ont été nettoyées !");
-          fetchAllProfiles();
-        }
+      if (error) {
+        toast.error("Accès refusé par les règles RLS Supabase.");
+      } else {
+        toast.success("Toutes les sessions ont été nettoyées !");
+        fetchAllProfiles();
       }
     } catch {
       toast.error("Erreur lors du nettoyage.");
@@ -1124,89 +1011,14 @@ function RolesAdmin() {
       <CardHeader className="flex flex-row justify-between items-center border-b border-border/40">
         <div>
           <CardTitle>Gestion des Utilisateurs & Rôles</CardTitle>
-          <p className="text-xs text-muted-foreground mt-1">Créez, modifiez, désactivez ou supprimez les comptes de la plateforme.</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Modifiez, désactivez ou supprimez les comptes de la plateforme. La création d'un compte se
+            fait toujours via une vraie inscription sur /auth — il n'y a plus de création locale ici.
+          </p>
         </div>
-        <Button 
-          onClick={() => { clearForm(); setIsAddingUser(true); }} 
-          size="sm" 
-          className="bg-primary text-primary-foreground font-bold flex items-center gap-1.5 h-8 text-[11px]"
-        >
-          <Plus className="w-4 h-4" />
-          Créer un utilisateur
-        </Button>
       </CardHeader>
 
       <CardContent className="pt-6">
-        {/* ADD USER MODAL/OVERLAY */}
-        {isAddingUser && (
-          <div className="p-4 mb-6 rounded-2xl bg-secondary/20 border border-border/40 space-y-4">
-            <h3 className="font-heading text-xs font-bold text-primary flex items-center gap-1.5 uppercase tracking-wider">
-              <Plus className="w-4 h-4" />
-              Nouveau Compte Utilisateur
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-1">
-                <Label className="text-[10px] font-bold">Nom Complet *</Label>
-                <Input value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Ex: Jean Paul" className="bg-secondary text-xs h-8" />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-[10px] font-bold">Adresse E-mail *</Label>
-                <Input type="email" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} placeholder="Ex: jean@gln.com" className="bg-secondary text-xs h-8" />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-[10px] font-bold">Téléphone ( WhatsApp )</Label>
-                <Input value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder="Ex: +237 6xx xx xx xx" className="bg-secondary text-xs h-8" />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-bold block">Sélection des Rôles</Label>
-                <div className="flex gap-2">
-                  {["student", "partner", "admin", "super_admin"].map((r) => {
-                    const active = formRoles.includes(r);
-                    return (
-                      <button
-                        key={r}
-                        type="button"
-                        onClick={() => {
-                          if (active) {
-                            setFormRoles(formRoles.filter(x => x !== r));
-                          } else {
-                            setFormRoles([...formRoles, r]);
-                          }
-                        }}
-                        className={`px-2 py-1 rounded text-[9px] font-bold uppercase border transition-colors ${
-                          active ? "bg-primary border-primary text-primary-foreground" : "bg-secondary border-border text-muted-foreground"
-                        }`}
-                      >
-                        {r === "student" ? "Élève" : r === "partner" ? "Partenaire" : r}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-[10px] font-bold">Statut Initial</Label>
-                <select
-                  value={formStatus}
-                  onChange={(e) => setFormStatus(e.target.value as any)}
-                  className="bg-secondary border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none w-full h-8"
-                >
-                  <option value="active">Actif (Autorisé)</option>
-                  <option value="inactive">Désactivé (Banni/Bloqué)</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="ghost" size="sm" onClick={() => setIsAddingUser(false)} className="text-xs">Annuler</Button>
-              <Button onClick={handleCreateUser} size="sm" className="bg-primary text-primary-foreground text-xs font-bold">Créer</Button>
-            </div>
-          </div>
-        )}
-
         {/* EDIT USER MODAL/OVERLAY */}
         {editingProfile && (
           <div className="p-4 mb-6 rounded-2xl bg-secondary/20 border border-border/40 space-y-4">
