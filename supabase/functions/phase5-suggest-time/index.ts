@@ -23,14 +23,17 @@
 // fast with a clear message.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 import { suggestPublishTime } from "../_shared/claudeClient.ts";
+import { checkRateLimit } from "../_shared/rateLimit.ts";
 
 interface RequestBody {
   content_draft_id?: string;
 }
 
 Deno.serve(async (req: Request) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -78,6 +81,11 @@ Deno.serve(async (req: Request) => {
   const contentDraftId = body.content_draft_id;
   if (!contentDraftId) {
     return jsonResponse(400, { error: "content_draft_id est requis." });
+  }
+
+  const rateLimitError = await checkRateLimit(supabase, `phase5-suggest-time:${contentDraftId}`);
+  if (rateLimitError) {
+    return jsonResponse(429, { error: rateLimitError });
   }
 
   const { data: draft, error: draftError } = await supabase

@@ -30,7 +30,8 @@
 // front only to fail fast with a clear message.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit } from "../_shared/rateLimit.ts";
 import { generateDiagnostic, type ScreenshotInput } from "../_shared/claudeClient.ts";
 
 interface RequestBody {
@@ -40,6 +41,8 @@ interface RequestBody {
 }
 
 Deno.serve(async (req: Request) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -90,6 +93,12 @@ Deno.serve(async (req: Request) => {
   if (!socialConnectionId) {
     return jsonResponse(400, { error: "social_connection_id est requis." });
   }
+
+  const rateLimitError = await checkRateLimit(supabase, `phase2-diagnostic:${socialConnectionId}`);
+  if (rateLimitError) {
+    return jsonResponse(429, { error: rateLimitError });
+  }
+
   const screenshotIds = body.screenshot_ids ?? [];
   if (screenshotIds.length === 0) {
     return jsonResponse(400, {

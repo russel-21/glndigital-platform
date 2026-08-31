@@ -234,27 +234,6 @@ const DashboardEleve = () => {
 
   // Auth Protection & Role verification
   useEffect(() => {
-    // Check mock admin
-    const mockAdmin = localStorage.getItem("gln_mock_admin_session") === "true";
-    if (mockAdmin) {
-      setProfile({
-        full_name: "Russel Yamegni",
-        email: "russel@glndigital.com",
-        current_role: localStorage.getItem("gln_mock_admin_current_role") || "admin"
-      });
-      return;
-    }
-
-    // Check mock user
-    const mockUser = localStorage.getItem("gln_mock_user_logged_in") === "true";
-    if (mockUser) {
-      const activeMock = localStorage.getItem("gln_active_mock_profile");
-      if (activeMock) {
-        setProfile(JSON.parse(activeMock));
-      }
-      return;
-    }
-
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       try {
         if (!session) {

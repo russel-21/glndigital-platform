@@ -15,11 +15,6 @@ const getDeviceToken = () => {
   return token;
 };
 
-const isMissingProfilesTableError = (error: any) => {
-  const message = String(error?.message || error?.details || "");
-  return error?.code === "PGRST205" || (message.includes("public.profiles") && message.includes("schema cache"));
-};
-
 const AuthCallback = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -35,25 +30,6 @@ const AuthCallback = () => {
   const authMode = new URLSearchParams(window.location.search).get("mode") === "signup" ? "signup" : "login";
 
   useEffect(() => {
-    const mockSession = localStorage.getItem("gln_mock_user_session");
-    if (mockSession === "true") {
-      const email = localStorage.getItem("gln_mock_user_email") || "user@example.com";
-      setSessionUser({
-        id: "user-mock-id-0000-000000000000",
-        email: email,
-        user_metadata: {
-          full_name: localStorage.getItem("gln_mock_user_name") || email.split('@')[0],
-          phone: ""
-        }
-      });
-      setFullName(localStorage.getItem("gln_mock_user_name") || email.split('@')[0]);
-      setPhoneLocal("");
-      setCompanyName("");
-      setNeedsCompletion(true);
-      setLoading(false);
-      return;
-    }
-
     const handleSession = async (session: any) => {
       if (session) {
         setSessionUser(session.user);
@@ -66,41 +42,16 @@ const AuthCallback = () => {
           .eq("id", session.user.id)
           .single();
 
-        const isSuperAdminEmail = false;
-        if (isSuperAdminEmail) {
-          try {
-            await supabase.from("profiles").upsert({
-              id: session.user.id,
-              full_name: profile?.full_name || "Super Admin",
-              phone: profile?.phone || "+237 000 000 000",
-              roles: ["admin", "super_admin", "student", "partner"],
-              current_role: "admin",
-              email: session.user.email,
-              active_sessions: [...(profile?.active_sessions || []), deviceToken]
-            });
-          } catch (e) {
-            console.warn("Could not upsert profile during bypass, proceeding to redirect.", e);
-          }
-          localStorage.setItem("gln_mock_admin_session", "true");
-          localStorage.setItem("gln_mock_admin_current_role", "admin");
-          toast.success("Connexion Super-Admin réussie !");
-          navigate("/admin");
-          return;
-        }
-
         if (error || !profile || !profile.full_name || !profile.phone) {
           if (authMode !== "signup") {
             await supabase.auth.signOut();
-            localStorage.removeItem("gln_mock_user_session");
-            localStorage.removeItem("gln_mock_user_logged_in");
-            localStorage.removeItem("gln_active_mock_profile");
             toast.error("Compte introuvable. Veuillez d'abord vous inscrire.");
             navigate("/auth");
             return;
           }
 
           setFullName(session.user.user_metadata?.full_name || "");
-          
+
           const rawPhone = session.user.user_metadata?.phone || "";
           if (rawPhone.startsWith("+")) {
             const match = rawPhone.match(/^(\+[0-9]{1,4})\s*(.*)$/);
@@ -113,7 +64,7 @@ const AuthCallback = () => {
           } else {
             setPhoneLocal(rawPhone);
           }
-          
+
           setCompanyName(session.user.user_metadata?.company_name || "");
           setNeedsCompletion(true);
           setLoading(false);
@@ -123,10 +74,6 @@ const AuthCallback = () => {
           if (userStatus === "inactive") {
             toast.error("Votre compte a été désactivé. Veuillez contacter l'administrateur.");
             await supabase.auth.signOut();
-            localStorage.removeItem("gln_mock_admin_session");
-            localStorage.removeItem("gln_mock_user_session");
-            localStorage.removeItem("gln_mock_user_logged_in");
-            localStorage.removeItem("gln_active_mock_profile");
             navigate("/auth");
             return;
           }
@@ -147,7 +94,7 @@ const AuthCallback = () => {
               navigate("/auth");
               return;
             }
-            
+
             // Add session token
             const updatedSessions = [...activeSessions, deviceToken];
             await supabase
@@ -196,49 +143,22 @@ const AuthCallback = () => {
     try {
       setLoading(true);
       const deviceToken = getDeviceToken();
-      
-      const mockSession = localStorage.getItem("gln_mock_user_session");
-      if (mockSession === "true") {
-        localStorage.removeItem("gln_mock_user_session");
-        localStorage.setItem("gln_active_mock_profile", JSON.stringify({
-          id: "user-mock-id-0000-000000000000",
-          email: sessionUser.email,
-          full_name: fullName,
-          phone: fullPhone,
-          company_name: companyName,
-          roles: [role],
-          current_role: role,
-          active_sessions: [deviceToken]
-        }));
-        localStorage.setItem("gln_mock_user_logged_in", "true");
-        toast.success("Profil complété !");
-      } else {
-        const profilePayload = {
-          id: sessionUser.id,
-          email: sessionUser.email,
-          full_name: fullName,
-          phone: fullPhone,
-          company_name: companyName,
-          roles: [role],
-          current_role: role,
-          active_sessions: [deviceToken]
-        };
 
-        const { error } = await supabase.from("profiles").upsert(profilePayload);
+      const profilePayload = {
+        id: sessionUser.id,
+        email: sessionUser.email,
+        full_name: fullName,
+        phone: fullPhone,
+        company_name: companyName,
+        roles: [role],
+        current_role: role,
+        active_sessions: [deviceToken]
+      };
 
-        if (error) {
-          if (!isMissingProfilesTableError(error)) throw error;
+      const { error } = await supabase.from("profiles").upsert(profilePayload);
+      if (error) throw error;
 
-          localStorage.setItem("gln_active_mock_profile", JSON.stringify(profilePayload));
-          localStorage.setItem("gln_mock_user_logged_in", "true");
-          toast.warning("Profil sauvegarde localement. La table Supabase profiles doit encore etre creee.");
-        } else {
-          toast.success("Profil complete !");
-        }
-      }
-
-      localStorage.removeItem("gln_mock_user_session");
-      localStorage.removeItem("gln_mock_user_logged_in");
+      toast.success("Profil complete !");
       await supabase.auth.signOut();
       toast.success("Inscription terminee. Connectez-vous maintenant.");
       navigate("/auth");

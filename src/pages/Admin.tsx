@@ -866,60 +866,17 @@ function RolesAdmin() {
       // Combine with local custom users created by admin
       const customUsers = getCustomUsers();
 
-      // Mock admin profile
-      const mockAdminProfile = {
-        id: "admin-mock-id-0000-000000000000",
-        email: "russel@glndigital.com",
-        full_name: "Super Admin",
-        phone: "+237 000 000 000",
-        roles: ["admin", "super_admin", "student", "partner"],
-        current_role: localStorage.getItem("gln_mock_admin_current_role") || "admin",
-        active_sessions: [],
-        status: "active"
-      };
-
-      // Combine with mock user profile if exists
-      const activeMock = localStorage.getItem("gln_active_mock_profile");
-      const mockUserProfile = activeMock ? JSON.parse(activeMock) : null;
-
       // Filter duplicates and combine all
       allProfiles = [
-        mockAdminProfile,
-        ...(mockUserProfile ? [mockUserProfile] : []),
         ...customUsers,
-        ...allProfiles.filter(p => p.id !== mockAdminProfile.id && (!mockUserProfile || p.id !== mockUserProfile.id) && !customUsers.some(cu => cu.id === p.id))
+        ...allProfiles.filter(p => !customUsers.some(cu => cu.id === p.id))
       ];
 
-      // Load status and overrides for everyone
+      // Load status for everyone (real admin-facing "deactivate" state — see
+      // gln_user_status_ usage elsewhere in this app)
       allProfiles = allProfiles.map(p => {
         const status = localStorage.getItem(`gln_user_status_${p.id}`) || p.status || "active";
-        
-        let roles = p.roles || ["student"];
-        const roleOverrideStr = localStorage.getItem(`gln_role_override_${p.id}`);
-        if (roleOverrideStr) {
-          try {
-            roles = JSON.parse(roleOverrideStr);
-          } catch (e) {
-            console.error("Error parsing role override:", e);
-          }
-        }
-
-        let profileOverride = {};
-        const profileOverrideStr = localStorage.getItem(`gln_profile_override_${p.id}`);
-        if (profileOverrideStr) {
-          try {
-            profileOverride = JSON.parse(profileOverrideStr);
-          } catch (e) {
-            console.error("Error parsing profile override:", e);
-          }
-        }
-        
-        return {
-          ...p,
-          ...profileOverride,
-          roles,
-          status
-        };
+        return { ...p, status };
       });
 
       setProfiles(allProfiles);
@@ -988,29 +945,19 @@ function RolesAdmin() {
       });
       saveCustomUsers(updated);
     } else {
-      // Save local overrides for editing profile
-      localStorage.setItem(`gln_user_status_${editingProfile.id}`, formStatus);
-      localStorage.setItem(`gln_role_override_${editingProfile.id}`, JSON.stringify(formRoles));
-      
-      const localProfileOverride = {
-        full_name: formName.trim(),
-        email: formEmail.trim(),
-        phone: formPhone.trim(),
-      };
-      localStorage.setItem(`gln_profile_override_${editingProfile.id}`, JSON.stringify(localProfileOverride));
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          full_name: formName.trim(),
+          email: formEmail.trim(),
+          phone: formPhone.trim(),
+          roles: formRoles,
+        })
+        .eq("id", editingProfile.id);
 
-      try {
-        await supabase
-          .from("profiles")
-          .update({
-            full_name: formName.trim(),
-            email: formEmail.trim(),
-            phone: formPhone.trim(),
-            roles: formRoles,
-          })
-          .eq("id", editingProfile.id);
-      } catch (err) {
-        console.warn("Could not save profile edits directly to Supabase server, local storage sync used.", err);
+      if (error) {
+        toast.error(`Échec de l'enregistrement : ${error.message}`);
+        return;
       }
     }
 
@@ -1050,11 +997,6 @@ function RolesAdmin() {
   };
 
   const handleDeleteUser = async (profile: any) => {
-    if (profile.id === "admin-mock-id-0000-000000000000") {
-      toast.error("Le compte Super Admin principal ne peut pas être supprimé.");
-      return;
-    }
-
     if (confirm(`Voulez-vous vraiment supprimer l'utilisateur ${profile.full_name} ?`)) {
       const isCustom = profile.id.startsWith("usr-");
       if (isCustom) {
@@ -1081,8 +1023,6 @@ function RolesAdmin() {
       
       // Clean up localStorage keys
       localStorage.removeItem(`gln_user_status_${profile.id}`);
-      localStorage.removeItem(`gln_role_override_${profile.id}`);
-      localStorage.removeItem(`gln_profile_override_${profile.id}`);
 
       toast.success("Utilisateur supprimé !");
       fetchAllProfiles();
@@ -1107,7 +1047,7 @@ function RolesAdmin() {
   };
 
   const handleToggleRole = async (profile: any, roleName: string) => {
-    const isMock = profile.id.includes("mock") || profile.id.startsWith("usr-");
+    const isCustom = profile.id.startsWith("usr-");
     const currentRoles = profile.roles || [];
     const hasRole = currentRoles.includes(roleName);
     
@@ -1124,26 +1064,14 @@ function RolesAdmin() {
     }
 
     try {
-      if (isMock) {
-        if (profile.id === "admin-mock-id-0000-000000000000") {
-          toast.success("Rôles du Super-Admin simulés mis à jour.");
-        } else if (profile.id.startsWith("usr-")) {
-          const current = getCustomUsers();
-          const updated = current.map(u => {
-            if (u.id === profile.id) return { ...u, roles: newRoles };
-            return u;
-          });
-          saveCustomUsers(updated);
-          toast.success("Rôles de l'utilisateur mis à jour.");
-        } else {
-          const activeMock = localStorage.getItem("gln_active_mock_profile");
-          if (activeMock) {
-            const parsed = JSON.parse(activeMock);
-            parsed.roles = newRoles;
-            localStorage.setItem("gln_active_mock_profile", JSON.stringify(parsed));
-          }
-          toast.success("Rôles du profil de test mis à jour.");
-        }
+      if (isCustom) {
+        const current = getCustomUsers();
+        const updated = current.map(u => {
+          if (u.id === profile.id) return { ...u, roles: newRoles };
+          return u;
+        });
+        saveCustomUsers(updated);
+        toast.success("Rôles de l'utilisateur mis à jour.");
         fetchAllProfiles();
       } else {
         const { error } = await supabase
@@ -1152,12 +1080,11 @@ function RolesAdmin() {
           .eq("id", profile.id);
 
         if (error) {
-          localStorage.setItem(`gln_role_override_${profile.id}`, JSON.stringify(newRoles));
-          toast.success("Rôles mis à jour (Sauvegardé localement).");
+          toast.error(`Échec de la mise à jour des rôles : ${error.message}`);
         } else {
           toast.success("Rôles mis à jour avec succès dans Supabase !");
+          fetchAllProfiles();
         }
-        fetchAllProfiles();
       }
     } catch (err: any) {
       toast.error("Erreur lors de la modification des rôles.");
@@ -1165,22 +1092,10 @@ function RolesAdmin() {
   };
 
   const handleClearSessions = async (profile: any) => {
-    const isMock = profile.id.includes("mock") || profile.id.startsWith("usr-");
+    const isCustom = profile.id.startsWith("usr-");
     try {
-      if (isMock) {
-        if (profile.id === "admin-mock-id-0000-000000000000") {
-          toast.success("Sessions de l'admin nettoyées.");
-        } else if (profile.id.startsWith("usr-")) {
-          toast.success("Sessions de l'utilisateur nettoyées.");
-        } else {
-          const activeMock = localStorage.getItem("gln_active_mock_profile");
-          if (activeMock) {
-            const parsed = JSON.parse(activeMock);
-            parsed.active_sessions = [];
-            localStorage.setItem("gln_active_mock_profile", JSON.stringify(parsed));
-          }
-          toast.success("Sessions nettoyées.");
-        }
+      if (isCustom) {
+        toast.success("Sessions de l'utilisateur nettoyées.");
         fetchAllProfiles();
       } else {
         const { error } = await supabase
@@ -1451,7 +1366,6 @@ function RolesAdmin() {
                         variant="outline"
                         size="sm"
                         className="text-[10px] h-7 border-red-500/20 hover:bg-red-500/10 text-red-400"
-                        disabled={p.id === "admin-mock-id-0000-000000000000"}
                       >
                         Supprimer
                       </Button>

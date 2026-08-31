@@ -24,7 +24,8 @@
 // fast with a clear message.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit } from "../_shared/rateLimit.ts";
 import { generateContentDraft } from "../_shared/claudeClient.ts";
 
 interface RequestBody {
@@ -34,6 +35,8 @@ interface RequestBody {
 }
 
 Deno.serve(async (req: Request) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -87,6 +90,11 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(400, {
       error: "social_connection_id, strategy_id et calendar_entry_index sont requis.",
     });
+  }
+
+  const rateLimitError = await checkRateLimit(supabase, `phase4a-text:${socialConnectionId}:${calendarEntryIndex}`);
+  if (rateLimitError) {
+    return jsonResponse(429, { error: rateLimitError });
   }
 
   const { data: connection, error: connectionError } = await supabase

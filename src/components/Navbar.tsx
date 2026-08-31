@@ -27,41 +27,16 @@ const Navbar = () => {
   ];
 
   useEffect(() => {
-    // Check mock admin session first
-    const mockAdmin = localStorage.getItem("gln_mock_admin_session") === "true";
-    const mockUser = localStorage.getItem("gln_mock_user_logged_in") === "true";
-
-    if (mockAdmin) {
-      const mockUserObj = {
-        id: "admin-mock-id-0000-000000000000",
-        email: "russel@glndigital.com"
-      };
-      setUser(mockUserObj);
-      fetchProfile(mockUserObj.id);
-    } else if (mockUser) {
-      const mockUserObj = {
-        id: "user-mock-id-0000-000000000000",
-        email: localStorage.getItem("gln_mock_user_email") || "user@example.com"
-      };
-      setUser(mockUserObj);
-      fetchProfile(mockUserObj.id);
-    } else {
-      // Get initial session
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          fetchProfile(session.user.id);
-        }
-      });
-    }
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchProfile(session.user.id);
+      }
+    });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      const isMockAdmin = localStorage.getItem("gln_mock_admin_session") === "true";
-      const isMockUser = localStorage.getItem("gln_mock_user_logged_in") === "true";
-      if (isMockAdmin || isMockUser) {
-        return;
-      }
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchProfile(session.user.id);
@@ -79,40 +54,12 @@ const Navbar = () => {
     const userStatus = localStorage.getItem(`gln_user_status_${userId}`) || "active";
     if (userStatus === "inactive") {
       // Deactivated user: force sign out
-      localStorage.removeItem("gln_mock_admin_session");
       localStorage.removeItem("gln_trust_device");
-      localStorage.removeItem("gln_mock_admin_current_role");
-      localStorage.removeItem("gln_mock_user_session");
-      localStorage.removeItem("gln_mock_user_logged_in");
-      localStorage.removeItem("gln_mock_user_email");
-      localStorage.removeItem("gln_mock_user_name");
-      localStorage.removeItem("gln_active_mock_profile");
       await supabase.auth.signOut();
       setUser(null);
       setProfile(null);
       toast.error("Votre compte a été désactivé par un administrateur.");
       navigate("/auth");
-      return;
-    }
-
-    if (userId === "admin-mock-id-0000-000000000000") {
-      setProfile({
-        id: "admin-mock-id-0000-000000000000",
-        email: "russel@glndigital.com",
-        full_name: "Super Admin",
-        phone: "+237 000 000 000",
-        roles: ["admin", "super_admin", "student", "partner"],
-        current_role: localStorage.getItem("gln_mock_admin_current_role") || "admin",
-        active_sessions: []
-      });
-      return;
-    }
-
-    if (userId === "user-mock-id-0000-000000000000") {
-      const activeMock = localStorage.getItem("gln_active_mock_profile");
-      if (activeMock) {
-        setProfile(JSON.parse(activeMock));
-      }
       return;
     }
 
@@ -123,31 +70,7 @@ const Navbar = () => {
         .eq("id", userId)
         .single();
       if (!error && data) {
-        let roles = data.roles || ["student"];
-        const roleOverrideStr = localStorage.getItem(`gln_role_override_${userId}`);
-        if (roleOverrideStr) {
-          try {
-            roles = JSON.parse(roleOverrideStr);
-          } catch (e) {
-            console.error("Error parsing role override:", e);
-          }
-        }
-
-        let profileOverride = {};
-        const profileOverrideStr = localStorage.getItem(`gln_profile_override_${userId}`);
-        if (profileOverrideStr) {
-          try {
-            profileOverride = JSON.parse(profileOverrideStr);
-          } catch (e) {
-            console.error("Error parsing profile override:", e);
-          }
-        }
-        
-        setProfile({
-          ...data,
-          ...profileOverride,
-          roles
-        });
+        setProfile(data);
       }
     } catch (err) {
       console.error("Error fetching profile in Navbar:", err);
@@ -155,25 +78,16 @@ const Navbar = () => {
   };
 
   const handleSignOut = async () => {
-    localStorage.removeItem("gln_mock_admin_session");
     localStorage.removeItem("gln_trust_device");
-    localStorage.removeItem("gln_mock_admin_current_role");
-    localStorage.removeItem("gln_mock_user_session");
-    localStorage.removeItem("gln_mock_user_logged_in");
-    localStorage.removeItem("gln_mock_user_email");
-    localStorage.removeItem("gln_mock_user_name");
-    localStorage.removeItem("gln_active_mock_profile");
 
     try {
-      if (user && user.id !== "admin-mock-id-0000-000000000000" && user.id !== "user-mock-id-0000-000000000000") {
-        const deviceToken = localStorage.getItem("gln_device_token");
-        if (deviceToken && profile) {
-          const updatedSessions = (profile.active_sessions || []).filter((s: string) => s !== deviceToken);
-          await supabase
-            .from("profiles")
-            .update({ active_sessions: updatedSessions })
-            .eq("id", user.id);
-        }
+      const deviceToken = localStorage.getItem("gln_device_token");
+      if (user && deviceToken && profile) {
+        const updatedSessions = (profile.active_sessions || []).filter((s: string) => s !== deviceToken);
+        await supabase
+          .from("profiles")
+          .update({ active_sessions: updatedSessions })
+          .eq("id", user.id);
       }
     } catch (err) {
       console.error("Error during session logout cleanup:", err);
@@ -186,39 +100,6 @@ const Navbar = () => {
 
   const switchRole = async (newRole: string) => {
     if (!user || !profile) return;
-
-    if (user.id === "admin-mock-id-0000-000000000000") {
-      localStorage.setItem("gln_mock_admin_current_role", newRole);
-      setProfile((prev: any) => prev ? { ...prev, current_role: newRole } : null);
-      setDropdownOpen(false);
-      toast.success(`Rôle basculé : ${newRole === 'student' ? 'Élève' : newRole === 'partner' ? 'Partenaire' : 'Admin'}`);
-      if (newRole === "partner") {
-        navigate("/partenaires-dashboard");
-      } else if (newRole === "student") {
-        navigate("/eleve-dashboard");
-      } else {
-        navigate("/admin");
-      }
-      return;
-    }
-
-    if (user.id === "user-mock-id-0000-000000000000") {
-      const activeMock = localStorage.getItem("gln_active_mock_profile");
-      if (activeMock) {
-        const parsed = JSON.parse(activeMock);
-        parsed.current_role = newRole;
-        localStorage.setItem("gln_active_mock_profile", JSON.stringify(parsed));
-        setProfile(parsed);
-      }
-      setDropdownOpen(false);
-      toast.success(`Rôle basculé : ${newRole === 'student' ? 'Élève' : 'Partenaire'}`);
-      if (newRole === "partner") {
-        navigate("/partenaires-dashboard");
-      } else {
-        navigate("/eleve-dashboard");
-      }
-      return;
-    }
 
     try {
       const { error } = await supabase
@@ -244,40 +125,6 @@ const Navbar = () => {
 
   const addAndSwitchRole = async (newRole: string) => {
     if (!user || !profile) return;
-
-    if (user.id === "admin-mock-id-0000-000000000000") {
-      const currentRoles = profile.roles || [];
-      const updatedRoles = [...currentRoles, newRole];
-      setProfile((prev: any) => prev ? { ...prev, roles: updatedRoles, current_role: newRole } : null);
-      localStorage.setItem("gln_mock_admin_current_role", newRole);
-      setDropdownOpen(false);
-      toast.success(`Nouveau rôle activé : ${newRole === 'student' ? 'Élève' : 'Partenaire'}`);
-      if (newRole === "partner") {
-        navigate("/partenaires-dashboard");
-      } else {
-        navigate("/eleve-dashboard");
-      }
-      return;
-    }
-
-    if (user.id === "user-mock-id-0000-000000000000") {
-      const activeMock = localStorage.getItem("gln_active_mock_profile");
-      if (activeMock) {
-        const parsed = JSON.parse(activeMock);
-        parsed.roles = [...(parsed.roles || []), newRole];
-        parsed.current_role = newRole;
-        localStorage.setItem("gln_active_mock_profile", JSON.stringify(parsed));
-        setProfile(parsed);
-      }
-      setDropdownOpen(false);
-      toast.success(`Nouveau rôle activé et basculé !`);
-      if (newRole === "partner") {
-        navigate("/partenaires-dashboard");
-      } else {
-        navigate("/eleve-dashboard");
-      }
-      return;
-    }
 
     try {
       const updatedRoles = [...(profile.roles || []), newRole];
