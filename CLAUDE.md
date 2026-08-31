@@ -768,6 +768,33 @@ mais reste séparé de ce qui suit.
     Router (nécessite sa propre session de tests), décision sur le système `usr-*` de faux utilisateurs
     dans `Admin.tsx`, vérification visuelle manuelle du rendu du site par Russel après l'ajout de la CSP
     (build/déploiement vérifiés, mais pas un clic-par-clic humain dans le navigateur).
+- **Les 3 découvertes ci-dessus corrigées à la demande de Russel, 2026-08-31 (suite directe).**
+  - Système `usr-*` de faux utilisateurs (Admin.tsx → Rôles & Utilisateurs) supprimé entièrement —
+    n'a jamais créé de vrai compte Supabase capable de se connecter, uniquement une ligne
+    décorative dans la liste admin ; la création de compte reste uniquement via `/auth`. Au passage,
+    `handleDeleteUser`/`handleSaveEditUser` ne masquent plus un échec RLS réel derrière un faux succès
+    local — la RLS admin-only fonctionne réellement maintenant (durcie depuis le 09/08), ce filet de
+    secours n'avait plus de raison d'être.
+  - Bug `Auth.tsx` corrigé : un `const userRole = "visiteur"` local masquait le state `userRole`
+    (jamais relié à un vrai sélecteur dans le formulaire) — tout nouvel inscrit recevait
+    `current_role: "visiteur"`, une valeur qu'aucune redirection ne reconnaît, et atterrissait
+    silencieusement sur la page d'accueil au lieu de son tableau de bord élève. Corrigé en `"student"`
+    (le vrai défaut partout ailleurs dans ce projet) ; le state mort `userRole`/`setUserRole` retiré.
+  - `npm audit` : 0 vulnérabilité restante. `react-router-dom` 6.30→7.18.3, `vite` 5.4→8.2.2, `vitest`
+    3.2→4.1.11, `@vitejs/plugin-react-swc`→4.3.3, `lovable-tagger`→1.3.3 (la version qui déclare
+    vraiment supporter vite 8 — la `^1.1.13` installée ne le faisait pas, remontée par un warning
+    ERESOLVE au moment du bump). `__dirname` remplacé par `import.meta.dirname` dans
+    `vite.config.ts`/`vitest.config.ts` (warning de compatibilité future de Vite).
+  - **Vérification allant au-delà du build** : lancement réel du serveur de dev + passage Playwright
+    (Chromium headless) sur `/`, `/auth`, `/audit`, `/a-propos` + un clic réel sur un `<Link>` pour
+    confirmer la navigation côté client (le point que React Router v7 aurait pu casser). A nécessité de
+    neutraliser localement les signaux détectés par `src/lib/antiScraping.ts` (`navigator.webdriver`,
+    `userAgentData.brands`, etc.) — uniquement dans ce script de QA jetable (jamais committé) ; le garde
+    anti-bot du site n'a pas été touché et continue de fonctionner normalement en prod. Les 4 pages ont
+    rendu leur vrai contenu, 0 erreur console, navigation confirmée fonctionnelle. Captures d'écran
+    consultées visuellement, pas seulement le texte extrait.
+  - Vérifié : `npx tsc --noEmit`, `npx eslint` (aucune nouvelle erreur), `npm run test`, `npm run build`,
+    `npm audit` (0). Fusionné dans `main` et poussé sur GitHub.
 
 ### 1. Contexte du projet
 
