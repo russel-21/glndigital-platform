@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { Mail, Lock, Phone, Building, User, LogIn, UserPlus, Chrome, Eye, EyeOff, MapPin, Globe } from "lucide-react";
 import { toast } from "sonner";
 import { getDeviceToken } from "./AuthCallback";
@@ -35,12 +35,6 @@ const hasValidTrustedDevice = () => {
   return false;
 };
 
-const clearVisitorSessions = () => {
-  localStorage.removeItem("gln_mock_user_session");
-  localStorage.removeItem("gln_mock_user_logged_in");
-  localStorage.removeItem("gln_active_mock_profile");
-};
-
 const Auth = () => {
   const navigate = useNavigate();
   const { language } = useLanguage();
@@ -48,8 +42,7 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
-  const [showGoogleModal, setShowGoogleModal] = useState(false);
-  const [simulatedEmail, setSimulatedEmail] = useState("russel@glndigital.com");
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Form Fields
   const [email, setEmail] = useState("");
@@ -63,30 +56,11 @@ const Auth = () => {
   const [companyName, setCompanyName] = useState("");
   const [userRole, setUserRole] = useState<"student" | "partner">("student");
   const [loginIdentifier, setLoginIdentifier] = useState(""); // Email or Phone for login
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Check if user is already logged in only when this device is trusted.
   useEffect(() => {
     if (!hasValidTrustedDevice()) {
       return;
-    }
-
-    const mockSession = localStorage.getItem("gln_mock_admin_session");
-    if (mockSession === "true") {
-      redirectUser("admin-mock-id-0000-000000000000");
-      return;
-    }
-
-    const mockUserSession = localStorage.getItem("gln_mock_user_logged_in") === "true";
-    if (mockUserSession) {
-      const activeMock = localStorage.getItem("gln_active_mock_profile");
-      if (activeMock) {
-        try {
-          const parsed = JSON.parse(activeMock);
-          redirectUser(parsed.id || "user-mock-id-0000-000000000000");
-          return;
-        } catch {}
-      }
     }
 
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -98,29 +72,15 @@ const Auth = () => {
 
   const redirectUser = async (userId: string) => {
     try {
-      let profile;
-      if (userId === "admin-mock-id-0000-000000000000") {
-        profile = {
-          id: "admin-mock-id-0000-000000000000",
-          email: "russel@glndigital.com",
-          full_name: "Super Admin",
-          phone: "+237 000 000 000",
-          roles: ["admin", "super_admin", "student", "partner"],
-          current_role: localStorage.getItem("gln_mock_admin_current_role") || "admin",
-          active_sessions: [getDeviceToken()]
-        };
-      } else {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", userId)
-          .single();
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
 
-        if (error || !data) {
-          navigate("/auth-callback");
-          return;
-        }
-        profile = data;
+      if (error || !profile) {
+        navigate("/auth-callback");
+        return;
       }
 
       // Check status (active/inactive)
@@ -131,13 +91,7 @@ const Auth = () => {
             ? "Votre compte a été désactivé. Veuillez contacter l'administrateur."
             : "Your account has been deactivated. Please contact the administrator."
         );
-        if (userId !== "admin-mock-id-0000-000000000000") {
-          await supabase.auth.signOut();
-        }
-        localStorage.removeItem("gln_mock_admin_session");
-        localStorage.removeItem("gln_mock_user_session");
-        localStorage.removeItem("gln_mock_user_logged_in");
-        localStorage.removeItem("gln_active_mock_profile");
+        await supabase.auth.signOut();
         return;
       }
 
@@ -146,10 +100,10 @@ const Auth = () => {
       const roles: string[] = profile.roles || ['student'];
       const deviceToken = getDeviceToken();
 
-      const isAdmin = roles.includes("admin") || roles.includes("super_admin") || (profile as any).role === "admin";
+      const isAdmin = roles.includes("admin") || roles.includes("super_admin");
       const maxAllowedDevices = isAdmin ? 3 : 1;
 
-      if (!activeSessions.includes(deviceToken) && userId !== "admin-mock-id-0000-000000000000") {
+      if (!activeSessions.includes(deviceToken)) {
         if (activeSessions.length >= maxAllowedDevices) {
           toast.error(
             language === "fr"
@@ -159,7 +113,7 @@ const Auth = () => {
           await supabase.auth.signOut();
           return;
         }
-        
+
         // Save current device token
         const updated = [...activeSessions, deviceToken];
         await supabase
@@ -170,7 +124,7 @@ const Auth = () => {
 
       // Redirection according to current active role
       const isSuperAdmin = isAdmin || profile.current_role === "admin" || profile.current_role === "super_admin";
-      
+
       if (isSuperAdmin) {
         navigate("/admin");
       } else if (profile.current_role === "partner") {
@@ -191,7 +145,6 @@ const Auth = () => {
   };
 
   const triggerOfficialGoogle = async (mode: "signup" | "login" = "login") => {
-    setShowGoogleModal(false);
     try {
       setLoading(true);
       const { error } = await supabase.auth.signInWithOAuth({
@@ -218,76 +171,12 @@ const Auth = () => {
     }
   };
 
-  const triggerSimulatedGoogle = async (emailToUse: string) => {
-    if (!emailToUse || !emailToUse.includes("@")) {
-      toast.error(
-        language === "fr" ? "Veuillez saisir un e-mail valide." : "Please enter a valid email address."
-      );
-      return;
-    }
-    setShowGoogleModal(false);
-    setLoading(true);
-    if (false && emailToUse === "__disabled_admin_mock__") {
-      localStorage.setItem("gln_mock_admin_session", "true");
-      if (rememberMe) {
-        rememberTrustedDevice();
-      } else {
-        clearTrustedDevice();
-      }
-      localStorage.setItem("gln_mock_admin_current_role", "admin");
-      toast.success(
-        language === "fr"
-          ? "Connecté via Google (Simulation Super-Admin) !"
-          : "Connected via Google (Super-Admin Simulation)!"
-      );
-      await redirectUser("admin-mock-id-0000-000000000000");
-    } else {
-      localStorage.setItem("gln_mock_user_session", "true");
-      localStorage.setItem("gln_mock_user_email", emailToUse);
-      localStorage.setItem("gln_mock_user_name", emailToUse.split('@')[0]);
-      if (rememberMe) {
-        rememberTrustedDevice();
-      } else {
-        clearTrustedDevice();
-      }
-      toast.success(
-        language === "fr"
-          ? `Connecté via Google (${emailToUse}) !`
-          : `Connected via Google (${emailToUse})!`
-      );
-      navigate("/auth-callback");
-    }
-    setLoading(false);
-  };
-
   // Email Sign-In & Sign-Up
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const currentPassword = password;
     const finalIdentifier = isSignUp ? email : loginIdentifier;
-
-    // Disabled legacy local admin bypass.
-    if (false && finalIdentifier === "__disabled_admin_mock__" && currentPassword === "__disabled__") {
-      setLoading(true);
-      await supabase.auth.signOut();
-      clearVisitorSessions();
-      localStorage.setItem("gln_mock_admin_session", "true");
-      if (rememberMe) {
-        rememberTrustedDevice();
-      } else {
-        clearTrustedDevice();
-      }
-      localStorage.setItem("gln_mock_admin_current_role", "admin");
-      toast.success(
-        language === "fr"
-          ? "Connexion Admin réussie (Mode confiance connecté) !"
-          : "Admin Login Successful (Trusted device mode active)!"
-      );
-      await redirectUser("admin-mock-id-0000-000000000000");
-      setLoading(false);
-      return;
-    }
 
     if (isSignUp) {
       if (!fullName.trim()) {
@@ -348,7 +237,9 @@ const Auth = () => {
 
         if (error) throw error;
 
-        // Custom Profile Insertion (Fallback)
+        // Supabase Auth doesn't create a public.profiles row on its own —
+        // this app's authorization model (roles/current_role) lives there,
+        // so it's created explicitly right after signup.
         if (data.user) {
           const token = getDeviceToken();
           await supabase.from("profiles").upsert({
@@ -363,40 +254,17 @@ const Auth = () => {
           });
         }
 
-        // Save local mock registry for simulation fallback
-        localStorage.setItem(`gln_mock_reg_${email}`, JSON.stringify({
-          email,
-          password: currentPassword,
-          fullName,
-          phone: fullPhone,
-          city,
-          country,
-          role: userRole
-        }));
-        if (phoneLocal) {
-          localStorage.setItem(`gln_mock_reg_${phoneLocal.replace(/\s+/g, "")}`, JSON.stringify({
-            email,
-            password: currentPassword,
-            fullName,
-            phone: fullPhone,
-            city,
-            country,
-            role: userRole
-          }));
-        }
-
         toast.success(
-          language === "fr" 
-            ? "Inscription réussie ! Veuillez vous connecter avec votre identifiant." 
+          language === "fr"
+            ? "Inscription réussie ! Veuillez vous connecter avec votre identifiant."
             : "Registration successful! Please log in with your credentials."
         );
-        
+
         await supabase.auth.signOut();
 
         // Return to login screen
         setLoginIdentifier(email);
         setIsSignUp(false);
-        setLoading(false);
       } else {
         // Sign In
         const isEmail = finalIdentifier.includes("@");
@@ -404,181 +272,22 @@ const Auth = () => {
           ? { email: finalIdentifier, password: currentPassword }
           : { phone: finalIdentifier, password: currentPassword };
 
-        try {
-          const { data, error } = await supabase.auth.signInWithPassword(loginParams);
-          if (error) {
-            // Check for russel@glndigital.com admin fallback creation
-            if (false && finalIdentifier === "__disabled_admin_mock__" && currentPassword === "__disabled__") {
-              const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-                email: finalIdentifier,
-                password: currentPassword,
-                options: {
-                  data: {
-                    full_name: "Super Admin",
-                    phone: "+237 000 000 000",
-                    role: "admin",
-                  }
-                }
-              });
-              if (!signUpError && signUpData.user) {
-                const token = getDeviceToken();
-                await supabase.from("profiles").upsert({
-                  id: signUpData.user.id,
-                  full_name: "Super Admin",
-                  phone: "+237 000 000 000",
-                  roles: ["admin", "super_admin", "student", "partner"],
-                  current_role: "admin",
-                  email: finalIdentifier,
-                  active_sessions: [token]
-                });
-                toast.success(
-                  language === "fr"
-                    ? "Compte Super-Admin initialisé avec succès !"
-                    : "Super-Admin account successfully initialized!"
-                );
-                redirectUser(signUpData.user.id);
-                return;
-              }
-            }
-            throw error;
-          }
-          if (rememberMe) {
-            rememberTrustedDevice();
-          } else {
-            clearTrustedDevice();
-          }
-          toast.success(language === "fr" ? "Connexion réussie !" : "Login successful!");
-          redirectUser(data.user?.id || "");
-        } catch (e: any) {
-          // Verify simulation registration registry
-          const registryKey = `gln_mock_reg_${finalIdentifier.replace(/\s+/g, "")}`;
-          const savedReg = localStorage.getItem(registryKey);
-          if (savedReg) {
-            const parsedReg = JSON.parse(savedReg);
-            if (parsedReg.password === currentPassword) {
-              localStorage.setItem("gln_mock_user_session", "true");
-              localStorage.setItem("gln_mock_user_email", parsedReg.email);
-              localStorage.setItem("gln_mock_user_name", parsedReg.fullName);
-              localStorage.setItem("gln_mock_user_logged_in", "true");
-              
-              if (rememberMe) {
-                rememberTrustedDevice();
-              } else {
-                clearTrustedDevice();
-              }
+        const { data, error } = await supabase.auth.signInWithPassword(loginParams);
+        if (error) throw error;
 
-              const deviceToken = getDeviceToken();
-              const activeProfile = {
-                id: "user-mock-id-0000-000000000000",
-                email: parsedReg.email,
-                full_name: parsedReg.fullName,
-                phone: parsedReg.phone,
-                city: parsedReg.city,
-                country: parsedReg.country,
-                roles: [parsedReg.role],
-                current_role: parsedReg.role,
-                active_sessions: [deviceToken]
-              };
-              localStorage.setItem("gln_active_mock_profile", JSON.stringify(activeProfile));
-
-              toast.success(
-                language === "fr"
-                  ? `Simulation : Connexion réussie (${parsedReg.email}) !`
-                  : `Simulation: Login successful (${parsedReg.email})!`
-              );
-              navigate("/eleve-dashboard");
-              return;
-            } else {
-              toast.error(
-                language === "fr"
-                  ? "Identifiant ou mot de passe incorrect."
-                  : "Invalid identifier or password."
-              );
-              throw e;
-            }
-          }
-          throw e;
+        if (rememberMe) {
+          rememberTrustedDevice();
+        } else {
+          clearTrustedDevice();
         }
+        toast.success(language === "fr" ? "Connexion réussie !" : "Login successful!");
+        redirectUser(data.user?.id || "");
       }
     } catch (err: any) {
-      console.warn("Supabase auth error, falling back to simulated session:", err);
-      if (isSignUp) {
-        // Simulated registration fallback (should save mock and redirect to login)
-        localStorage.setItem(`gln_mock_reg_${email}`, JSON.stringify({
-          email,
-          password: currentPassword,
-          fullName,
-          phone: fullPhone,
-          city,
-          country,
-          role: userRole
-        }));
-        if (phoneLocal) {
-          localStorage.setItem(`gln_mock_reg_${phoneLocal.replace(/\s+/g, "")}`, JSON.stringify({
-            email,
-            password: currentPassword,
-            fullName,
-            phone: fullPhone,
-            city,
-            country,
-            role: userRole
-          }));
-        }
-
-        toast.success(
-          language === "fr"
-            ? "Simulation : Inscription réussie ! Veuillez vous connecter."
-            : "Simulation: Registration successful! Please log in."
-        );
-        setLoginIdentifier(email);
-        setIsSignUp(false);
-      } else {
-        // Login fallback if profile already exists or for russel super admin
-        if (false && finalIdentifier === "__disabled_admin_mock__" && currentPassword === "__disabled__") {
-          localStorage.setItem("gln_mock_admin_session", "true");
-          if (rememberMe) {
-            rememberTrustedDevice();
-          } else {
-            clearTrustedDevice();
-          }
-          localStorage.setItem("gln_mock_admin_current_role", "admin");
-          toast.success(
-            language === "fr"
-              ? "Connecté via Google (Simulation Super-Admin) !"
-              : "Connected via Google (Super-Admin Simulation)!"
-          );
-          await redirectUser("admin-mock-id-0000-000000000000");
-          return;
-        }
-
-        const savedMock = localStorage.getItem("gln_active_mock_profile");
-        let parsed = savedMock ? JSON.parse(savedMock) : null;
-        if (parsed && (parsed.email === finalIdentifier || parsed.phone === finalIdentifier)) {
-          localStorage.setItem("gln_mock_user_logged_in", "true");
-          if (rememberMe) {
-            rememberTrustedDevice();
-          } else {
-            clearTrustedDevice();
-          }
-          toast.success(
-            language === "fr"
-              ? `Simulation : Connexion réussie (${finalIdentifier}) !`
-              : `Simulation: Login successful (${finalIdentifier})!`
-          );
-          if (parsed.current_role === "partner") {
-            navigate("/partenaires-dashboard");
-          } else {
-            navigate("/eleve-dashboard");
-          }
-        } else {
-          clearVisitorSessions();
-          toast.error(
-            language === "fr"
-              ? "Compte introuvable. Inscrivez-vous avant de vous connecter."
-              : "Account not found. Please sign up before logging in."
-          );
-        }
-      }
+      toast.error(
+        err?.message ||
+          (language === "fr" ? "Une erreur est survenue. Veuillez réessayer." : "An error occurred. Please try again.")
+      );
     } finally {
       setLoading(false);
     }
@@ -868,93 +577,6 @@ const Auth = () => {
           </button>
         </div>
       </motion.div>
-
-      {/* Premium Google Auth Mode Selector Modal */}
-      <AnimatePresence>
-        {showGoogleModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowGoogleModal(false)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="stable-surface relative w-full max-w-sm p-5 sm:p-6 rounded-2xl sm:rounded-3xl bg-card border border-border/80 shadow-glow text-foreground space-y-6 z-10"
-            >
-              <div className="text-center">
-                <h3 className="font-heading text-lg font-extrabold font-bold">
-                  {language === "fr" ? "Connexion / Inscription Google" : "Google Sign-In / Sign-Up"}
-                </h3>
-                <p className="text-xs text-muted-foreground mt-2">
-                  {language === "fr"
-                    ? "Choisissez ou simulez le compte de connexion Google pour accéder à la plateforme."
-                    : "Choose or simulate the Google account to access the platform."}
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <div className="space-y-1.5 text-left">
-                  <label className="text-[10px] font-bold text-muted-foreground uppercase block font-bold">
-                    {language === "fr" ? "Adresse E-mail Google (Simulation)" : "Google Email Address (Simulation)"}
-                  </label>
-                  <input
-                    type="email"
-                    value={simulatedEmail}
-                    onChange={(e) => setSimulatedEmail(e.target.value)}
-                    className="w-full bg-secondary border border-border rounded-xl px-3 py-2 text-xs text-foreground focus:outline-none focus:border-primary"
-                    placeholder="russel@glndigital.com"
-                  />
-                </div>
-
-                <button
-                  onClick={() => triggerSimulatedGoogle(simulatedEmail)}
-                  className="w-full bg-primary text-primary-foreground py-3 px-4 rounded-xl font-bold text-xs transition-all hover:opacity-90 shadow-glow flex items-center justify-center gap-2"
-                >
-                  <Chrome className="w-4 h-4" />
-                  {language === "fr" ? "Simulation de test (Immédiat)" : "Test Simulation (Immediate)"}
-                </button>
-                <p className="text-[9px] text-muted-foreground text-center -mt-2 px-1">
-                  {language === "fr"
-                    ? "Recommandé pour tester instantanément tous les espaces (Élève, Partenaire, Admin)."
-                    : "Recommended to instantly test all spaces (Student, Partner, Admin)."}
-                </p>
-
-                <div className="relative flex items-center justify-center py-1">
-                  <div className="absolute inset-x-0 h-[1px] bg-border/40" />
-                  <span className="relative bg-card px-2 text-[9px] text-muted-foreground uppercase font-bold">
-                    {language === "fr" ? "Ou utiliser la vraie connexion" : "Or use real connection"}
-                  </span>
-                </div>
-
-                <button
-                  onClick={() => triggerOfficialGoogle("login")}
-                  className="w-full bg-secondary hover:bg-secondary/80 border border-border text-foreground py-2.5 px-4 rounded-xl font-semibold text-xs transition-all flex items-center justify-center gap-2"
-                >
-                  <Chrome className="w-4 h-4 text-primary" />
-                  {language === "fr" ? "Connexion Officielle Google" : "Official Google Connection"}
-                </button>
-                <p className="text-[9px] text-red-400 text-center -mt-2 px-1">
-                  {language === "fr"
-                    ? "Nécessite d'avoir activé le fournisseur Google sur votre console Supabase."
-                    : "Requires having the Google provider activated on your Supabase console."}
-                </p>
-              </div>
-
-              <button
-                onClick={() => setShowGoogleModal(false)}
-                className="w-full text-center text-xs text-muted-foreground hover:text-foreground font-medium transition-colors"
-              >
-                {language === "fr" ? "Annuler" : "Cancel"}
-              </button>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
   );
 };

@@ -14,7 +14,7 @@
 // fast with a clear message.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 import { generateCompetitiveBrief } from "../_shared/competitiveBriefClient.ts";
 
 interface RequestBody {
@@ -23,6 +23,8 @@ interface RequestBody {
 }
 
 Deno.serve(async (req: Request) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }

@@ -28,7 +28,8 @@
 // fast with a clear message.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit } from "../_shared/rateLimit.ts";
 import { fetchComments, type Platform } from "../_shared/zernioClient.ts";
 import { classifyEngagementItem } from "../_shared/claudeClient.ts";
 
@@ -37,6 +38,8 @@ interface RequestBody {
 }
 
 Deno.serve(async (req: Request) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -84,6 +87,11 @@ Deno.serve(async (req: Request) => {
   const socialConnectionId = body.social_connection_id;
   if (!socialConnectionId) {
     return jsonResponse(400, { error: "social_connection_id est requis." });
+  }
+
+  const rateLimitError = await checkRateLimit(supabase, `phase6-engagement:${socialConnectionId}`);
+  if (rateLimitError) {
+    return jsonResponse(429, { error: rateLimitError });
   }
 
   const { data: connection, error: connectionError } = await supabase

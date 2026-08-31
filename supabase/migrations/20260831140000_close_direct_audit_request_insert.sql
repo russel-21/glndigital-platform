@@ -1,0 +1,21 @@
+-- Closes the direct, unauthenticated INSERT path into public.audit_requests.
+-- Until now, "Anyone can submit audit requests" (WITH CHECK true, created in
+-- 20260610211500_create_audit_requests.sql) let any anonymous client insert
+-- a row directly via the Supabase REST API with the public anon key — this
+-- is what the public "Audit gratuit" form used. It had no anti-spam
+-- protection at all (no CAPTCHA, no rate limit), so a script could flood the
+-- CRM with fake requests.
+--
+-- The new edge function submit-audit-request (Cloudflare Turnstile
+-- verification, then a service_role insert) replaces this as the only way
+-- to create an audit_requests row from the public form. Dropping this
+-- policy is what actually closes the bypass: without it, a bot calling the
+-- Supabase REST API directly (skipping the edge function, and therefore
+-- skipping Turnstile) gets rejected by RLS instead of silently succeeding.
+--
+-- Admin-side CRUD on audit_requests (Admin.tsx "Audits & Prospects") is
+-- unaffected — it already goes through the admin-only UPDATE/DELETE
+-- policies from 20260612223000_harden_rls_policies.sql, and admin SELECT
+-- was already covered by "Users can read own audit requests" (which also
+-- covers public.is_admin()).
+drop policy if exists "Anyone can submit audit requests" on public.audit_requests;

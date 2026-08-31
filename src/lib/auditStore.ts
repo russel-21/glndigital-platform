@@ -416,6 +416,25 @@ export const upsertRemoteAuditRequest = async (request: AuditRequest) => {
   if (error) throw error;
 };
 
+/** Public, unauthenticated submission path — used by the "Audit gratuit"
+ * form (AuditPage.tsx) instead of upsertRemoteAuditRequest(). Goes through
+ * the submit-audit-request edge function (Cloudflare Turnstile verification
+ * + service_role insert) rather than a direct table upsert, because the RLS
+ * policy that used to allow a direct anonymous insert was intentionally
+ * dropped (see migration 20260831140000) once Turnstile became the actual
+ * anti-spam gate. upsertRemoteAuditRequest/saveRemoteAuditRequests remain
+ * for admin-side CRUD (Admin.tsx "Audits & Prospects"), unaffected. */
+export const submitAuditRequest = async (request: AuditRequest, turnstileToken: string | null) => {
+  const { data, error } = await supabase.functions.invoke("submit-audit-request", {
+    body: { request, turnstileToken },
+  });
+
+  if (error) throw error;
+  if (data && typeof data === "object" && "error" in data && data.error) {
+    throw new Error(String((data as { error: unknown }).error));
+  }
+};
+
 export const saveRemoteAuditRequests = async (requests: AuditRequest[]) => {
   const { error } = await supabase
     .from("audit_requests")

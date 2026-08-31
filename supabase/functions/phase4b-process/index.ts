@@ -37,8 +37,9 @@
 // secret this function reads that isn't the caller's own credentials.
 
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 import { submitJob, checkJobStatus, type Phase4bOperation } from "../_shared/runpodClient.ts";
+import { checkRateLimit } from "../_shared/rateLimit.ts";
 
 interface RequestBody {
   social_connection_id?: string;
@@ -58,6 +59,8 @@ const VALID_OPERATIONS: Phase4bOperation[] = [
 const MEDIA_BUCKET = "phase4b-media";
 
 Deno.serve(async (req: Request) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -115,6 +118,12 @@ Deno.serve(async (req: Request) => {
   if (!socialConnectionId) {
     return jsonResponse(400, { error: "social_connection_id est requis." });
   }
+
+  const rateLimitError = await checkRateLimit(supabase, `phase4b-process:${socialConnectionId}`);
+  if (rateLimitError) {
+    return jsonResponse(429, { error: rateLimitError });
+  }
+
   if (!operationType || !VALID_OPERATIONS.includes(operationType)) {
     return jsonResponse(400, {
       error: `operation_type doit être l'un de : ${VALID_OPERATIONS.join(", ")}.`,

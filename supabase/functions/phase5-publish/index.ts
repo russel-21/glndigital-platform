@@ -39,8 +39,9 @@
 // fast with a clear message.
 
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 import { publishPost, type Platform } from "../_shared/zernioClient.ts";
+import { checkRateLimit } from "../_shared/rateLimit.ts";
 
 type LogEventType = "scheduled" | "publish_attempted" | "published" | "failed" | "cancelled";
 
@@ -60,6 +61,8 @@ interface ContentSnapshot {
 }
 
 Deno.serve(async (req: Request) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -260,6 +263,11 @@ async function executePublish(
   logEvent: (id: string, event: LogEventType, detail?: string) => Promise<void>,
   jsonResponse: (status: number, body: unknown) => Response,
 ): Promise<Response> {
+  const rateLimitError = await checkRateLimit(supabase, `phase5-publish:${socialConnectionId}`);
+  if (rateLimitError) {
+    return jsonResponse(429, { error: rateLimitError });
+  }
+
   const { data: connection, error: connectionError } = await supabase
     .from("social_connections")
     .select("platform, account_handle, zernio_account_id")

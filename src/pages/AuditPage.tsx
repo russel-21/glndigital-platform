@@ -2,14 +2,31 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Shield, Sparkles, Send, Globe, Check, Laptop, FileText, Video, Copy, X, ExternalLink, MessageCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { getAuditRequests, saveAuditRequests, upsertRemoteAuditRequest, AuditRequest } from "@/lib/auditStore";
+import { getAuditRequests, saveAuditRequests, submitAuditRequest, AuditRequest } from "@/lib/auditStore";
 import { addNotification } from "@/lib/notificationsStore";
 import { toast } from "sonner";
 import { countryCodes } from "@/lib/countryCodes";
 
+// Public site key — safe to embed client-side (Cloudflare's own model: the
+// site key identifies the widget, the secret key on the server is what
+// actually verifies a token). Unset until Russel creates a Cloudflare
+// Turnstile account — see submit-audit-request/index.ts for the matching
+// "not configured yet" behavior on the server side.
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
+
+declare global {
+  interface Window {
+    turnstile?: {
+      render: (container: string | HTMLElement, options: Record<string, unknown>) => string;
+    };
+    onTurnstileVerified?: (token: string) => void;
+  }
+}
+
 const AuditPage = () => {
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState<any>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
   // Onboarding Access Guide Modal
   const [showAccessGuideModal, setShowAccessGuideModal] = useState(false);
@@ -100,40 +117,26 @@ const AuditPage = () => {
   const [isAutomatedRunning, setIsAutomatedRunning] = useState(false);
   const [automatedLogs, setAutomatedLogs] = useState<string[]>([]);
 
+  // Cloudflare Turnstile — anti-spam on this public form. No-op entirely
+  // when VITE_TURNSTILE_SITE_KEY isn't set (Russel hasn't created a
+  // Cloudflare account yet) so the form keeps working meanwhile.
+  useEffect(() => {
+    if (!TURNSTILE_SITE_KEY) return;
+
+    window.onTurnstileVerified = (token: string) => setTurnstileToken(token);
+
+    const existing = document.querySelector('script[src^="https://challenges.cloudflare.com/turnstile"]');
+    if (!existing) {
+      const script = document.createElement("script");
+      script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
+    }
+  }, []);
+
   useEffect(() => {
     const fetchSession = async () => {
-      const mockAdmin = localStorage.getItem("gln_mock_admin_session") === "true";
-      const mockUser = localStorage.getItem("gln_mock_user_logged_in") === "true";
-
-      if (mockAdmin) {
-        setProfile({ full_name: "Super Admin", email: "russel@glndigital.com", phone: "+237 000 000 000" });
-        setClientName("Super Admin");
-        setEmail("russel@glndigital.com");
-        return;
-      }
-
-      if (mockUser) {
-        const activeMock = localStorage.getItem("gln_active_mock_profile");
-        if (activeMock) {
-          try {
-            const parsed = JSON.parse(activeMock);
-            setProfile(parsed);
-            setClientName(parsed.full_name || "");
-            setEmail(parsed.email || "");
-            if (parsed.phone) {
-              const parts = parsed.phone.split(" ");
-              if (parts.length > 1) {
-                setCountryCode(parts[0]);
-                setPhoneLocal(parts.slice(1).join(" "));
-              } else {
-                setPhoneLocal(parsed.phone);
-              }
-            }
-          } catch {}
-        }
-        return;
-      }
-
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
@@ -266,7 +269,7 @@ const AuditPage = () => {
       saveAuditRequests(current);
 
       try {
-        await upsertRemoteAuditRequest(newRequest);
+        await submitAuditRequest(newRequest, turnstileToken);
       } catch (remoteError) {
         console.error("Remote audit save failed:", remoteError);
         toast.warning("Audit enregistre localement. Configurez la table Supabase audit_requests pour le rendre visible a l'admin partout.");
@@ -791,9 +794,17 @@ const AuditPage = () => {
               </div>
             </div>
 
+            {TURNSTILE_SITE_KEY && (
+              <div
+                className="cf-turnstile"
+                data-sitekey={TURNSTILE_SITE_KEY}
+                data-callback="onTurnstileVerified"
+              />
+            )}
+
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || Boolean(TURNSTILE_SITE_KEY) && !turnstileToken}
               className="w-full bg-gradient-primary text-primary-foreground py-3.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:opacity-90 transition-all shadow-glow mt-4"
             >
               <Send className="w-4 h-4" />

@@ -17,7 +17,7 @@
 // project — the caller's own JWT is used for the is_admin() check, no
 // service-role key.
 
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 import { generateKeywordIdeas, type KeywordResearchInput } from "../_shared/googleAdsClient.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -31,6 +31,8 @@ interface RequestBody {
 }
 
 Deno.serve(async (req: Request) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }

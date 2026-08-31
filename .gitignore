@@ -28,5 +28,11 @@ dist-ssr
 supabase/.temp
 supabase/.branches
 
+# Environment variables — client.ts hardcodes the actual values used by the
+# app (see its own comment), so this file isn't read at runtime, but it
+# shouldn't be tracked in git regardless: keeping .env out of version control
+# is what stops a real secret from landing here by accident later.
+.env
+
 # graphify knowledge-graph output (generated artifact, rebuildable via /graphify)
 graphify-out

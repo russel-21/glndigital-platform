@@ -13,34 +13,6 @@ const Contact = () => {
 
   useEffect(() => {
     const loadProfile = async () => {
-      const mockAdmin = localStorage.getItem("gln_mock_admin_session") === "true";
-      const mockUser = localStorage.getItem("gln_mock_user_logged_in") === "true";
-
-      if (mockAdmin) {
-        setForm((prev) => ({
-          ...prev,
-          name: "Super Admin",
-          phone: "+237 000 000 000"
-        }));
-        return;
-      }
-
-      if (mockUser) {
-        const activeMock = localStorage.getItem("gln_active_mock_profile");
-        if (activeMock) {
-          try {
-            const parsed = JSON.parse(activeMock);
-            setForm((prev) => ({
-              ...prev,
-              name: parsed.full_name || "",
-              phone: parsed.phone || "",
-              company: parsed.company_name && !parsed.company_name.startsWith("{") ? parsed.company_name : ""
-            }));
-          } catch {}
-        }
-        return;
-      }
-
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {

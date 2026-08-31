@@ -138,13 +138,6 @@ const Index = () => {
 
   useEffect(() => {
     const checkSession = async () => {
-      const mockAdmin = localStorage.getItem("gln_mock_admin_session") === "true";
-      const mockUser = localStorage.getItem("gln_mock_user_logged_in") === "true";
-      if (mockAdmin || mockUser) {
-        setIsLoggedIn(true);
-        return;
-      }
-      
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
