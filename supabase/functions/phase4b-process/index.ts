@@ -40,6 +40,7 @@ import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { submitJob, checkJobStatus, type Phase4bOperation } from "../_shared/runpodClient.ts";
 import { checkRateLimit } from "../_shared/rateLimit.ts";
+import { reconcileActionQuote } from "../_shared/quoteReconciliation.ts";
 
 interface RequestBody {
   social_connection_id?: string;
@@ -377,6 +378,21 @@ async function handleCheckStatus(
     .single();
   if (updateError) {
     return jsonResponse(500, { error: `Job Phase 4b non mis à jour (terminé) : ${updateError.message}` });
+  }
+
+  // RunPod's own /status response carries executionTime in milliseconds
+  // (their documented serverless API contract) — extracted defensively
+  // since this project has never yet run a real job to confirm the field
+  // is always present.
+  const rawObj =
+    statusResult.rawResponse && typeof statusResult.rawResponse === "object"
+      ? (statusResult.rawResponse as Record<string, unknown>)
+      : null;
+  const executionTimeMs = typeof rawObj?.executionTime === "number" ? rawObj.executionTime : null;
+  if (executionTimeMs != null) {
+    await reconcileActionQuote(supabase, job.social_connection_id, `phase4b_visual_${job.operation_type}`, {
+      gpu_seconds: executionTimeMs / 1000,
+    });
   }
 
   return jsonResponse(200, { ok: true, job: completedRow });

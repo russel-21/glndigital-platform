@@ -16,17 +16,22 @@
 //   - Every inserted row starts at review_status = 'pending_review'. This
 //     function NEVER sets it to 'approved' — that's a human action in the
 //     admin UI, same real blocking gate as Phase 2.
-//   - Admin-only: internal GLN-staff tool, not client-facing.
+//   - Admin, OR the "client" role user who owns the target
+//     social_connections row — see CLAUDE.md's client self-service plan
+//     (2026-08-31) and _shared/authScope.ts. Same exception as Phase 2/4a;
+//     every other admin-facing capability in this app stays admin-only.
 //
 // Auth model: the caller's own JWT is used for every DB operation (no
-// service-role key involved), so Postgres RLS enforces the admin-only rule
-// on its own — this function calls public.is_admin() up front only to fail
-// fast with a clear message.
+// service-role key involved), so Postgres RLS enforces the actual
+// admin-or-owning-client rule on its own — checkAdminOrOwningClient() only
+// fails fast with a clear message before doing any real work.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit } from "../_shared/rateLimit.ts";
 import { generateContentStrategy } from "../_shared/claudeClient.ts";
+import { extractClaudeUsage, reconcileActionQuote } from "../_shared/quoteReconciliation.ts";
+import { checkAdminOrOwningClient } from "../_shared/authScope.ts";
 
 interface RequestBody {
   social_connection_id?: string;
@@ -67,14 +72,6 @@ Deno.serve(async (req: Request) => {
     global: { headers: { Authorization: authHeader } },
   });
 
-  const { data: isAdmin, error: adminCheckError } = await supabase.rpc("is_admin");
-  if (adminCheckError) {
-    return jsonResponse(500, { error: `Échec de la vérification admin : ${adminCheckError.message}` });
-  }
-  if (!isAdmin) {
-    return jsonResponse(403, { error: "Réservé aux administrateurs GLN Digital." });
-  }
-
   let body: RequestBody;
   try {
     body = await req.json();
@@ -85,6 +82,11 @@ Deno.serve(async (req: Request) => {
   const socialConnectionId = body.social_connection_id;
   if (!socialConnectionId) {
     return jsonResponse(400, { error: "social_connection_id est requis." });
+  }
+
+  const authScope = await checkAdminOrOwningClient(supabase, socialConnectionId);
+  if (!authScope.ok) {
+    return jsonResponse(authScope.status, { error: authScope.error });
   }
 
   const rateLimitError = await checkRateLimit(supabase, `phase3-strategy:${socialConnectionId}`);
@@ -182,6 +184,13 @@ Deno.serve(async (req: Request) => {
 
   if (insertError) {
     return jsonResponse(500, { error: `Stratégie non enregistrée : ${insertError.message}` });
+  }
+
+  if (result.ok) {
+    const usage = extractClaudeUsage(result.raw_response);
+    if (usage) {
+      await reconcileActionQuote(supabase, connection.id, "phase3_strategy", usage);
+    }
   }
 
   return jsonResponse(result.ok ? 200 : 502, {

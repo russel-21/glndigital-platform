@@ -54,6 +54,7 @@ const Auth = () => {
   const [city, setCity] = useState("");
   const [country, setCountry] = useState("Cameroun");
   const [companyName, setCompanyName] = useState("");
+  const [signupRole, setSignupRole] = useState<"student" | "partner" | "client">("student");
   const [loginIdentifier, setLoginIdentifier] = useState(""); // Email or Phone for login
 
   // Check if user is already logged in only when this device is trusted.
@@ -130,6 +131,8 @@ const Auth = () => {
         navigate("/partenaires-dashboard");
       } else if (profile.current_role === "student") {
         navigate("/eleve-dashboard");
+      } else if (profile.current_role === "client") {
+        navigate("/client-dashboard");
       } else {
         navigate("/");
       }
@@ -213,15 +216,11 @@ const Auth = () => {
     }
 
     const fullPhone = `${countryCode} ${phoneLocal.trim()}`;
-    // Bug fixed 2026-08-31: this used to be the string "visiteur", which
-    // matches none of the roles redirectUser()/RLS/checkAdminAccess() ever
-    // check for (student/partner/admin/super_admin) — every new signup
-    // silently fell through to the homepage instead of the student
-    // dashboard. "student" matches this app's actual default role
-    // elsewhere (profiles.roles defaults to ["student"] everywhere else in
-    // this codebase); becoming a partner remains an explicit opt-in
-    // afterward via the Navbar's "Devenir Partenaire" switch.
-    const userRole = "student";
+    // Role chosen explicitly via the selector below — student/partner/
+    // client are the three self-service entry points; admin/super_admin
+    // are never self-assignable (RLS blocks it, see
+    // 20260612223000_harden_rls_policies.sql).
+    const userRole = signupRole;
 
     try {
       setLoading(true);
@@ -341,6 +340,41 @@ const Auth = () => {
         <form onSubmit={handleAuth} className="space-y-4">
           {isSignUp ? (
             <>
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1.5 block">
+                  {language === "fr" ? "Je m'inscris en tant que *" : "I'm signing up as *"}
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(["student", "partner", "client"] as const).map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => setSignupRole(r)}
+                      className={`px-2 py-2 rounded-xl text-[11px] font-bold uppercase border transition-colors ${
+                        signupRole === r
+                          ? "bg-primary border-primary text-primary-foreground"
+                          : "bg-secondary border-border text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {r === "student"
+                        ? (language === "fr" ? "Élève" : "Student")
+                        : r === "partner"
+                          ? (language === "fr" ? "Partenaire" : "Partner")
+                          : (language === "fr" ? "Client" : "Client")}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1.5">
+                  {signupRole === "client"
+                    ? (language === "fr"
+                        ? "Espace pour connecter tes réseaux sociaux et suivre leur gestion par GLN Digital."
+                        : "Space to connect your social accounts and follow GLN Digital's management of them.")
+                    : signupRole === "partner"
+                      ? (language === "fr" ? "Programme partenaire / closer." : "Partner / closer program.")
+                      : (language === "fr" ? "Accès à l'Académie et aux formations." : "Access to the Academy and courses.")}
+                </p>
+              </div>
+
               <div>
                 <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1.5 block">
                   {language === "fr" ? "Nom et Prénom *" : "Full Name *"}

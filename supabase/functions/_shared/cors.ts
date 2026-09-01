@@ -11,7 +11,10 @@
 // so "*" was never actually exploitable as CSRF. Still, echoing back only a
 // known origin is better hygiene than a blanket wildcard, so this is now an
 // allowlist check instead of a static value.
-const ALLOWED_ORIGINS = [
+// Exported so other functions that need a trusted app origin (not just a
+// CORS header) — e.g. zernio-connect building an OAuth redirect_url — can
+// reuse the same allowlist instead of duplicating it.
+export const ALLOWED_ORIGINS = [
   "https://glndigital-platform.vercel.app",
   "http://localhost:8080",
 ];

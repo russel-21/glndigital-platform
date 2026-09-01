@@ -137,6 +137,60 @@ export type Database = {
           },
         ]
       }
+      client_action_quotes: {
+        Row: {
+          accepted_at: string | null
+          action_type: string
+          actual_cost_usd: number | null
+          actual_usage: Json | null
+          client_profile_id: string
+          cost_breakdown: Json
+          created_at: string
+          estimated_cost_usd: number
+          id: string
+          social_connection_id: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          action_type: string
+          actual_cost_usd?: number | null
+          actual_usage?: Json | null
+          client_profile_id: string
+          cost_breakdown: Json
+          created_at?: string
+          estimated_cost_usd: number
+          id?: string
+          social_connection_id: string
+        }
+        Update: {
+          accepted_at?: string | null
+          action_type?: string
+          actual_cost_usd?: number | null
+          actual_usage?: Json | null
+          client_profile_id?: string
+          cost_breakdown?: Json
+          created_at?: string
+          estimated_cost_usd?: number
+          id?: string
+          social_connection_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_action_quotes_client_profile_id_fkey"
+            columns: ["client_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_action_quotes_social_connection_id_fkey"
+            columns: ["social_connection_id"]
+            isOneToOne: false
+            referencedRelation: "social_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       competitive_briefs: {
         Row: {
           admin_notes: string | null
@@ -591,6 +645,36 @@ export type Database = {
           },
         ]
       }
+      phase_pricing_config: {
+        Row: {
+          action_type: string
+          estimated_gpu_seconds: number | null
+          estimated_input_tokens: number | null
+          estimated_output_tokens: number | null
+          margin_pct: number
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          action_type: string
+          estimated_gpu_seconds?: number | null
+          estimated_input_tokens?: number | null
+          estimated_output_tokens?: number | null
+          margin_pct?: number
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          action_type?: string
+          estimated_gpu_seconds?: number | null
+          estimated_input_tokens?: number | null
+          estimated_output_tokens?: number | null
+          margin_pct?: number
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       phase4b_visual_jobs: {
         Row: {
           completed_at: string | null
@@ -730,6 +814,7 @@ export type Database = {
           phone: string
           roles: string[]
           status: string
+          zernio_profile_id: string | null
         }
         Insert: {
           active_sessions?: string[]
@@ -742,6 +827,7 @@ export type Database = {
           phone: string
           roles?: string[]
           status?: string
+          zernio_profile_id?: string | null
         }
         Update: {
           active_sessions?: string[]
@@ -754,6 +840,7 @@ export type Database = {
           phone?: string
           roles?: string[]
           status?: string
+          zernio_profile_id?: string | null
         }
         Relationships: []
       }

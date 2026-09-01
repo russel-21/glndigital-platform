@@ -32,6 +32,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit } from "../_shared/rateLimit.ts";
 import { fetchComments, type Platform } from "../_shared/zernioClient.ts";
 import { classifyEngagementItem } from "../_shared/claudeClient.ts";
+import { extractClaudeUsage, reconcileActionQuote } from "../_shared/quoteReconciliation.ts";
 
 interface RequestBody {
   social_connection_id?: string;
@@ -124,8 +125,15 @@ Deno.serve(async (req: Request) => {
   const newItems = commentsResult.items.filter((item) => !existingIds.has(item.platformCommentId));
 
   const insertedRows = [];
+  let totalInputTokens = 0;
+  let totalOutputTokens = 0;
   for (const item of newItems) {
     const classification = await classifyEngagementItem(item.content, connection.platform);
+    const usage = extractClaudeUsage(classification.raw_response);
+    if (usage) {
+      totalInputTokens += usage.input_tokens;
+      totalOutputTokens += usage.output_tokens;
+    }
     const { data: row, error: insertError } = await supabase
       .from("engagement_items")
       .insert({
@@ -146,6 +154,15 @@ Deno.serve(async (req: Request) => {
       return jsonResponse(500, { error: `Enregistrement d'un engagement_items impossible : ${insertError.message}` });
     }
     insertedRows.push(row);
+  }
+
+  // One reconciliation for the whole run (classifyEngagementItem runs once
+  // per new item, so usage is summed across the loop) rather than per item.
+  if (totalInputTokens > 0 || totalOutputTokens > 0) {
+    await reconcileActionQuote(supabase, connection.id, "phase6_engagement", {
+      input_tokens: totalInputTokens,
+      output_tokens: totalOutputTokens,
+    });
   }
 
   return jsonResponse(200, {

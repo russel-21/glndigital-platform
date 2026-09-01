@@ -7,6 +7,16 @@ import { useLanguage } from "@/hooks/useLanguage";
 import { toast } from "sonner";
 import logo from "@/assets/logo.png";
 
+/** current_role -> (dashboard path, French label). Centralized so the
+ * dropdown badge, "Mon Tableau de bord" link (desktop + mobile), and the
+ * mobile label all stay in sync when a role is added — four separate
+ * inline ternaries here used to drift otherwise. */
+const ROLE_DASHBOARDS: Record<string, { path: string; label: string }> = {
+  student: { path: "/eleve-dashboard", label: "Élève" },
+  partner: { path: "/partenaires-dashboard", label: "Partenaire" },
+  client: { path: "/client-dashboard", label: "Client" },
+};
+
 const Navbar = () => {
   const { t, language, setLanguage } = useLanguage();
   const [open, setOpen] = useState(false);
@@ -186,7 +196,7 @@ const Navbar = () => {
                 </div>
                 <span className="max-w-[120px] truncate">{profile.full_name}</span>
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary uppercase font-extrabold tracking-wider">
-                  {profile.current_role === 'student' ? 'Élève' : profile.current_role === 'partner' ? 'Partenaire' : profile.current_role}
+                  {ROLE_DASHBOARDS[profile.current_role]?.label ?? profile.current_role}
                 </span>
                 <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
               </button>
@@ -223,7 +233,7 @@ const Navbar = () => {
 
                       {/* Dashboard Link based on active role */}
                       <Link
-                        to={profile.current_role === 'partner' ? '/partenaires-dashboard' : '/eleve-dashboard'}
+                        to={ROLE_DASHBOARDS[profile.current_role]?.path ?? '/eleve-dashboard'}
                         onClick={() => setDropdownOpen(false)}
                         className="flex items-center gap-2.5 w-full text-left px-3 py-2 rounded-xl text-xs hover:bg-secondary transition-colors"
                       >
@@ -363,11 +373,11 @@ const Navbar = () => {
 
                   {/* Dashboard link */}
                   <Link
-                    to={profile.current_role === 'partner' ? '/partenaires-dashboard' : '/eleve-dashboard'}
+                    to={ROLE_DASHBOARDS[profile.current_role]?.path ?? '/eleve-dashboard'}
                     onClick={() => setOpen(false)}
                     className="block text-sm py-2 text-primary font-semibold"
                   >
-                    Mon Tableau de bord ({profile.current_role === 'student' ? 'Élève' : profile.current_role === 'partner' ? 'Partenaire' : profile.current_role})
+                    Mon Tableau de bord ({ROLE_DASHBOARDS[profile.current_role]?.label ?? profile.current_role})
                   </Link>
 
                   {/* Switch roles mobile */}

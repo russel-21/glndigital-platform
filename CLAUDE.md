@@ -795,6 +795,87 @@ mais reste séparé de ce qui suit.
     consultées visuellement, pas seulement le texte extrait.
   - Vérifié : `npx tsc --noEmit`, `npx eslint` (aucune nouvelle erreur), `npm run test`, `npm run build`,
     `npm audit` (0). Fusionné dans `main` et poussé sur GitHub.
+- **Nouveau rôle "client" + devis de coût avant exécution, 2026-08-31 (suite directe).** Déclenché par
+  une remarque de Russel : la plateforme n'avait que 3 profils (élève/partenaire/admin) — un client dont
+  GLN gère les réseaux sociaux n'avait aucun moyen de se connecter, soumettre son compte, ou voir/valider
+  quoi que ce soit. Toute la pipeline 7 phases vivait exclusivement dans `/admin`. Cadrage en Plan Mode
+  (2 séries de questions à choix), plan approuvé, exécuté dans la foulée.
+  - **Rôle client réel** : sélecteur ajouté au formulaire `/auth` existant (`src/pages/Auth.tsx`) et à
+    l'écran de complétion de profil Google OAuth (`src/pages/AuthCallback.tsx` — au passage, même bug
+    "visiteur" que Auth.tsx y avait été trouvé et corrigé, jamais capturé par la session précédente
+    puisque limitée à Auth.tsx). `Navbar.tsx` route désormais `current_role === "client"` vers
+    `/client-dashboard` (nouvelle table `ROLE_DASHBOARDS` centralisant les 4 endroits qui dupliquaient
+    cette logique en ternaires).
+  - **`social_connections.client_profile_id` existait déjà** (posé dès la migration Phase 1, jamais
+    utilisé) — RLS ajoutée dessus + sur `audit_snapshots`, `diagnostics`, `content_strategies`,
+    `content_drafts`, `phase4b_visual_jobs`, `scheduled_publications`, `publication_log`,
+    `engagement_items`, `performance_analyses`, `diagnostic_screenshots` (table + bucket Storage) :
+    lecture scopée au client propriétaire partout, écriture (approbation) uniquement sur
+    `content_strategies`/`content_drafts` (Phase 3/4a) — décision explicite de Russel, 4b/5/6 restent
+    lecture seule pour lui.
+  - **Vraie connexion OAuth Zernio** (jamais construite jusqu'ici — `zernio_account_id` restait toujours
+    `null`) : nouvelle edge function `zernio-connect` (JWT client, pas admin-only — premier cas dans ce
+    projet). Doc Zernio relue en entier pour trouver le bon mécanisme : un "Profile" Zernio
+    (`POST /v1/profiles`, cloisonnement par client, distinct de la table `profiles` de GLN) +
+    `GET /v1/connect/{platform}` en mode standard (Zernio héberge lui-même la sélection de page/compte,
+    redirige ensuite avec le résultat — pas d'échange de code côté serveur nécessaire pour ce mode).
+    `createZernioProfile()`/`getZernioConnectUrl()` ajoutées à `zernioClient.ts`. `ALLOWED_ORIGINS`
+    exporté de `cors.ts` pour construire un `redirect_url` de confiance (jamais fourni par le client, pour
+    éviter un open-redirect).
+  - **Phase 2/3/4a désormais déclenchables par le client lui-même** (pas seulement approuvables) sur son
+    propre compte, en plus d'admin — nouveau helper partagé `_shared/authScope.ts`
+    (`checkAdminOrOwningClient`) réutilisé dans les 3 edge functions concernées, dont le check
+    `is_admin()`-only remonte à leur toute première version. RLS Storage ajoutée sur
+    `diagnostic-screenshots` (chemin `${social_connection_id}/...`, scopé via
+    `storage.foldername(name)[1]`) pour que le client puisse uploader ses propres captures — condition
+    obligatoire de la Phase 2 (CLAUDE.md : pas de diagnostic sans capture).
+  - **Phase 4b volontairement laissée déclenchable uniquement par l'admin pour cette passe** (le client
+    la voit en lecture seule) — alors que le plan approuvé la mentionnait comme quotable/déclenchable par
+    le client ("production visuelle"). Décision de réduction de portée assumée en cours d'exécution (pas
+    silencieuse : signalée à Russel) pour ne pas ajouter un 4e edge function à ré-ouvrir + une RLS Storage
+    supplémentaire sur `phase4b-media` dans une session déjà très chargée — à construire dans une passe
+    dédiée si Russel le souhaite. Les lignes de tarification `phase4b_visual_*` existent déjà dans
+    `phase_pricing_config`, prêtes pour ce jour-là.
+  - **Devis de coût avant exécution** (nouvelle exigence de Russel apparue en cours de cadrage : "pour
+    soulager mes charges") : uniquement Claude + RunPod, pas Zernio — **vérifié sur la vraie page tarifs
+    Zernio** (zernio.com/pricing) que leur facturation est mensuelle par compte connecté (6$/mois en
+    dessous de 10 comptes, dégressif), pas par appel, donc structurellement hors du mécanisme d'un devis
+    "par action" (décision explicite de Russel de le laisser hors mécanisme plutôt que de le forcer dedans
+    artificiellement). Tarifs Claude Sonnet 5 (2$/10$ par million de tokens) vérifiés via le skill
+    `claude-api`, pas depuis la mémoire du modèle. Tarif RunPod (1,10$/h RTX 4090) déjà vérifié en direct
+    la veille via le MCP RunPod.
+    - Nouvelle table `phase_pricing_config` : hypothèses de consommation typique par type d'action —
+      **explicitement labellisées comme des estimations de départ, pas des mesures**, puisqu'aucune phase
+      n'a encore tourné en conditions réelles (toujours bloqué sur crédits Anthropic/dépôt RunPod). Une
+      marge (30% par défaut) éditable par l'admin.
+    - Nouvelle table `client_action_quotes` : un devis loggé par action proposée, `accepted_at` posé par
+      le client lui-même avant que la vraie fonction de phase soit appelée, `actual_cost_usd`/
+      `actual_usage` renseignés après coup par un mécanisme de rapprochement best-effort
+      (`_shared/quoteReconciliation.ts`, `extractClaudeUsage()`/`reconcileActionQuote()`) — les 6
+      fonctions Claude (`claudeClient.ts`) exposaient déjà `raw_response: response` (donc `.usage`) sans
+      qu'aucun code n'y touche jusqu'ici ; RunPod expose `executionTime` (ms) dans sa réponse `/status`,
+      jamais vérifié en conditions réelles vu qu'aucun job réel n'a encore tourné. Objectif : que les
+      estimations de départ se rapprochent de la réalité avec le temps, même logique que la boucle
+      Phase 7 → Phase 2 déjà prévue dans le cahier des charges d'origine.
+  - Nouvelle page `src/pages/DashboardClient.tsx` : connexion de compte, brief de marque (le client peut
+    désormais éditer le sien, `updateBrandBrief()` déjà écrite pour l'admin), les 7 phases en lecture,
+    déclenchement + devis pour Phase 2/3/4a, approbation Phase 3/4a. Réutilise entièrement les stores déjà
+    écrits pour `Admin.tsx` (`phase1AuditStore.ts` → `phase7AnalysisStore.ts`) — aucune nouvelle couche de
+    données, seule la RLS déterminait qui pouvait lire/écrire quoi.
+  - **Vérification allant au-delà du build** : `npx tsc --noEmit`, `npx eslint` (0 nouvelle erreur, même
+    total qu'avant sur les erreurs `any` préexistantes), `npm run test`, `npm run build` — plus un vrai
+    passage Playwright (même neutralisation ponctuelle du garde anti-bot que la fois précédente,
+    jamais committée) confirmant que le sélecteur de rôle s'affiche et fonctionne sur `/auth`, et que
+    `/client-dashboard` renvoie bien vers `/auth` sans session. **Pas testé** : le flux de connexion Zernio
+    réel de bout en bout (nécessite un vrai compte client + un vrai clic de consentement OAuth,
+    impossible à automatiser sans compromettre un vrai compte social), et le devis en conditions réelles
+    (bloqué sur les crédits Anthropic comme le reste du projet).
+  - 4 migrations poussées (`20260831160000` à `20260831180000`), types régénérés, 9 edge functions
+    déployées (2 nouvelles : `zernio-connect`, `get-action-quote` ; 7 modifiées), fusionné dans `main` et
+    poussé sur GitHub.
+  - **Pas encore fait** : déclenchement Phase 4b par le client (voir plus haut), vérification du plafond
+    de "Profiles" Zernio sur le palier actuel de Russel (invérifiable depuis cette session), premier test
+    de connexion Zernio réel avec un vrai compte client.
 
 ### 1. Contexte du projet
 

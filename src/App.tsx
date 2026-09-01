@@ -14,6 +14,7 @@ import Formations from "./pages/Formations";
 import FormationDetail from "./pages/FormationDetail";
 import DashboardEleve from "./pages/DashboardEleve";
 import DashboardPartenaire from "./pages/DashboardPartenaire";
+import DashboardClient from "./pages/DashboardClient";
 import Partenaires from "./pages/Partenaires";
 import Blog from "./pages/Blog";
 import BlogPostDetail from "./pages/BlogPostDetail";
@@ -50,6 +51,7 @@ const App = () => (
             <Route path="/eleve-dashboard" element={<DashboardEleve />} />
             <Route path="/partenaires" element={<Partenaires />} />
             <Route path="/partenaires-dashboard" element={<DashboardPartenaire />} />
+            <Route path="/client-dashboard" element={<DashboardClient />} />
             <Route path="/blog" element={<Blog />} />
             <Route path="/blog/:id" element={<BlogPostDetail />} />
             <Route path="/portfolio" element={<Portfolio />} />
