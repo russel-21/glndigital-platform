@@ -25,7 +25,13 @@ const AuthCallback = () => {
   const [countryCode, setCountryCode] = useState("+237");
   const [phoneLocal, setPhoneLocal] = useState("");
   const [companyName, setCompanyName] = useState("");
-  const [role, setRole] = useState<string>("visiteur");
+  // Bug fixed 2026-08-31 (same class as Auth.tsx's signup form): this
+  // defaulted to "visiteur" with no UI ever calling setRole — every Google
+  // OAuth signup silently got current_role "visiteur", which
+  // redirectUser()-equivalent logic above never checks for, so it fell
+  // through to the student dashboard by accident rather than by choice.
+  // Now a real selector (below) drives this, defaulting to "student".
+  const [role, setRole] = useState<"student" | "partner" | "client">("student");
   const [needsCompletion, setNeedsCompletion] = useState(false);
   const authMode = new URLSearchParams(window.location.search).get("mode") === "signup" ? "signup" : "login";
 
@@ -106,6 +112,8 @@ const AuthCallback = () => {
           // Complete redirection according to current role
           if (profile.current_role === "partner") {
             navigate("/partenaires-dashboard");
+          } else if (profile.current_role === "client") {
+            navigate("/client-dashboard");
           } else {
             navigate("/eleve-dashboard");
           }
@@ -195,6 +203,26 @@ const AuthCallback = () => {
           </div>
 
           <form onSubmit={handleCompleteProfile} className="space-y-4">
+            <div>
+              <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1.5 block">Je m'inscris en tant que</label>
+              <div className="grid grid-cols-3 gap-2">
+                {(["student", "partner", "client"] as const).map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setRole(r)}
+                    className={`px-2 py-2 rounded-xl text-[11px] font-bold uppercase border transition-colors ${
+                      role === r
+                        ? "bg-primary border-primary text-primary-foreground"
+                        : "bg-secondary border-border text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {r === "student" ? "Élève" : r === "partner" ? "Partenaire" : "Client"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div>
               <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1.5 block">Nom complet (Certificats)</label>
               <div className="relative">

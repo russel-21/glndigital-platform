@@ -29,6 +29,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit } from "../_shared/rateLimit.ts";
 import { analyzePerformance } from "../_shared/claudeClient.ts";
+import { extractClaudeUsage, reconcileActionQuote } from "../_shared/quoteReconciliation.ts";
 
 interface RequestBody {
   social_connection_id?: string;
@@ -171,6 +172,13 @@ Deno.serve(async (req: Request) => {
     .single();
   if (insertError) {
     return jsonResponse(500, { error: `Analyse non enregistrée : ${insertError.message}` });
+  }
+
+  if (result.ok) {
+    const usage = extractClaudeUsage(result.raw_response);
+    if (usage) {
+      await reconcileActionQuote(supabase, connection.id, "phase7_analysis", usage);
+    }
   }
 
   return jsonResponse(result.ok ? 200 : 502, {

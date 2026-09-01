@@ -22,17 +22,23 @@
 //     function NEVER sets it to 'approved' — that is a human action taken
 //     in the admin UI (CLAUDE.md: Phase 2 requires human validation before
 //     Phase 3, implemented as a real gate, not a log line).
-//   - Admin-only: internal GLN-staff tool, not client-facing.
+//   - Admin, OR the "client" role user who owns the target
+//     social_connections row (client_profile_id = caller) — see
+//     CLAUDE.md's client self-service plan (2026-08-31) and
+//     _shared/authScope.ts. Every other admin-facing capability in this
+//     app stays admin-only; this and Phase 3/4a are the only exceptions.
 //
 // Auth model: the caller's own JWT is used for every DB + Storage
 // operation (no service-role key involved), so Postgres RLS enforces the
-// admin-only rule on its own — this function calls public.is_admin() up
-// front only to fail fast with a clear message.
+// actual admin-or-owning-client rule on its own — checkAdminOrOwningClient()
+// only fails fast with a clear message before doing any real work.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit } from "../_shared/rateLimit.ts";
 import { generateDiagnostic, type ScreenshotInput } from "../_shared/claudeClient.ts";
+import { extractClaudeUsage, reconcileActionQuote } from "../_shared/quoteReconciliation.ts";
+import { checkAdminOrOwningClient } from "../_shared/authScope.ts";
 
 interface RequestBody {
   social_connection_id?: string;
@@ -74,14 +80,6 @@ Deno.serve(async (req: Request) => {
     global: { headers: { Authorization: authHeader } },
   });
 
-  const { data: isAdmin, error: adminCheckError } = await supabase.rpc("is_admin");
-  if (adminCheckError) {
-    return jsonResponse(500, { error: `Échec de la vérification admin : ${adminCheckError.message}` });
-  }
-  if (!isAdmin) {
-    return jsonResponse(403, { error: "Réservé aux administrateurs GLN Digital." });
-  }
-
   let body: RequestBody;
   try {
     body = await req.json();
@@ -92,6 +90,13 @@ Deno.serve(async (req: Request) => {
   const socialConnectionId = body.social_connection_id;
   if (!socialConnectionId) {
     return jsonResponse(400, { error: "social_connection_id est requis." });
+  }
+
+  // Admin, or the client who owns this social_connections row (a real
+  // "client" role user triggering their own diagnostic — see CLAUDE.md).
+  const authScope = await checkAdminOrOwningClient(supabase, socialConnectionId);
+  if (!authScope.ok) {
+    return jsonResponse(authScope.status, { error: authScope.error });
   }
 
   const rateLimitError = await checkRateLimit(supabase, `phase2-diagnostic:${socialConnectionId}`);
@@ -193,6 +198,13 @@ Deno.serve(async (req: Request) => {
 
   if (insertError) {
     return jsonResponse(500, { error: `Diagnostic non enregistré : ${insertError.message}` });
+  }
+
+  if (result.ok) {
+    const usage = extractClaudeUsage(result.raw_response);
+    if (usage) {
+      await reconcileActionQuote(supabase, connection.id, "phase2_diagnostic", usage);
+    }
   }
 
   return jsonResponse(result.ok ? 200 : 502, {

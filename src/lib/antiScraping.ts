@@ -2,7 +2,7 @@ const BOT_UA_PATTERN =
   /(bot|crawler|spider|scrapy|curl|wget|python|httpclient|axios|postman|insomnia|headless|puppeteer|playwright|selenium|phantomjs|censys|ahrefs|semrush|mj12|dotbot|bytespider|gptbot|chatgpt-user|ccbot|claudebot|anthropic-ai|perplexitybot|google-extended|applebot-extended|amazonbot|facebookbot)/i;
 
 const SENSITIVE_PATH_PATTERN =
-  /^\/(admin|audit\/rapport|eleve-dashboard|partenaires-dashboard|auth-callback)(\/|$)/i;
+  /^\/(admin|audit\/rapport|eleve-dashboard|partenaires-dashboard|client-dashboard|auth-callback)(\/|$)/i;
 
 const BLOCK_STORAGE_KEY = "gln_scrape_guard_blocked";
 const VISIT_STORAGE_KEY = "gln_scrape_guard_visits";

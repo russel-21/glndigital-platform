@@ -751,3 +751,66 @@ function buildMockCommentsResult(
     },
   };
 }
+
+// ─── Client self-service — Zernio Profiles & Connect ────────────
+// SCOPE: lets a real "client" role user (not an admin) connect their own
+// social account through GLN's app, without ever seeing ZERNIO_API_KEY.
+// Verified against Zernio's OpenAPI spec (2026-08-31, spec version 1.0.4):
+// a Zernio "Profile" (POST /v1/profiles — their own agency/workspace
+// concept, distinct from this project's own `profiles` table) is the unit
+// Zernio uses to isolate one client's connected accounts from another's,
+// all under GLN's single Zernio subscription. GET /v1/connect/{platform}
+// (standard, non-headless mode) returns an authUrl to redirect the client's
+// own browser to — they complete the real OAuth consent themselves, Zernio
+// hosts its own account/page-selection UI, then redirects back to
+// redirect_url with the connection result already applied. No server-side
+// "exchange code" step is needed for this mode (that endpoint exists only
+// for headless/custom-UI integrations, not used here).
+
+/** Creates a new Zernio "Profile" for a client who doesn't have one yet.
+ * Zernio profile names must be unique per Zernio workspace (GLN's), so this
+ * is called at most once per GLN client — the resulting id is cached on
+ * that client's own profiles.zernio_profile_id row by the caller. */
+export async function createZernioProfile(apiKey: string, name: string): Promise<string> {
+  const { status, body } = await zernioPost(apiKey, "/profiles", { name });
+  const bodyObj = body && typeof body === "object" ? (body as Record<string, unknown>) : null;
+
+  if (status < 200 || status >= 300) {
+    const detail = (bodyObj && typeof bodyObj.error === "string" && bodyObj.error) || `HTTP ${status}`;
+    throw new ZernioApiError(`Zernio (/profiles) a répondu une erreur lors de la création du profil : ${detail}`);
+  }
+
+  const profile = bodyObj && typeof bodyObj.profile === "object" ? (bodyObj.profile as Record<string, unknown>) : null;
+  const profileId = profile && typeof profile._id === "string" ? profile._id : null;
+  if (!profileId) {
+    throw new ZernioApiError(
+      "Zernio a répondu avec succès à la création du profil mais sans profile._id — réponse inattendue.",
+    );
+  }
+  return profileId;
+}
+
+/** Returns the OAuth authUrl to redirect a client's browser to for
+ * connecting one platform into their own Zernio profile. `platform` here
+ * uses this project's internal Platform type — mapped to Zernio's own slug
+ * via PLATFORM_SLUG, same as callRealZernioPublishApi(). */
+export async function getZernioConnectUrl(
+  apiKey: string,
+  platform: Platform,
+  zernioProfileId: string,
+  redirectUrl: string,
+): Promise<string> {
+  const platformSlug = PLATFORM_SLUG[platform];
+  const raw = await zernioGet(apiKey, `/connect/${platformSlug}`, {
+    profileId: zernioProfileId,
+    redirect_url: redirectUrl,
+  });
+  const bodyObj = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : null;
+  const authUrl = bodyObj && typeof bodyObj.authUrl === "string" ? bodyObj.authUrl : null;
+  if (!authUrl) {
+    throw new ZernioApiError(
+      "Zernio a répondu avec succès à la demande de connexion mais sans authUrl — réponse inattendue.",
+    );
+  }
+  return authUrl;
+}

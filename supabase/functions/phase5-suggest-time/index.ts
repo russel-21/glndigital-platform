@@ -25,6 +25,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { suggestPublishTime } from "../_shared/claudeClient.ts";
+import { extractClaudeUsage, reconcileActionQuote } from "../_shared/quoteReconciliation.ts";
 import { checkRateLimit } from "../_shared/rateLimit.ts";
 
 interface RequestBody {
@@ -138,6 +139,13 @@ Deno.serve(async (req: Request) => {
     : "Aucune stratégie Phase 3 associée.";
 
   const result = await suggestPublishTime(metricsSummaryText, connection.platform, objectiveContext);
+
+  if (result.ok) {
+    const usage = extractClaudeUsage(result.raw_response);
+    if (usage) {
+      await reconcileActionQuote(supabase, draft.social_connection_id, "phase5_suggest_time", usage);
+    }
+  }
 
   return jsonResponse(result.ok ? 200 : 502, {
     ok: result.ok,
