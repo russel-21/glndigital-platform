@@ -1,0 +1,11 @@
+-- Drops admin_settings entirely. It was a Lovable-prototype leftover from
+-- before real Supabase Auth existed here (20260224100714_...sql): a single
+-- row holding a plaintext admin_password ('glndigital2024'), never read or
+-- written by any real code path — confirmed by grepping the whole
+-- application (src/, supabase/functions/) on 2026-08-31: only the
+-- auto-generated types.ts referenced it, from schema introspection alone.
+-- Already admin-only via RLS (20260612223000_harden_rls_policies.sql), so
+-- not an active vulnerability, but a plaintext password sitting in a table
+-- nobody uses is exactly the kind of stale artifact worth removing outright
+-- rather than leaving as a landmine for later confusion.
+drop table if exists public.admin_settings;

@@ -876,6 +876,26 @@ mais reste séparé de ce qui suit.
   - **Pas encore fait** : déclenchement Phase 4b par le client (voir plus haut), vérification du plafond
     de "Profiles" Zernio sur le palier actuel de Russel (invérifiable depuis cette session), premier test
     de connexion Zernio réel avec un vrai compte client.
+- **Nettoyage `admin_settings` + 2FA admin en self-service, 2026-08-31 (suite directe).** Russel a demandé
+  de traiter deux points soulevés dans la synthèse sécurité de la session.
+  - `admin_settings` (reliquat Lovable, une seule ligne avec `admin_password` en clair
+    `'glndigital2024'`) supprimée entièrement — confirmé par grep sur tout `src/`/`supabase/functions/`
+    qu'aucun code réel ne la lisait ni ne l'écrivait, seul `types.ts` généré la référençait. Pas une
+    faille active (déjà admin-only via RLS), mais un mot de passe en clair qui traînait sans raison.
+  - **Vraie double authentification (2FA/TOTP)** ajoutée à l'onglet "Mon compte" de `Admin.tsx` —
+    `supabase.auth.mfa.enroll/challengeAndVerify/listFactors/unenroll`, API vérifiée directement dans les
+    définitions de types du SDK installé (`node_modules/@supabase/auth-js`), pas depuis la mémoire du
+    modèle. Auto-activable par l'admin (QR code + code à 6 chiffres depuis son appli d'authentification,
+    ex. Google Authenticator) — **impossible de l'activer "pour lui"**, la nature même du TOTP exige que
+    ce soit fait par la personne elle-même avec son propre appareil. Toutes les autres sessions sont
+    déconnectées à l'activation (comportement documenté du SDK Supabase, pas un bug) — signalé dans le
+    toast de confirmation.
+  - Vérifié : `npx tsc --noEmit`, `npx eslint` (0 nouvelle erreur), `npm run test`, `npm run build`. **Pas
+    vérifié visuellement** : `/admin` nécessite une vraie session admin que cette session n'a pas (et ne
+    doit pas obtenir) — contrairement au sélecteur de rôle `/auth`, pas testable sans les identifiants de
+    Russel. Migration poussée, types régénérés, fusionné dans `main` et poussé sur GitHub.
+  - **Reste à faire par Russel** : se connecter à `/admin` → "Mon compte" → scanner le QR code avec une
+    appli d'authentification pour activer réellement la 2FA sur son propre compte.
 
 ### 1. Contexte du projet
 
