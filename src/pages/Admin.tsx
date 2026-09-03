@@ -505,37 +505,233 @@ function MyAccountAdmin() {
   };
 
   return (
-    <Card className="max-w-md">
+    <div className="max-w-md space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Mon compte</CardTitle>
+          {email && <p className="text-xs text-muted-foreground mt-1">Connecté en tant que {email}</p>}
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label>Nouveau mot de passe (8 caractères min)</Label>
+            <Input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              autoComplete="new-password"
+            />
+          </div>
+          <div>
+            <Label>Confirmer le nouveau mot de passe</Label>
+            <Input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              autoComplete="new-password"
+            />
+          </div>
+          <Button
+            onClick={handleChangePassword}
+            disabled={loading || !newPassword || !confirmPassword}
+            className="bg-gradient-primary"
+          >
+            Changer le mot de passe
+          </Button>
+        </CardContent>
+      </Card>
+
+      <TwoFactorAuthSection />
+    </div>
+  );
+}
+
+// ─── My Account — 2FA (TOTP) ────────────────────────────────────
+// Real Supabase Auth MFA (supabase.auth.mfa.*, verified 2026-08-31 against
+// the installed @supabase/auth-js's own type definitions — not guessed).
+// Self-service: the admin scans the QR code with their own authenticator
+// app (Google Authenticator, Authy, etc.) and confirms with a 6-digit code
+// — nothing here can "activate 2FA" on someone else's behalf, by design of
+// TOTP itself. Per Supabase's own docs (see the enroll() JSDoc in
+// @supabase/auth-js): once a factor is verified, every other active
+// session for this account is signed out and this session is promoted to
+// aal2 — surfaced to the admin below, not left as a surprise.
+function TwoFactorAuthSection() {
+  const [loading, setLoading] = useState(true);
+  const [verifiedFactorId, setVerifiedFactorId] = useState<string | null>(null);
+
+  const [enrolling, setEnrolling] = useState(false);
+  const [pendingFactorId, setPendingFactorId] = useState<string | null>(null);
+  const [qrCodeSvg, setQrCodeSvg] = useState<string | null>(null);
+  const [secret, setSecret] = useState<string | null>(null);
+  const [code, setCode] = useState("");
+  const [verifying, setVerifying] = useState(false);
+  const [unenrolling, setUnenrolling] = useState(false);
+
+  const refreshFactors = async () => {
+    const { data, error } = await supabase.auth.mfa.listFactors();
+    if (error) {
+      toast.error(`Impossible de vérifier l'état de la 2FA : ${error.message}`);
+      setLoading(false);
+      return;
+    }
+    const verified = data.totp.find((f) => f.status === "verified");
+    setVerifiedFactorId(verified?.id ?? null);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    void refreshFactors();
+  }, []);
+
+  const startEnroll = async () => {
+    setEnrolling(true);
+    try {
+      const { data, error } = await supabase.auth.mfa.enroll({
+        factorType: "totp",
+        friendlyName: "GLN Digital Admin",
+      });
+      if (error) throw error;
+      setPendingFactorId(data.id);
+      setQrCodeSvg(data.totp.qr_code);
+      setSecret(data.totp.secret);
+    } catch (err) {
+      toast.error(`Impossible de démarrer l'activation : ${(err as Error).message}`);
+      setEnrolling(false);
+    }
+  };
+
+  const cancelEnroll = async () => {
+    if (pendingFactorId) {
+      // Best-effort — an unverified factor left behind is harmless (never
+      // grants access), but no reason to leave it around.
+      await supabase.auth.mfa.unenroll({ factorId: pendingFactorId }).catch(() => {});
+    }
+    setEnrolling(false);
+    setPendingFactorId(null);
+    setQrCodeSvg(null);
+    setSecret(null);
+    setCode("");
+  };
+
+  const confirmEnroll = async () => {
+    if (!pendingFactorId || code.trim().length !== 6) {
+      toast.error("Entre le code à 6 chiffres affiché dans ton application d'authentification.");
+      return;
+    }
+    setVerifying(true);
+    try {
+      const { error } = await supabase.auth.mfa.challengeAndVerify({
+        factorId: pendingFactorId,
+        code: code.trim(),
+      });
+      if (error) throw error;
+      toast.success(
+        "Double authentification activée ! Toutes tes autres sessions ont été déconnectées par sécurité.",
+      );
+      setEnrolling(false);
+      setPendingFactorId(null);
+      setQrCodeSvg(null);
+      setSecret(null);
+      setCode("");
+      await refreshFactors();
+    } catch (err) {
+      toast.error(`Code invalide : ${(err as Error).message}`);
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleUnenroll = async () => {
+    if (!verifiedFactorId) return;
+    if (!confirm("Désactiver la double authentification sur ce compte ?")) return;
+    setUnenrolling(true);
+    try {
+      const { error } = await supabase.auth.mfa.unenroll({ factorId: verifiedFactorId });
+      if (error) throw error;
+      toast.success("Double authentification désactivée.");
+      await refreshFactors();
+    } catch (err) {
+      toast.error(`Échec de la désactivation : ${(err as Error).message}`);
+    } finally {
+      setUnenrolling(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="pt-6 text-xs text-muted-foreground">Vérification de la 2FA...</CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
       <CardHeader>
-        <CardTitle>Mon compte</CardTitle>
-        {email && <p className="text-xs text-muted-foreground mt-1">Connecté en tant que {email}</p>}
+        <CardTitle>Double authentification (2FA)</CardTitle>
+        <p className="text-xs text-muted-foreground mt-1">
+          Ajoute une application d'authentification (Google Authenticator, Authy...) comme deuxième
+          vérification à la connexion, en plus du mot de passe.
+        </p>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div>
-          <Label>Nouveau mot de passe (8 caractères min)</Label>
-          <Input
-            type="password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            autoComplete="new-password"
-          />
-        </div>
-        <div>
-          <Label>Confirmer le nouveau mot de passe</Label>
-          <Input
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            autoComplete="new-password"
-          />
-        </div>
-        <Button
-          onClick={handleChangePassword}
-          disabled={loading || !newPassword || !confirmPassword}
-          className="bg-gradient-primary"
-        >
-          Changer le mot de passe
-        </Button>
+        {verifiedFactorId && !enrolling && (
+          <div className="space-y-3">
+            <p className="text-xs text-green-500 font-semibold">✓ Double authentification activée</p>
+            <Button
+              variant="outline"
+              onClick={handleUnenroll}
+              disabled={unenrolling}
+              className="text-red-500 border-red-500/40 hover:bg-red-500/10"
+            >
+              {unenrolling ? "Désactivation..." : "Désactiver la 2FA"}
+            </Button>
+          </div>
+        )}
+
+        {!verifiedFactorId && !enrolling && (
+          <Button onClick={startEnroll} className="bg-gradient-primary">
+            Activer la double authentification
+          </Button>
+        )}
+
+        {enrolling && qrCodeSvg && (
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Scanne ce code avec ton application d'authentification, puis entre le code à 6 chiffres
+              généré.
+            </p>
+            <img
+              src={`data:image/svg+xml;utf-8,${encodeURIComponent(qrCodeSvg)}`}
+              alt="QR code d'activation de la double authentification"
+              className="w-40 h-40 bg-white p-2 rounded-lg"
+            />
+            {secret && (
+              <p className="text-[10px] text-muted-foreground">
+                Impossible de scanner ? Saisis ce code manuellement dans ton application :{" "}
+                <code className="text-foreground">{secret}</code>
+              </p>
+            )}
+            <div>
+              <Label>Code à 6 chiffres</Label>
+              <Input
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                placeholder="123456"
+                inputMode="numeric"
+                maxLength={6}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={confirmEnroll} disabled={verifying || code.length !== 6} className="bg-gradient-primary">
+                {verifying ? "Vérification..." : "Confirmer l'activation"}
+              </Button>
+              <Button variant="ghost" onClick={cancelEnroll}>
+                Annuler
+              </Button>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
