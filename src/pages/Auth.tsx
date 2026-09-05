@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { getDeviceToken } from "./AuthCallback";
 import { useLanguage } from "@/hooks/useLanguage";
 import { countryCodes } from "@/lib/countryCodes";
+import { REMEMBER_ME_KEY } from "@/integrations/supabase/client";
 
 const TRUST_DEVICE_MS = 90 * 24 * 60 * 60 * 1000;
 
@@ -70,17 +71,32 @@ const Auth = () => {
     });
   }, []);
 
-  const redirectUser = async (userId: string) => {
+  // `knownProfile`: signup already has the exact row it just upserted in
+  // hand, so it's passed straight through here instead of being re-read.
+  // Skipping that re-fetch isn't just an optimization — right after an
+  // upsert, a `.single()` select can transiently 406 (no row visible yet)
+  // and fall into the catch-all below, which used to be harmless (it only
+  // ran on a real login, well after signup's write had long settled) but
+  // would now silently misroute a fresh partner/client to /eleve-dashboard
+  // if the auto-login-after-signup path relied on a re-fetch instead.
+  const redirectUser = async (
+    userId: string,
+    knownProfile?: { id: string; status?: string; active_sessions?: string[]; roles?: string[]; current_role?: string }
+  ) => {
     try {
-      const { data: profile, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", userId)
-        .single();
+      let profile = knownProfile;
+      if (!profile) {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", userId)
+          .single();
 
-      if (error || !profile) {
-        navigate("/auth-callback");
-        return;
+        if (error || !data) {
+          navigate("/auth-callback");
+          return;
+        }
+        profile = data;
       }
 
       // Check status (active/inactive)
@@ -222,6 +238,11 @@ const Auth = () => {
     // 20260612223000_harden_rls_policies.sql).
     const userRole = signupRole;
 
+    // Written before the auth call so the custom storage adapter in
+    // client.ts (which reads this key on every session write) already
+    // knows where to put the session it's about to receive.
+    localStorage.setItem(REMEMBER_ME_KEY, String(rememberMe));
+
     try {
       setLoading(true);
       if (isSignUp) {
@@ -260,17 +281,40 @@ const Auth = () => {
           });
         }
 
-        toast.success(
-          language === "fr"
-            ? "Inscription réussie ! Veuillez vous connecter avec votre identifiant."
-            : "Registration successful! Please log in with your credentials."
-        );
-
-        await supabase.auth.signOut();
-
-        // Return to login screen
-        setLoginIdentifier(email);
-        setIsSignUp(false);
+        // This project's Supabase instance doesn't require email
+        // confirmation (verified against the real signUp() response), so a
+        // session normally comes back immediately — sign the person straight
+        // into their new space, "remembered" or not per their choice, same
+        // as a real account-creation flow (Google included) rather than
+        // bouncing them back to a login form for credentials they just typed.
+        if (data.session) {
+          if (rememberMe) {
+            rememberTrustedDevice();
+          } else {
+            clearTrustedDevice();
+          }
+          toast.success(
+            language === "fr" ? "Compte créé ! Bienvenue." : "Account created! Welcome."
+          );
+          redirectUser(data.user?.id || "", {
+            id: data.user?.id || "",
+            status: "active",
+            active_sessions: [getDeviceToken()],
+            roles: [userRole],
+            current_role: userRole,
+          });
+        } else {
+          // Defensive fallback only — kept in case email confirmation is
+          // ever turned on for this project, where signUp() returns no
+          // session and a real login step afterwards is unavoidable.
+          toast.success(
+            language === "fr"
+              ? "Inscription réussie ! Veuillez vous connecter avec votre identifiant."
+              : "Registration successful! Please log in with your credentials."
+          );
+          setLoginIdentifier(email);
+          setIsSignUp(false);
+        }
       } else {
         // Sign In
         const isEmail = finalIdentifier.includes("@");
@@ -571,21 +615,24 @@ const Auth = () => {
                   </button>
                 </div>
               </div>
-
-              <div className="flex items-center gap-2 py-1 select-none">
-                <input
-                  type="checkbox"
-                  id="rememberMe"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 rounded border-border bg-secondary text-primary focus:ring-primary focus:ring-offset-background cursor-pointer"
-                />
-                <label htmlFor="rememberMe" className="text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors font-medium">
-                  {language === "fr" ? "Faire confiance à cet appareil (Rester connecté)" : "Trust this device (Stay logged in)"}
-                </label>
-              </div>
             </>
           )}
+
+          {/* Shared by both signup and login — Supabase actually honors this
+              now (see REMEMBER_ME_KEY in client.ts), so it needs to be set
+              before either submits, not just before a login. */}
+          <div className="flex items-center gap-2 py-1 select-none">
+            <input
+              type="checkbox"
+              id="rememberMe"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="w-4 h-4 rounded border-border bg-secondary text-primary focus:ring-primary focus:ring-offset-background cursor-pointer"
+            />
+            <label htmlFor="rememberMe" className="text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors font-medium">
+              {language === "fr" ? "Rester connecté sur cet appareil" : "Stay signed in on this device"}
+            </label>
+          </div>
 
           <button
             type="submit"
