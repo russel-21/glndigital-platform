@@ -4,11 +4,11 @@
 // no Supabase table backs this yet. The shape below is deliberately the
 // one a future `portfolio_projects` table would use, so swapping this
 // static array for a real query later only touches this file, not the
-// page itself — `image`/`gallery`/`video` already exist as optional
-// fields for that reason, even though every project below sets them to
-// null (no real project photos/videos available yet — see Portfolio.tsx's
-// placeholder rendering for how that's handled honestly instead of using
-// stock/fake imagery).
+// page itself — `image`/`gallery`/`video`/`imageType` already exist for
+// that reason, even though every project below has `image: null` and
+// `imageType: "placeholder"` (no real project photos/videos available yet
+// — see Portfolio.tsx's placeholder rendering for how that's handled
+// honestly instead of using stock/fake imagery).
 
 export type PortfolioCategory =
   | "social-media"
@@ -47,6 +47,15 @@ export interface PortfolioProject {
   duration: string;
   /** Main project image. null until real assets are provided. */
   image: string | null;
+  /** Accessible alt text for `image`, ready even before it exists. */
+  imageAlt: string;
+  /**
+   * "real" once `image` is an actual project photo; "placeholder" while
+   * Portfolio.tsx is rendering the on-brand placeholder panel instead.
+   * Lets the card (or a future detail page) tell the two apart without
+   * re-deriving it from whether `image` happens to be null.
+   */
+  imageType: "real" | "placeholder";
   /** Secondary/gallery images, for a future project detail page. */
   gallery: string[];
   /** Optional project video, for a future project detail page. */
@@ -65,6 +74,8 @@ export const portfolioProjects: PortfolioProject[] = [
     services: ["Social Media Management", "Création de contenu", "Communication digitale"],
     duration: "4 mois",
     image: null,
+    imageAlt: "Vendôme Hôtel — gestion des réseaux sociaux par GLN Digital",
+    imageType: "placeholder",
     gallery: [],
     video: null,
     featured: false,
@@ -79,6 +90,8 @@ export const portfolioProjects: PortfolioProject[] = [
     services: ["Social Media Management", "Content Strategy", "Communication digitale"],
     duration: "4 mois",
     image: null,
+    imageAlt: "Résidence HMR — communication digitale par GLN Digital",
+    imageType: "placeholder",
     gallery: [],
     video: null,
     featured: false,
@@ -93,6 +106,8 @@ export const portfolioProjects: PortfolioProject[] = [
     services: ["E-commerce", "Marketing digital", "Présence digitale"],
     duration: "8 mois",
     image: null,
+    imageAlt: "PACIFIK SARL — accompagnement e-commerce par GLN Digital",
+    imageType: "placeholder",
     gallery: [],
     video: null,
     featured: false,
@@ -107,6 +122,8 @@ export const portfolioProjects: PortfolioProject[] = [
     services: ["Marketing digital", "Communication", "Stratégie digitale"],
     duration: "4 mois",
     image: null,
+    imageAlt: "Hotelsoft — stratégie digitale par GLN Digital",
+    imageType: "placeholder",
     gallery: [],
     video: null,
     featured: false,
@@ -121,6 +138,8 @@ export const portfolioProjects: PortfolioProject[] = [
     services: ["Social Media Management", "Création de contenu", "Communication digitale"],
     duration: "6 semaines",
     image: null,
+    imageAlt: "Kymo Cosmetics — présence digitale par GLN Digital",
+    imageType: "placeholder",
     gallery: [],
     video: null,
     featured: false,
@@ -135,6 +154,8 @@ export const portfolioProjects: PortfolioProject[] = [
     services: ["Community Management", "Content Strategy", "Communication digitale"],
     duration: "1 an",
     image: null,
+    imageAlt: "Cadafi Cosmedik — communication digitale par GLN Digital",
+    imageType: "placeholder",
     gallery: [],
     video: null,
     featured: false,
@@ -148,8 +169,14 @@ export const portfolioProjects: PortfolioProject[] = [
     services: ["Web", "Marketing digital", "Plateforme digitale"],
     duration: "Projet en évolution",
     image: null,
+    imageAlt: "GLN DIGITAL — écosystème digital de l'agence",
+    imageType: "placeholder",
     gallery: [],
     video: null,
-    featured: false,
+    // The one project explicitly marked featured for this step (mission
+    // section 6) — GLN Digital's own platform. ProjectCard gives it a
+    // wider (2-column) footprint on tablet/desktop; nothing else changes
+    // based on this flag yet.
+    featured: true,
   },
 ];
