@@ -26,6 +26,7 @@ import Admin from "./pages/Admin";
 
 import Auth from "./pages/Auth";
 import AuthCallback from "./pages/AuthCallback";
+import ResetPassword from "./pages/ResetPassword";
 import ReferralHandler from "./pages/ReferralHandler";
 import AuditPage from "./pages/AuditPage";
 import AuditReportDetail from "./pages/AuditReportDetail";
@@ -59,6 +60,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/auth-callback" element={<AuthCallback />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/ref/:refId" element={<ReferralHandler />} />
             <Route path="/a-propos" element={<About />} />
             <Route path="/services" element={<Services />} />
