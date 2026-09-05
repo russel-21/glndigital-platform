@@ -13,6 +13,8 @@ import {
   Target,
   Rocket,
   BarChart3,
+  BadgeCheck,
+  Image as ImageIcon,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -61,20 +63,32 @@ const APPROACH_STEPS: { number: string; icon: LucideIcon; title: string; descrip
     number: "04",
     icon: BarChart3,
     title: "Mesurer",
-    description: "Analyser les données et améliorer continuellement les performances.",
+    description: "Analyser les données disponibles et améliorer continuellement les performances.",
   },
 ];
 
-// No real project photography yet (see portfolioProjects.ts) — an honest,
-// on-brand placeholder rather than stock/fake imagery: a muted panel with
-// a faint category icon, in the same dark/orange palette as the rest of
-// the site. Swapped automatically for project.image once real photos
-// exist, no page changes needed.
-const ProjectImagePlaceholder = ({ category }: { category: PortfolioCategory }) => {
-  const Icon = CATEGORY_ICONS[category];
+// No real project photography yet (see portfolioProjects.ts's imageType:
+// "placeholder"). Rather than stock/fake imagery, this is a deliberately
+// "media slot" looking panel — the project's own name and lead service,
+// a large faint category glyph, and a small "Image à venir" pill so it
+// reads as a placeholder that's waiting for a real asset, not an empty
+// or broken card. Swapped for a real <img> automatically once
+// project.image is set (see ProjectCard below), no page changes needed.
+const ProjectImagePlaceholder = ({ project }: { project: PortfolioProject }) => {
+  const Icon = CATEGORY_ICONS[project.category];
   return (
-    <div className="w-full h-full bg-secondary flex items-center justify-center">
-      <Icon className="w-12 h-12 text-primary/25" strokeWidth={1.5} />
+    <div className="relative w-full h-full bg-gradient-to-br from-secondary to-background flex flex-col items-center justify-center text-center px-6 overflow-hidden">
+      <Icon className="absolute -right-5 -bottom-5 w-28 h-28 text-primary/[0.07]" strokeWidth={1.25} aria-hidden="true" />
+      <span className="font-heading font-bold text-foreground text-base md:text-lg uppercase tracking-wide">
+        {project.title}
+      </span>
+      <span className="text-primary text-[11px] font-semibold uppercase tracking-widest mt-2">
+        {project.services[0]}
+      </span>
+      <span className="mt-4 inline-flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-wide border border-border/70 rounded-full px-2.5 py-1">
+        <ImageIcon className="w-3 h-3" aria-hidden="true" />
+        Image à venir
+      </span>
     </div>
   );
 };
@@ -85,26 +99,41 @@ const ProjectCard = ({ project, index }: { project: PortfolioProject; index: num
     whileInView={{ opacity: 1, y: 0 }}
     viewport={{ once: true }}
     transition={{ delay: (index % 3) * 0.08 }}
-    className="group rounded-xl bg-card border border-border overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:border-primary/40"
+    className={`group flex flex-col rounded-xl bg-card border border-border overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 ${
+      project.featured ? "sm:col-span-2 lg:col-span-2" : ""
+    }`}
   >
     <div className="relative w-full aspect-[16/9] overflow-hidden">
-      {project.image ? (
+      {project.imageType === "real" && project.image ? (
         <img
           src={project.image}
-          alt={project.title}
+          alt={project.imageAlt}
           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
           loading="lazy"
         />
       ) : (
         <div className="transition-transform duration-300 group-hover:scale-105 w-full h-full">
-          <ProjectImagePlaceholder category={project.category} />
+          <ProjectImagePlaceholder project={project} />
         </div>
       )}
-      <div className="absolute inset-0 bg-background/0 group-hover:bg-background/10 transition-colors duration-300" />
+
+      {/* Hover overlay: subtle dark tint + an inert "Voir le projet"
+          affordance — no detail pages exist yet (still true in this
+          step), so it's shown for polish but doesn't pretend to navigate,
+          same honesty as the footer link below. */}
+      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/45 transition-colors duration-300 flex items-center justify-center">
+        <span
+          className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground text-xs font-semibold px-4 py-2 rounded-full opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100 transition-all duration-300 cursor-not-allowed"
+          title="Page détaillée du projet à venir"
+        >
+          Voir le projet
+          <ArrowRight className="w-3.5 h-3.5" />
+        </span>
+      </div>
     </div>
 
-    <div className="p-5">
-      <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full border border-primary/20 font-semibold">
+    <div className="p-5 flex flex-col flex-1">
+      <span className="inline-flex self-start text-[10px] font-bold uppercase tracking-wide text-primary bg-primary/10 border border-primary/20 rounded-full px-2.5 py-1">
         {PORTFOLIO_CATEGORY_LABELS[project.category]}
       </span>
 
@@ -112,11 +141,25 @@ const ProjectCard = ({ project, index }: { project: PortfolioProject; index: num
         {project.title}
       </h3>
 
-      <p className="text-muted-foreground text-sm mt-2 leading-relaxed">{project.description}</p>
+      <p className="text-muted-foreground text-xs mt-2 leading-relaxed line-clamp-2">
+        {project.description}
+      </p>
 
-      <p className="text-xs text-muted-foreground/80 mt-3">{project.services.join(" • ")}</p>
+      <ul className="mt-3 space-y-1">
+        {project.services.map((service) => (
+          <li key={service} className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="w-1 h-1 rounded-full bg-primary/70 shrink-0" />
+            {service}
+          </li>
+        ))}
+      </ul>
 
-      <div className="flex items-center justify-between mt-5 pt-4 border-t border-border/50">
+      <p className="flex items-center gap-1.5 text-[11px] text-primary/80 font-medium mt-3">
+        <BadgeCheck className="w-3.5 h-3.5 shrink-0" />
+        Projet accompagné par GLN DIGITAL
+      </p>
+
+      <div className="flex items-center justify-between mt-auto pt-4 border-t border-border/50">
         <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Clock className="w-3.5 h-3.5" />
           {project.duration}
@@ -169,10 +212,16 @@ const Portfolio = () => {
     };
   }, []);
 
-  const filteredProjects = useMemo(
-    () => (filter === "all" ? portfolioProjects : portfolioProjects.filter((p) => p.category === filter)),
-    [filter]
-  );
+  const filteredProjects = useMemo(() => {
+    const base =
+      filter === "all" ? portfolioProjects : portfolioProjects.filter((p) => p.category === filter);
+    // Featured projects (mission section 6) lead the grid so their
+    // wider, 2-column card lands at the start of a row instead of being
+    // stranded alone at the end with an empty cell beside it — Array.sort
+    // is stable, so this only reorders featured vs. non-featured and
+    // otherwise keeps the order above.
+    return [...base].sort((a, b) => Number(b.featured) - Number(a.featured));
+  }, [filter]);
 
   return (
     <div className="min-h-screen pt-24 pb-16">
