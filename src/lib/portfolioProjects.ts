@@ -89,6 +89,18 @@ export interface PortfolioProject {
   /** Accessible alt text for `image`, ready even before it exists. */
   imageAlt: string;
   /**
+   * Tailwind object-position utility (e.g. "object-bottom"), applied only
+   * to the main `image` — never the gallery — when the default centered
+   * crop (object-fit: cover's implicit "center") cuts off content that
+   * matters. Omitted for every project except the one that actually
+   * needed it (Étape 4.1): the source photo is close to square (669×665)
+   * against the card/detail page's 16:9 box, so a centered crop removes
+   * roughly equal amounts of height off the top and bottom — for Vendôme
+   * Hôtel that cut the "Welcome to September" text and its CTA line,
+   * which both sit low in the frame.
+   */
+  imagePosition?: string;
+  /**
    * "real" once `image` is an actual project photo; "placeholder" while
    * Portfolio.tsx is rendering the on-brand placeholder panel instead.
    * Lets the card (or a future detail page) tell the two apart without
@@ -117,6 +129,9 @@ export const portfolioProjects: PortfolioProject[] = [
     image: "/images/portfolio/vendome-hotel-1.png",
     imageAlt: "Vendôme Hôtel — gestion des réseaux sociaux par GLN Digital",
     imageType: "real",
+    // Keeps the "Welcome to September" text and its CTA line visible in
+    // the 16:9 crop — see the field doc above. Vendôme-only, Étape 4.1.
+    imagePosition: "object-bottom",
     // Second real photo provided for this project — no detail page exists
     // yet to show a gallery, but the field was already there for this.
     gallery: ["/images/portfolio/vendome-hotel-2.png"],

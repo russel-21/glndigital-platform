@@ -101,7 +101,7 @@ const PortfolioDetail = () => {
             <img
               src={project.image}
               alt={project.imageAlt}
-              className="w-full h-full object-cover"
+              className={`w-full h-full object-cover ${project.imagePosition ?? ""}`}
             />
           ) : (
             <ProjectImagePlaceholder project={project} />
