@@ -14,9 +14,17 @@
 // copy, and a `stats` field was added per project where a real, verified
 // number was provided. Russel confirmed the "Total actuel" period wording
 // for snapshot counts (see PortfolioProjectStat below) the same day.
-// `stats` is still intentionally NOT read anywhere in Portfolio.tsx —
-// wording is settled, but displaying it on the public cards is its own
-// step, not yet requested.
+// `stats` is now rendered on the 5 projects that have it (Étape 2.1,
+// same day).
+//
+// Étape 3 (2026-09-06): first 4 real photos wired in (vendome-hotel,
+// residence-hmr, kymo-cosmetics, cadafi-cosmedik) — files live in
+// public/images/portfolio/, provided by Russel and renamed here from
+// their original messy save-as names (spaces/parentheses/accents,
+// double ".jpg.png" extension from being saved as PNG despite the
+// original .jpg naming) to plain kebab-case. PACIFIK, Hotelsoft and
+// GLN DIGITAL deliberately left on imageType: "placeholder" — not yet
+// provided, not guessed at.
 
 export type PortfolioCategory =
   | "social-media"
@@ -107,10 +115,12 @@ export const portfolioProjects: PortfolioProject[] = [
       "Gestion et développement de la présence digitale d'un établissement hôtelier premium à Douala : contenu événementiel, offres promotionnelles et animation de la page Facebook.",
     services: ["Social Media Management", "Community Management", "Création de contenu"],
     duration: "4 mois",
-    image: null,
+    image: "/images/portfolio/vendome-hotel-1.png",
     imageAlt: "Vendôme Hôtel — gestion des réseaux sociaux par GLN Digital",
-    imageType: "placeholder",
-    gallery: [],
+    imageType: "real",
+    // Second real photo provided for this project — no detail page exists
+    // yet to show a gallery, but the field was already there for this.
+    gallery: ["/images/portfolio/vendome-hotel-2.png"],
     video: null,
     featured: false,
     stats: [
@@ -128,9 +138,9 @@ export const portfolioProjects: PortfolioProject[] = [
       "Développement de la communication digitale d'une résidence hôtelière à Douala : mise en valeur du cadre, des services (piscine, restauration) et des offres, à travers des contenus événementiels réguliers.",
     services: ["Social Media Management", "Création de contenu", "Communication digitale"],
     duration: "4 mois",
-    image: null,
+    image: "/images/portfolio/residence-hmr-1.png",
     imageAlt: "Résidence HMR — communication digitale par GLN Digital",
-    imageType: "placeholder",
+    imageType: "real",
     gallery: [],
     video: null,
     featured: false,
@@ -181,9 +191,9 @@ export const portfolioProjects: PortfolioProject[] = [
       "Gestion de la présence digitale d'une marque camerounaise de cosmétiques : mise en valeur produits, contenu éducatif et promotion de formations en cosmétique.",
     services: ["Social Media Management", "Création de contenu", "Community Management"],
     duration: "6 semaines",
-    image: null,
+    image: "/images/portfolio/kymo-cosmetics-1.png",
     imageAlt: "Kymo Cosmetics — présence digitale par GLN Digital",
-    imageType: "placeholder",
+    imageType: "real",
     gallery: [],
     video: null,
     featured: false,
@@ -200,9 +210,9 @@ export const portfolioProjects: PortfolioProject[] = [
       "Gestion sur un an de la présence digitale d'une entreprise camerounaise de cosmétiques : contenu produit, formation et animation de communauté.",
     services: ["Social Media Management", "Community Management", "Création de contenu"],
     duration: "1 an",
-    image: null,
+    image: "/images/portfolio/cadafi-cosmetik-1.png",
     imageAlt: "Cadafi Cosmedik — communication digitale par GLN Digital",
-    imageType: "placeholder",
+    imageType: "real",
     gallery: [],
     video: null,
     featured: false,
