@@ -67,14 +67,14 @@ const APPROACH_STEPS: { number: string; icon: LucideIcon; title: string; descrip
   },
 ];
 
-// No real project photography yet (see portfolioProjects.ts's imageType:
-// "placeholder"). Rather than stock/fake imagery, this is a deliberately
-// "media slot" looking panel — the project's own name and lead service,
-// a large faint category glyph, and a small "Image à venir" pill so it
-// reads as a placeholder that's waiting for a real asset, not an empty
-// or broken card. Swapped for a real <img> automatically once
-// project.image is set (see ProjectCard below), no page changes needed.
-const ProjectImagePlaceholder = ({ project }: { project: PortfolioProject }) => {
+// A "media slot" looking panel for a project without a real photo yet —
+// the project's own name and lead service, a large faint category glyph,
+// and a small "Image à venir" pill, rather than stock/fake imagery. All 7
+// projects have real photos as of Étape 3.2, but the type still allows
+// imageType: "placeholder" for whenever a new project starts without one.
+// Exported so PortfolioDetail.tsx (Étape 4) can reuse it instead of
+// duplicating this markup for the same case on the case-study page.
+export const ProjectImagePlaceholder = ({ project }: { project: PortfolioProject }) => {
   const Icon = CATEGORY_ICONS[project.category];
   return (
     <div className="relative w-full h-full bg-gradient-to-br from-secondary to-background flex flex-col items-center justify-center text-center px-6 overflow-hidden">
@@ -117,18 +117,16 @@ const ProjectCard = ({ project, index }: { project: PortfolioProject; index: num
         </div>
       )}
 
-      {/* Hover overlay: subtle dark tint + an inert "Voir le projet"
-          affordance — no detail pages exist yet (still true in this
-          step), so it's shown for polish but doesn't pretend to navigate,
-          same honesty as the footer link below. */}
+      {/* Hover overlay: subtle dark tint + a "Voir le projet" affordance
+          that now really navigates (Étape 4 added /portfolio/[slug]). */}
       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/45 transition-colors duration-300 flex items-center justify-center">
-        <span
-          className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground text-xs font-semibold px-4 py-2 rounded-full opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100 transition-all duration-300 cursor-not-allowed"
-          title="Page détaillée du projet à venir"
+        <Link
+          to={`/portfolio/${project.slug}`}
+          className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground text-xs font-semibold px-4 py-2 rounded-full opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100 transition-all duration-300"
         >
           Voir le projet
           <ArrowRight className="w-3.5 h-3.5" />
-        </span>
+        </Link>
       </div>
     </div>
 
@@ -181,16 +179,13 @@ const ProjectCard = ({ project, index }: { project: PortfolioProject; index: num
           {project.duration}
         </span>
 
-        {/* No project detail pages yet (Étape 1 is UI-only) — shown but
-            intentionally inert rather than linking to a 404 or a fake
-            page. See the summary sent after this step. */}
-        <span
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground/70 cursor-not-allowed select-none"
-          title="Page détaillée du projet à venir"
+        <Link
+          to={`/portfolio/${project.slug}`}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
         >
           Voir le projet
           <ArrowRight className="w-3.5 h-3.5" />
-        </span>
+        </Link>
       </div>
     </div>
   </motion.div>
