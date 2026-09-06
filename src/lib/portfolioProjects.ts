@@ -4,11 +4,7 @@
 // no Supabase table backs this yet. The shape below is deliberately the
 // one a future `portfolio_projects` table would use, so swapping this
 // static array for a real query later only touches this file, not the
-// page itself — `image`/`gallery`/`video`/`imageType` already exist for
-// that reason, even though every project below has `image: null` and
-// `imageType: "placeholder"` (no real project photos/videos available yet
-// — see Portfolio.tsx's placeholder rendering for how that's handled
-// honestly instead of using stock/fake imagery).
+// page itself.
 //
 // Étape 2 (2026-09-06): descriptions/services updated to real, verified
 // copy, and a `stats` field was added per project where a real, verified
@@ -17,14 +13,17 @@
 // `stats` is now rendered on the 5 projects that have it (Étape 2.1,
 // same day).
 //
-// Étape 3 (2026-09-06): first 4 real photos wired in (vendome-hotel,
-// residence-hmr, kymo-cosmetics, cadafi-cosmedik) — files live in
-// public/images/portfolio/, provided by Russel and renamed here from
-// their original messy save-as names (spaces/parentheses/accents,
-// double ".jpg.png" extension from being saved as PNG despite the
-// original .jpg naming) to plain kebab-case. PACIFIK, Hotelsoft and
-// GLN DIGITAL deliberately left on imageType: "placeholder" — not yet
-// provided, not guessed at.
+// Étape 3 (2026-09-06): all 7 projects now have real photos in
+// public/images/portfolio/ and imageType: "real" — vendome-hotel,
+// residence-hmr, kymo-cosmetics, cadafi-cosmedik first (Étape 3),
+// followed by pacifik, hotelsoft, gln-digital (Étape 3.2). Every file
+// was provided by Russel and renamed here from its original messy
+// save-as name (spaces/parentheses/accents, a redundant ".png"
+// extension appended on top of the requested filename) to plain
+// kebab-case. No `imageType: "placeholder"` remains — see the
+// Portfolio.tsx history for how a missing photo used to be handled
+// honestly instead of using stock/fake imagery, kept in case a future
+// project starts out without one again.
 
 export type PortfolioCategory =
   | "social-media"
@@ -155,10 +154,10 @@ export const portfolioProjects: PortfolioProject[] = [
       "Conception et développement de la plateforme e-commerce Pacifik (pacifik.pro), puis accompagnement de sa transformation en application mobile PacifikApp.",
     services: ["Développement web", "E-commerce", "Accompagnement produit"],
     duration: "8 mois",
-    image: null,
+    image: "/images/portfolio/pacifik-1.png",
     imageAlt: "PACIFIK SARL — accompagnement e-commerce par GLN Digital",
-    imageType: "placeholder",
-    gallery: [],
+    imageType: "real",
+    gallery: ["/images/portfolio/pacifik-2.png"],
     video: null,
     featured: false,
     stats: [{ label: "Abonnés Facebook", value: "22 000", period: "Total actuel" }],
@@ -174,10 +173,10 @@ export const portfolioProjects: PortfolioProject[] = [
       "Accompagnement stratégique de Hotelsoft, plateforme de réservation hôtelière camerounaise référençant une cinquantaine d'établissements : structuration de la communication et supports marketing.",
     services: ["Stratégie digitale", "Marketing digital", "Supports de communication"],
     duration: "4 mois",
-    image: null,
+    image: "/images/portfolio/hotelsoft-1.png",
     imageAlt: "Hotelsoft — stratégie digitale par GLN Digital",
-    imageType: "placeholder",
-    gallery: [],
+    imageType: "real",
+    gallery: ["/images/portfolio/hotelsoft-2.png"],
     video: null,
     featured: false,
     stats: [{ label: "Abonnés", value: "5 000", period: "Total actuel" }],
@@ -227,9 +226,9 @@ export const portfolioProjects: PortfolioProject[] = [
       "Conception et développement continu de l'écosystème digital de GLN DIGITAL : plateforme web, identité de marque et présence sur les réseaux sociaux.",
     services: ["Web", "Marketing digital", "Plateforme digitale"],
     duration: "Projet en évolution",
-    image: null,
+    image: "/images/portfolio/gln-digital-1.png",
     imageAlt: "GLN DIGITAL — écosystème digital de l'agence",
-    imageType: "placeholder",
+    imageType: "real",
     gallery: [],
     video: null,
     // The one project explicitly marked featured for this step (mission
