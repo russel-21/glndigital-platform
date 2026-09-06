@@ -22,6 +22,7 @@ import BlogPostDetail from "./pages/BlogPostDetail";
 import Contact from "./pages/Contact";
 import NotFound from "./pages/NotFound";
 import Portfolio from "./pages/Portfolio";
+import PortfolioDetail from "./pages/PortfolioDetail";
 import Admin from "./pages/Admin";
 
 import Auth from "./pages/Auth";
@@ -73,6 +74,7 @@ const App = () => (
             <Route path="/blog" element={<Blog />} />
             <Route path="/blog/:id" element={<BlogPostDetail />} />
             <Route path="/portfolio" element={<Portfolio />} />
+            <Route path="/portfolio/:slug" element={<PortfolioDetail />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/audit" element={<AuditPage />} />
