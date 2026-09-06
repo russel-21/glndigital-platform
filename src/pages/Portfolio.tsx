@@ -154,6 +154,22 @@ const ProjectCard = ({ project, index }: { project: PortfolioProject; index: num
         ))}
       </ul>
 
+      {/* Real, verified numbers only (portfolioProjects.ts) — 2 of the 7
+          projects have none, and this simply renders nothing for them
+          rather than reserving space, so their card layout is identical
+          to before. `period` is part of the same line as `value`, never
+          separated, so a stat can't be read as a standalone number. */}
+      {project.stats && project.stats.length > 0 && (
+        <ul className="mt-3 pt-3 border-t border-border/30 space-y-1">
+          {project.stats.map((stat) => (
+            <li key={stat.label} className="text-[11px] text-muted-foreground leading-snug">
+              <span className="font-semibold text-foreground">{stat.value}</span> {stat.label}
+              <span className="text-muted-foreground/70"> — {stat.period}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
       <p className="flex items-center gap-1.5 text-[11px] text-primary/80 font-medium mt-3">
         <BadgeCheck className="w-3.5 h-3.5 shrink-0" />
         Projet accompagné par GLN DIGITAL
