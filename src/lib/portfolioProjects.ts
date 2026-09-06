@@ -9,6 +9,14 @@
 // `imageType: "placeholder"` (no real project photos/videos available yet
 // — see Portfolio.tsx's placeholder rendering for how that's handled
 // honestly instead of using stock/fake imagery).
+//
+// Étape 2 (2026-09-06): descriptions/services updated to real, verified
+// copy, and a `stats` field was added per project where a real, verified
+// number was provided. `stats` is intentionally NOT read anywhere in
+// Portfolio.tsx yet — see the note on PortfolioProjectStat below and the
+// summary sent after this step for why (pending sign-off on how the
+// measurement-period wording should read before it goes on the public
+// page).
 
 export type PortfolioCategory =
   | "social-media"
@@ -37,6 +45,30 @@ export const PORTFOLIO_CATEGORY_ORDER: PortfolioCategory[] = [
   "strategie-digitale",
 ];
 
+/**
+ * One verified, real data point about a project (e.g. a follower count or
+ * an engagement change). Never invented — only added when the number was
+ * explicitly provided and confirmed real.
+ *
+ * `period` exists specifically so a stat is never shown without its honest
+ * measurement window (a snapshot total vs. a change "over the last 28
+ * days" mean very different things, and mission Étape 2 was explicit that
+ * a period-scoped stat must never read like a lifetime mission total).
+ * Proposed values here use "Total actuel" for a plain snapshot count
+ * (followers as of now) rather than reusing the "28 derniers jours"
+ * wording that only actually applies to the two change/growth metrics —
+ * see the summary sent after this step for why, flagged for validation
+ * before this field is ever rendered.
+ */
+export interface PortfolioProjectStat {
+  /** What the number measures, e.g. "Abonnés", "Interactions". */
+  label: string;
+  /** The verified value as given, e.g. "2 417" or "+290,9%". */
+  value: string;
+  /** Honest measurement window — always shown alongside `value` once used. */
+  period: string;
+}
+
 export interface PortfolioProject {
   id: string;
   slug: string;
@@ -61,6 +93,8 @@ export interface PortfolioProject {
   /** Optional project video, for a future project detail page. */
   video: string | null;
   featured: boolean;
+  /** Verified real stats, if any were provided. Not yet rendered — see the interface doc above. */
+  stats?: PortfolioProjectStat[];
 }
 
 export const portfolioProjects: PortfolioProject[] = [
@@ -70,8 +104,8 @@ export const portfolioProjects: PortfolioProject[] = [
     title: "Vendôme Hôtel",
     category: "social-media",
     description:
-      "Gestion et développement de la présence digitale d'un établissement hôtelier.",
-    services: ["Social Media Management", "Création de contenu", "Communication digitale"],
+      "Gestion et développement de la présence digitale d'un établissement hôtelier premium à Douala : contenu événementiel, offres promotionnelles et animation de la page Facebook.",
+    services: ["Social Media Management", "Community Management", "Création de contenu"],
     duration: "4 mois",
     image: null,
     imageAlt: "Vendôme Hôtel — gestion des réseaux sociaux par GLN Digital",
@@ -79,6 +113,11 @@ export const portfolioProjects: PortfolioProject[] = [
     gallery: [],
     video: null,
     featured: false,
+    stats: [
+      { label: "Abonnés", value: "2 417", period: "Total actuel" },
+      { label: "Interactions", value: "+290,9 %", period: "Sur les 28 derniers jours (vs période précédente)" },
+      { label: "Vues", value: "+60 %", period: "Sur les 28 derniers jours" },
+    ],
   },
   {
     id: "residence-hmr",
@@ -86,8 +125,8 @@ export const portfolioProjects: PortfolioProject[] = [
     title: "Résidence HMR",
     category: "social-media",
     description:
-      "Développement de la communication digitale et mise en valeur de l'expérience client.",
-    services: ["Social Media Management", "Content Strategy", "Communication digitale"],
+      "Développement de la communication digitale d'une résidence hôtelière à Douala : mise en valeur du cadre, des services (piscine, restauration) et des offres, à travers des contenus événementiels réguliers.",
+    services: ["Social Media Management", "Création de contenu", "Communication digitale"],
     duration: "4 mois",
     image: null,
     imageAlt: "Résidence HMR — communication digitale par GLN Digital",
@@ -95,6 +134,7 @@ export const portfolioProjects: PortfolioProject[] = [
     gallery: [],
     video: null,
     featured: false,
+    stats: [{ label: "Abonnés", value: "232", period: "Total actuel" }],
   },
   {
     id: "pacifik",
@@ -102,8 +142,8 @@ export const portfolioProjects: PortfolioProject[] = [
     title: "PACIFIK SARL",
     category: "creation-web",
     description:
-      "Accompagnement digital d'un projet e-commerce et développement de sa présence en ligne.",
-    services: ["E-commerce", "Marketing digital", "Présence digitale"],
+      "Conception et développement de la plateforme e-commerce Pacifik (pacifik.pro), puis accompagnement de sa transformation en application mobile PacifikApp.",
+    services: ["Développement web", "E-commerce", "Accompagnement produit"],
     duration: "8 mois",
     image: null,
     imageAlt: "PACIFIK SARL — accompagnement e-commerce par GLN Digital",
@@ -111,6 +151,9 @@ export const portfolioProjects: PortfolioProject[] = [
     gallery: [],
     video: null,
     featured: false,
+    stats: [{ label: "Abonnés Facebook", value: "22 000", period: "Total actuel" }],
+    // Collaboration terminée — information interne communiquée pour Étape 2,
+    // volontairement non affichée sur la carte publique (mission Étape 2).
   },
   {
     id: "hotelsoft",
@@ -118,8 +161,8 @@ export const portfolioProjects: PortfolioProject[] = [
     title: "Hotelsoft",
     category: "strategie-digitale",
     description:
-      "Développement de la visibilité digitale d'une solution dédiée au secteur hôtelier.",
-    services: ["Marketing digital", "Communication", "Stratégie digitale"],
+      "Accompagnement stratégique de Hotelsoft, plateforme de réservation hôtelière camerounaise référençant une cinquantaine d'établissements : structuration de la communication et supports marketing.",
+    services: ["Stratégie digitale", "Marketing digital", "Supports de communication"],
     duration: "4 mois",
     image: null,
     imageAlt: "Hotelsoft — stratégie digitale par GLN Digital",
@@ -127,6 +170,7 @@ export const portfolioProjects: PortfolioProject[] = [
     gallery: [],
     video: null,
     featured: false,
+    stats: [{ label: "Abonnés", value: "5 000", period: "Total actuel" }],
   },
   {
     id: "kymo-cosmetics",
@@ -134,8 +178,8 @@ export const portfolioProjects: PortfolioProject[] = [
     title: "Kymo Cosmetics",
     category: "social-media",
     description:
-      "Développement de la présence digitale d'une marque dans l'univers des cosmétiques.",
-    services: ["Social Media Management", "Création de contenu", "Communication digitale"],
+      "Gestion de la présence digitale d'une marque camerounaise de cosmétiques : mise en valeur produits, contenu éducatif et promotion de formations en cosmétique.",
+    services: ["Social Media Management", "Création de contenu", "Community Management"],
     duration: "6 semaines",
     image: null,
     imageAlt: "Kymo Cosmetics — présence digitale par GLN Digital",
@@ -143,6 +187,9 @@ export const portfolioProjects: PortfolioProject[] = [
     gallery: [],
     video: null,
     featured: false,
+    // Collaboration terminée — information interne communiquée pour Étape 2,
+    // volontairement non affichée sur la carte publique (mission Étape 2).
+    // Aucune stat vérifiée fournie pour ce projet.
   },
   {
     id: "cadafi-cosmedik",
@@ -150,8 +197,8 @@ export const portfolioProjects: PortfolioProject[] = [
     title: "Cadafi Cosmedik",
     category: "social-media",
     description:
-      "Accompagnement de la présence digitale et de la communication d'une marque cosmétique.",
-    services: ["Community Management", "Content Strategy", "Communication digitale"],
+      "Gestion sur un an de la présence digitale d'une entreprise camerounaise de cosmétiques : contenu produit, formation et animation de communauté.",
+    services: ["Social Media Management", "Community Management", "Création de contenu"],
     duration: "1 an",
     image: null,
     imageAlt: "Cadafi Cosmedik — communication digitale par GLN Digital",
@@ -159,13 +206,15 @@ export const portfolioProjects: PortfolioProject[] = [
     gallery: [],
     video: null,
     featured: false,
+    stats: [{ label: "Abonnés", value: "22 000", period: "Total actuel" }],
   },
   {
     id: "gln-digital",
     slug: "gln-digital",
     title: "GLN DIGITAL",
     category: "creation-web",
-    description: "Conception et développement de l'écosystème digital de GLN DIGITAL.",
+    description:
+      "Conception et développement continu de l'écosystème digital de GLN DIGITAL : plateforme web, identité de marque et présence sur les réseaux sociaux.",
     services: ["Web", "Marketing digital", "Plateforme digitale"],
     duration: "Projet en évolution",
     image: null,
