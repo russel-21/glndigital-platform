@@ -12,11 +12,11 @@
 //
 // Étape 2 (2026-09-06): descriptions/services updated to real, verified
 // copy, and a `stats` field was added per project where a real, verified
-// number was provided. `stats` is intentionally NOT read anywhere in
-// Portfolio.tsx yet — see the note on PortfolioProjectStat below and the
-// summary sent after this step for why (pending sign-off on how the
-// measurement-period wording should read before it goes on the public
-// page).
+// number was provided. Russel confirmed the "Total actuel" period wording
+// for snapshot counts (see PortfolioProjectStat below) the same day.
+// `stats` is still intentionally NOT read anywhere in Portfolio.tsx —
+// wording is settled, but displaying it on the public cards is its own
+// step, not yet requested.
 
 export type PortfolioCategory =
   | "social-media"
@@ -54,11 +54,11 @@ export const PORTFOLIO_CATEGORY_ORDER: PortfolioCategory[] = [
  * measurement window (a snapshot total vs. a change "over the last 28
  * days" mean very different things, and mission Étape 2 was explicit that
  * a period-scoped stat must never read like a lifetime mission total).
- * Proposed values here use "Total actuel" for a plain snapshot count
- * (followers as of now) rather than reusing the "28 derniers jours"
- * wording that only actually applies to the two change/growth metrics —
- * see the summary sent after this step for why, flagged for validation
- * before this field is ever rendered.
+ * Values here use "Total actuel" for a plain snapshot count (followers as
+ * of now) rather than reusing the "28 derniers jours" wording that only
+ * actually applies to the two change/growth metrics — confirmed with
+ * Russel (2026-09-06), not just a proposal anymore. Still not rendered
+ * anywhere; that's a separate, not-yet-requested step.
  */
 export interface PortfolioProjectStat {
   /** What the number measures, e.g. "Abonnés", "Interactions". */
