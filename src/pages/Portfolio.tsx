@@ -108,7 +108,7 @@ const ProjectCard = ({ project, index }: { project: PortfolioProject; index: num
         <img
           src={project.image}
           alt={project.imageAlt}
-          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          className={`w-full h-full object-cover ${project.imagePosition ?? ""} transition-transform duration-300 group-hover:scale-105`}
           loading="lazy"
         />
       ) : (
